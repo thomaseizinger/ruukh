@@ -1,11 +1,11 @@
-use VNode;
+use KeyedVNodes;
 
 /// The representation of an element in virtual DOM.
 #[derive(Debug)]
 pub struct VElement {
     tag: String,
     attributes: Vec<Attribute>,
-    child: Option<Box<VNode>>
+    child: Option<Box<KeyedVNodes>>
 }
 
 #[derive(Debug)]
