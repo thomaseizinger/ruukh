@@ -62,11 +62,11 @@ trait ComponentManager: Downcast {
     fn render(&self) -> KeyedVNodes;
 }
 
-type TryCast<T> = fn(Box<ComponentManager>) -> Result<T, Box<ComponentManager>>;
+type TryCastIntoWrapper<T> = fn(Box<ComponentManager>) -> Result<ComponentWrapper<T>, Box<ComponentManager>>;
 
 struct ComponentWrapper<T: Lifecycle + 'static> {
     component: T,
-    try_cast: TryCast<T>,
+    try_cast: TryCastIntoWrapper<T>,
 }
 
 impl<T: Lifecycle + 'static> ComponentWrapper<T> {
@@ -77,7 +77,7 @@ impl<T: Lifecycle + 'static> ComponentWrapper<T> {
                 let mut same_type = false;
                 {
                     let any = &other as &Any;
-                    if any.is::<T>() {
+                    if any.is::<ComponentWrapper<T>>() {
                         same_type = true;
                     }
                 }
@@ -85,7 +85,7 @@ impl<T: Lifecycle + 'static> ComponentWrapper<T> {
                 if same_type {
                     let boxed = other.into_any();
                     Ok(*boxed
-                        .downcast::<T>()
+                        .downcast::<ComponentWrapper<T>>()
                         .expect("Impossible! The type cannot be different."))
                 } else {
                     Err(other)
@@ -105,12 +105,12 @@ impl<T: Lifecycle + Debug + 'static> ComponentManager for ComponentWrapper<T> {
             // The components are same
             Ok(other) => {
                 // Use the state/status from the older component
-                self.component.reuse_status(other.status());
+                self.component.reuse_status(other.component.status());
                 // Update the state values to the newer updated one
                 self.component.refresh_state();
 
                 // Invoke the lifecycle event of updated.
-                self.component.updated(other.props());
+                self.component.updated(other.component.props());
                 None
             }
             Err(manager) => Some(manager),
