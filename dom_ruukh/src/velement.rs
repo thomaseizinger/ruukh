@@ -13,7 +13,7 @@ pub struct VElement {
 }
 
 #[derive(Debug)]
-pub struct Attributes(Vec<Attribute>);
+pub struct Attributes(pub Vec<Attribute>);
 
 /// The key, value pair of the attributes on an element.
 #[derive(Debug)]
