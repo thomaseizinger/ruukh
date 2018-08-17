@@ -1,4 +1,4 @@
-use KeyedVNodes;
+use {KeyedVNodes, VNode};
 
 /// The representation of an element in virtual DOM.
 #[derive(Debug)]
@@ -18,4 +18,10 @@ pub struct Attribute {
     pub key: String,
     /// The value pair of the attribute key
     pub value: String,
+}
+
+impl From<VElement> for VNode {
+    fn from(el: VElement) -> VNode {
+        VNode::Element(el)
+    }
 }

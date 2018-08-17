@@ -1,7 +1,7 @@
 use component::{ComponentStatus, Lifecycle};
 use std::any::Any;
 use std::fmt::{self, Debug, Formatter};
-use KeyedVNodes;
+use {KeyedVNodes, VNode};
 
 /// The representation of a component in a Virtual DOM.
 pub struct VComponent {
@@ -28,6 +28,12 @@ impl Debug for VComponent {
             self.manager.debug(),
             self.cached_render
         )
+    }
+}
+
+impl From<VComponent> for VNode {
+    fn from(comp: VComponent) -> VNode {
+        VNode::Component(comp)
     }
 }
 
