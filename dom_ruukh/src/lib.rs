@@ -1,6 +1,7 @@
 //! The Virtual DOM library which backs the `ruukh` frontend framework.
 #![deny(missing_docs)]
 
+use std::fmt::{self, Display, Formatter};
 use vcomponent::VComponent;
 use velement::VElement;
 use vlist::VList;
@@ -17,7 +18,6 @@ mod vtext;
 pub struct KeyedVNodes {
     /// A uniquely identifying key in the list of vnodes.
     pub key: Option<Key>,
-
     /// A virtual node
     pub node: VNode,
 }
@@ -57,4 +57,21 @@ pub enum Key {
     U64(u64),
     /// An `String` key
     String(String),
+}
+
+impl Display for KeyedVNodes {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{}", self.node)
+    }
+}
+
+impl Display for VNode {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self {
+            VNode::Text(inner) => write!(f, "{}", inner),
+            VNode::Element(inner) => write!(f, "{}", inner),
+            VNode::List(inner) => write!(f, "{}", inner),
+            VNode::Component(inner) => write!(f, "{}", inner),
+        }
+    }
 }

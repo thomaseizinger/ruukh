@@ -1,6 +1,6 @@
 use component::{ComponentStatus, Lifecycle};
 use std::any::Any;
-use std::fmt::{self, Debug, Formatter};
+use std::fmt::{self, Debug, Display, Formatter};
 use {KeyedVNodes, VNode};
 
 /// The representation of a component in a Virtual DOM.
@@ -27,6 +27,18 @@ impl Debug for VComponent {
             "VComponent {{ component: {}, cached_render: {:?} }}",
             self.manager.debug(),
             self.cached_render
+        )
+    }
+}
+
+impl Display for VComponent {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            self.cached_render
+                .as_ref()
+                .expect("The component should have been pre-rendered.")
         )
     }
 }
