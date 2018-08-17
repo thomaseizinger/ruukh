@@ -50,11 +50,11 @@ trait ComponentManager: Downcast {
     fn render(&self) -> KeyedVNodes;
 }
 
-type CastInto<T> = fn(Box<ComponentManager>) -> Result<T, Box<ComponentManager>>;
+type TryCast<T> = fn(Box<ComponentManager>) -> Result<T, Box<ComponentManager>>;
 
 struct ComponentWrapper<T: Lifecycle + 'static> {
     component: T,
-    try_cast: CastInto<T>,
+    try_cast: TryCast<T>,
 }
 
 impl<T: Lifecycle + 'static> ComponentWrapper<T> {
