@@ -1,6 +1,9 @@
 //! The Virtual DOM library which backs the `ruukh` frontend framework.
 #![deny(missing_docs)]
 
+#[cfg(target_arch = "wasm32")]
+extern crate wasm_bindgen;
+
 use std::fmt::{self, Display, Formatter};
 use vcomponent::VComponent;
 use velement::VElement;
@@ -12,6 +15,8 @@ mod vcomponent;
 mod velement;
 mod vlist;
 mod vtext;
+#[cfg(target_arch = "wasm32")]
+pub mod web_api;
 
 /// A keyed virtual node in a virtual DOM tree.
 #[derive(Debug)]
