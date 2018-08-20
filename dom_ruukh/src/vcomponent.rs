@@ -61,6 +61,9 @@ trait ComponentManager: Downcast {
     /// Try to merge the state of the older component with self
     fn merge(&mut self, other: Box<ComponentManager>) -> Option<Box<ComponentManager>>;
 
+    /// Check whether the component is dirtied
+    fn is_dirty(&self) -> Option<bool>;
+
     /// Generate a markup from the component
     fn render(&self) -> KeyedVNodes;
 }
@@ -137,6 +140,10 @@ impl<T: Lifecycle + Debug + 'static> ComponentManager for ComponentWrapper<T> {
             }
             Err(manager) => Some(manager),
         }
+    }
+
+    fn is_dirty(&self) -> Option<bool> {
+        self.component.as_ref().map(|comp| comp.is_dirty())
     }
 
     fn render(&self) -> KeyedVNodes {
