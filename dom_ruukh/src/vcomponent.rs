@@ -65,7 +65,7 @@ trait ComponentManager: Downcast {
     fn is_dirty(&self) -> Option<bool>;
 
     /// Generate a markup from the component
-    fn render(&self) -> KeyedVNodes;
+    fn render(&self) -> Option<KeyedVNodes>;
 }
 
 struct ComponentWrapper<T: Lifecycle + 'static> {
@@ -146,11 +146,8 @@ impl<T: Lifecycle + Debug + 'static> ComponentManager for ComponentWrapper<T> {
         self.component.as_ref().map(|comp| comp.is_dirty())
     }
 
-    fn render(&self) -> KeyedVNodes {
-        self.component
-            .as_ref()
-            .expect("Initialize the component before rendering.")
-            .render()
+    fn render(&self) -> Option<KeyedVNodes> {
+        self.component.as_ref().map(|comp| comp.render())
     }
 }
 
