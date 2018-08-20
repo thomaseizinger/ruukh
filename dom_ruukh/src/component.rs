@@ -29,7 +29,7 @@ pub trait Component: Render {
     fn refresh_state(&mut self);
 
     /// To find whether the component status has been altered
-    fn is_dirty(&mut self) -> bool;
+    fn is_dirty(&self) -> bool;
 }
 
 // Stores the metadata related to the state along with the state
