@@ -80,3 +80,21 @@ impl Display for VNode {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::KeyedVNodes;
+    use vtext::VText;
+
+    #[test]
+    fn should_display_vnode() {
+        let node = KeyedVNodes {
+            key: None,
+            node: VText {
+                content: "Hello World!".to_string(),
+                is_comment: false,
+            }.into(),
+        };
+        assert_eq!(format!("{}", node), "Hello World!");
+    }
+}
