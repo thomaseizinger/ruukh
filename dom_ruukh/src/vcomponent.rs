@@ -64,6 +64,9 @@ trait ComponentManager: Downcast {
     /// Check whether the component is dirtied
     fn is_dirty(&self) -> Option<bool>;
 
+    /// Mark the component as clean after updation
+    fn mark_clean(&mut self);
+
     /// Generate a markup from the component
     fn render(&self) -> Option<KeyedVNodes>;
 }
@@ -144,6 +147,10 @@ impl<T: Lifecycle + Debug + 'static> ComponentManager for ComponentWrapper<T> {
 
     fn is_dirty(&self) -> Option<bool> {
         self.component.as_ref().map(|comp| comp.is_dirty())
+    }
+
+    fn mark_clean(&mut self) {
+        self.component.as_mut().map(|comp| comp.mark_clean());
     }
 
     fn render(&self) -> Option<KeyedVNodes> {

@@ -30,6 +30,9 @@ pub trait Component: Render {
 
     /// To find whether the component status has been altered
     fn is_dirty(&self) -> bool;
+
+    /// Mark the component as clean after updation
+    fn mark_clean(&mut self);
 }
 
 // Stores the metadata related to the state along with the state
