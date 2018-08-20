@@ -55,6 +55,9 @@ trait ComponentManager: Downcast {
     /// The debug implementation of the component.
     fn debug(&self) -> String;
 
+    /// Initialization of the component for the first time.
+    fn init(&mut self);
+
     /// Try to merge the state of the older component with self
     fn merge(&mut self, other: Box<ComponentManager>) -> Option<Box<ComponentManager>>;
 
@@ -62,35 +65,37 @@ trait ComponentManager: Downcast {
     fn render(&self) -> KeyedVNodes;
 }
 
-type TryCastIntoWrapper<T> = fn(Box<ComponentManager>) -> Result<ComponentWrapper<T>, Box<ComponentManager>>;
-
 struct ComponentWrapper<T: Lifecycle + 'static> {
-    component: T,
-    try_cast: TryCastIntoWrapper<T>,
+    component: Option<T>,
+    props: Option<T::Props>,
 }
 
 impl<T: Lifecycle + 'static> ComponentWrapper<T> {
     fn new(props: T::Props) -> ComponentWrapper<T> {
         ComponentWrapper {
-            component: T::init(props, ComponentStatus::new(T::State::default())),
-            try_cast: |other| {
-                let mut same_type = false;
-                {
-                    let any = &other as &Any;
-                    if any.is::<ComponentWrapper<T>>() {
-                        same_type = true;
-                    }
-                }
+            component: None,
+            props: Some(props),
+        }
+    }
 
-                if same_type {
-                    let boxed = other.into_any();
-                    Ok(*boxed
-                        .downcast::<ComponentWrapper<T>>()
-                        .expect("Impossible! The type cannot be different."))
-                } else {
-                    Err(other)
-                }
-            },
+    fn try_cast(
+        other: Box<ComponentManager>,
+    ) -> Result<ComponentWrapper<T>, Box<ComponentManager>> {
+        let mut same_type = false;
+        {
+            let any = &other as &Any;
+            if any.is::<ComponentWrapper<T>>() {
+                same_type = true;
+            }
+        }
+
+        if same_type {
+            let boxed = other.into_any();
+            Ok(*boxed
+                .downcast::<ComponentWrapper<T>>()
+                .expect("Impossible! The type cannot be different."))
+        } else {
+            Err(other)
         }
     }
 }
@@ -100,17 +105,34 @@ impl<T: Lifecycle + Debug + 'static> ComponentManager for ComponentWrapper<T> {
         format!("{:?}", self.component)
     }
 
+    fn init(&mut self) {
+        let props = self
+            .props
+            .take()
+            .expect("A component can be initialized only once.");
+        let comp = T::init(props, ComponentStatus::new(T::State::default()));
+        comp.created();
+        self.component = Some(comp);
+    }
+
     fn merge(&mut self, other: Box<ComponentManager>) -> Option<Box<ComponentManager>> {
-        match (self.try_cast)(other) {
+        match Self::try_cast(other) {
             // The components are same
             Ok(other) => {
-                // Use the state/status from the older component
-                self.component.reuse_status(other.component.status());
-                // Update the state values to the newer updated one
-                self.component.refresh_state();
+                let props = self
+                    .props
+                    .take()
+                    .expect("Older components cannot be merged");
 
+                let old_comp = other
+                    .component
+                    .expect("Older components must be initialized before they can be merged");
+
+                // Use the state/status from the older component
+                let new_comp = T::init(props, old_comp.status());
                 // Invoke the lifecycle event of updated.
-                self.component.updated(other.component.props());
+                new_comp.updated(old_comp.props());
+                self.component = Some(new_comp);
                 None
             }
             Err(manager) => Some(manager),
@@ -118,7 +140,10 @@ impl<T: Lifecycle + Debug + 'static> ComponentManager for ComponentWrapper<T> {
     }
 
     fn render(&self) -> KeyedVNodes {
-        self.component.render()
+        self.component
+            .as_ref()
+            .expect("Initialize the component before rendering.")
+            .render()
     }
 }
 

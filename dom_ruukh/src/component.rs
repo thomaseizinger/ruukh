@@ -25,12 +25,6 @@ pub trait Component: Render {
     /// Clone the status of the component
     fn status(&self) -> ComponentStatus<Self::State>;
 
-    /// Reuse the status of an older component without losing its state
-    ///
-    /// Note: After reusing the status, make sure to invoke `refresh_state()`
-    /// to update the read only state.
-    fn reuse_status(&mut self, status: ComponentStatus<Self::State>);
-
     /// Update the read only state from the mutated status
     fn refresh_state(&mut self);
 
