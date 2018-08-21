@@ -10,6 +10,15 @@ use velement::VElement;
 use vlist::VList;
 use vtext::VText;
 
+#[macro_export]
+macro_rules! if_wasm {
+    ($($i:item)*) => {
+        $(
+            #[cfg(target_arch = "wasm32")] $i
+        )*
+    };
+}
+
 mod component;
 mod vcomponent;
 mod velement;
