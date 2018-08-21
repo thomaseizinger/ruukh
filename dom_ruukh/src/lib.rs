@@ -33,7 +33,7 @@ pub struct KeyedVNodes {
     /// A uniquely identifying key in the list of vnodes.
     pub key: Option<Key>,
     /// A virtual node
-    pub node: VNode,
+    pub vnode: VNode,
 }
 
 /// A virtual node in a virtual DOM tree.
@@ -75,7 +75,7 @@ pub enum Key {
 
 impl Display for KeyedVNodes {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "{}", self.node)
+        write!(f, "{}", self.vnode)
     }
 }
 
@@ -99,7 +99,7 @@ mod test {
     fn should_display_vnode() {
         let node = KeyedVNodes {
             key: None,
-            node: VText {
+            vnode: VText {
                 content: "Hello World!".to_string(),
                 is_comment: false,
             }.into(),

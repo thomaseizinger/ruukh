@@ -115,7 +115,7 @@ mod test {
             attributes: Attributes(vec![]),
             child: Some(Box::new(KeyedVNodes {
                 key: None,
-                node: VText {
+                vnode: VText {
                     content: "Click".to_string(),
                     is_comment: false,
                 }.into(),

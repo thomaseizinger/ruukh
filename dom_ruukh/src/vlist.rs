@@ -32,14 +32,14 @@ mod test {
         let list = VList(vec![
             KeyedVNodes {
                 key: None,
-                node: VText {
+                vnode: VText {
                     content: "First of the node".to_string(),
                     is_comment: false,
                 }.into(),
             },
             KeyedVNodes {
                 key: None,
-                node: VElement {
+                vnode: VElement {
                     tag: "input".to_string(),
                     attributes: Attributes(vec![]),
                     child: None,
