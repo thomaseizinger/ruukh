@@ -6,6 +6,7 @@ use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 extern "C" {
+    #[derive(Debug)]
     pub type HtmlDocument;
     #[wasm_bindgen(js_name = document)]
     pub static html_document: HtmlDocument;
@@ -26,7 +27,7 @@ extern "C" {
     pub fn body(this: &HtmlDocument) -> Option<Element>;
 
     #[wasm_bindgen(extends = Node)]
-    #[derive(Clone)]
+    #[derive(Debug, Clone)]
     pub type Element;
 
     #[wasm_bindgen(method, catch, js_name = setAttribute)]
@@ -39,14 +40,14 @@ extern "C" {
     pub fn remove_attribute(this: &Element, name: &str) -> Result<(), JsValue>;
 
     #[wasm_bindgen(extends = Node)]
-    #[derive(Clone)]
+    #[derive(Debug, Clone)]
     pub type Text;
 
     #[wasm_bindgen(extends = Node)]
-    #[derive(Clone)]
+    #[derive(Debug, Clone)]
     pub type Comment;
 
-    #[derive(Clone)]
+    #[derive(Debug, Clone)]
     pub type Node;
 
     #[wasm_bindgen(method, catch, js_name = insertBefore)]
