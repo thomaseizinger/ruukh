@@ -106,3 +106,16 @@ fn should_set_text_content() {
     txt.set_text_content("Hi World!");
     assert_eq!(txt.text_content(), "Hi World!");
 }
+
+#[wasm_bindgen_test]
+fn should_get_inner_html() {
+    let div = html_document
+        .create_element("div")
+        .unwrap();
+    let span = html_document
+        .create_element("span")
+        .unwrap();
+    let div_node: &Node = div.as_ref();
+    div_node.append_child(span.into()).unwrap();
+    assert_eq!(div.inner_html(), "<span></span>");
+}

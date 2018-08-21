@@ -39,6 +39,9 @@ extern "C" {
     #[wasm_bindgen(method, catch, js_name = removeAttribute)]
     pub fn remove_attribute(this: &Element, name: &str) -> Result<(), JsValue>;
 
+    #[wasm_bindgen(method, getter = innerHTML)]
+    pub fn inner_html(this: &Element) -> String;
+
     #[wasm_bindgen(extends = Node)]
     #[derive(Debug, Clone)]
     pub type Text;
