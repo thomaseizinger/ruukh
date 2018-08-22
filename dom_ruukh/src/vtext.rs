@@ -145,11 +145,7 @@ pub mod wasm_test {
 
     #[wasm_bindgen_test]
     fn should_patch_container_with_new_text() {
-        let mut vtext = VText {
-            content: "Hello World! It is nice to render.".to_string(),
-            is_comment: false,
-            node: None,
-        };
+        let mut vtext = VText::text("Hello World! It is nice to render.");
         let div = html_document.create_element("div").unwrap();
         vtext
             .patch(None, div.clone().into(), None)
@@ -160,11 +156,7 @@ pub mod wasm_test {
 
     #[wasm_bindgen_test]
     fn should_patch_container_with_text_update() {
-        let mut vtext = VText {
-            content: "Hello World! It is nice to render.".to_string(),
-            is_comment: false,
-            node: None,
-        };
+        let mut vtext = VText::text("Hello World! It is nice to render.");
         let div = html_document.create_element("div").unwrap();
         vtext
             .patch(None, div.clone().into(), None)
@@ -172,11 +164,7 @@ pub mod wasm_test {
 
         assert_eq!(div.inner_html(), "Hello World! It is nice to render.");
 
-        let mut updated = VText {
-            content: "How you doing?".to_string(),
-            is_comment: false,
-            node: None,
-        };
+        let mut updated = VText::text("How you doing?");
         updated
             .patch(Some(vtext), div.clone().into(), None)
             .expect("To patch div");
@@ -186,11 +174,7 @@ pub mod wasm_test {
 
     #[wasm_bindgen_test]
     fn should_patch_container_with_new_comment() {
-        let mut comment = VText {
-            content: "This is a comment".to_string(),
-            is_comment: true,
-            node: None,
-        };
+        let mut comment = VText::comment("This is a comment");
         let div = html_document.create_element("div").unwrap();
         comment
             .patch(None, div.clone().into(), None)
@@ -201,11 +185,7 @@ pub mod wasm_test {
 
     #[wasm_bindgen_test]
     fn should_patch_container_with_new_text_on_comment() {
-        let mut comment = VText {
-            content: "This is a comment".to_string(),
-            is_comment: true,
-            node: None,
-        };
+        let mut comment = VText::comment("This is a comment");
         let div = html_document.create_element("div").unwrap();
         comment
             .patch(None, div.clone().into(), None)
@@ -213,11 +193,7 @@ pub mod wasm_test {
 
         assert_eq!(div.inner_html(), "<!--This is a comment-->");
 
-        let mut text = VText {
-            content: "This is a text".to_string(),
-            is_comment: false,
-            node: None,
-        };
+        let mut text = VText::text("This is a text");
         text.patch(Some(comment), div.clone().into(), None)
             .expect("To patch div");
 
