@@ -121,19 +121,13 @@ mod test {
 
     #[test]
     fn should_display_text() {
-        let text = VText {
-            content: "This is a very fine day!".to_string(),
-            is_comment: false,
-        };
+        let text = VText::text("This is a very fine day!");
         assert_eq!(format!("{}", text), "This is a very fine day!");
     }
 
     #[test]
     fn should_display_comment() {
-        let comment = VText {
-            content: "Something to remind the hacky users.".to_string(),
-            is_comment: true,
-        };
+        let comment = VText::comment("Something to remind the hacky users.");
         assert_eq!(
             format!("{}", comment),
             "<!-- Something to remind the hacky users. -->"
