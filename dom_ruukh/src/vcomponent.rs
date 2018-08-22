@@ -55,15 +55,15 @@ impl DOMPatch for VComponent {
     fn render_walk(&mut self, parent: Self::Node, next: Option<Self::Node>) -> Result<(), JsValue> {
         if !self.manager.is_init() {
             self.manager.init();
-            let mut rendered = self.manager.render().unwrap();
+            let mut rendered = self.manager.render();
             rendered.patch(None, parent, next)?;
             self.cached_render = Some(Box::new(rendered));
             self.manager.mounted();
         } else {
-            if self.manager.is_dirty().unwrap() {
+            if self.manager.is_dirty() {
                 let cached = self.cached_render.take().unwrap();
                 self.manager.refresh_state();
-                let mut new_render = self.manager.render().unwrap();
+                let mut new_render = self.manager.render();
                 new_render.patch(Some(*cached), parent, next)?;
                 self.cached_render = Some(Box::new(new_render));
             } else {
@@ -128,7 +128,7 @@ trait ComponentManager: Downcast {
     fn merge(&mut self, other: Box<ComponentManager>) -> Option<Box<ComponentManager>>;
 
     /// Check whether the component is dirtied
-    fn is_dirty(&self) -> Option<bool>;
+    fn is_dirty(&self) -> bool;
 
     /// Mark the component as clean after updation
     fn mark_clean(&mut self);
@@ -143,7 +143,7 @@ trait ComponentManager: Downcast {
     fn destroyed(&self);
 
     /// Generate a markup from the component
-    fn render(&self) -> Option<KeyedVNodes>;
+    fn render(&self) -> KeyedVNodes;
 }
 
 struct ComponentWrapper<T: Lifecycle + 'static> {
@@ -179,6 +179,29 @@ impl<T: Lifecycle + 'static> ComponentWrapper<T> {
             Err(other)
         }
     }
+
+    fn component(self) -> T {
+        self.component
+            .expect("The component must be initialized first.")
+    }
+
+    fn component_as_ref(&self) -> &T {
+        self.component
+            .as_ref()
+            .expect("The component must be initialized first.")
+    }
+
+    fn component_as_mut(&mut self) -> &mut T {
+        self.component
+            .as_mut()
+            .expect("The component must be initialized first.")
+    }
+
+    fn take_props(&mut self) -> T::Props {
+        self.props
+            .take()
+            .expect("The component seems to be initialized already.")
+    }
 }
 
 impl<T: Lifecycle + Debug + 'static> ComponentManager for ComponentWrapper<T> {
@@ -191,11 +214,7 @@ impl<T: Lifecycle + Debug + 'static> ComponentManager for ComponentWrapper<T> {
     }
 
     fn init(&mut self) {
-        let props = self
-            .props
-            .take()
-            .expect("A component can be initialized only once.");
-        let comp = T::init(props, ComponentStatus::new(T::State::default()));
+        let comp = T::init(self.take_props(), ComponentStatus::new(T::State::default()));
         comp.created();
         self.component = Some(comp);
     }
@@ -204,15 +223,8 @@ impl<T: Lifecycle + Debug + 'static> ComponentManager for ComponentWrapper<T> {
         match Self::try_cast(other) {
             // The components are same
             Ok(other) => {
-                let props = self
-                    .props
-                    .take()
-                    .expect("Older components cannot be merged");
-
-                let old_comp = other
-                    .component
-                    .expect("Older components must be initialized before they can be merged");
-
+                let props = self.take_props();
+                let old_comp = other.component();
                 // Use the state/status from the older component
                 let new_comp = T::init(props, old_comp.status());
                 // Invoke the lifecycle event of updated.
@@ -224,28 +236,28 @@ impl<T: Lifecycle + Debug + 'static> ComponentManager for ComponentWrapper<T> {
         }
     }
 
-    fn is_dirty(&self) -> Option<bool> {
-        self.component.as_ref().map(|comp| comp.is_dirty())
+    fn is_dirty(&self) -> bool {
+        self.component_as_ref().is_dirty()
     }
 
     fn mark_clean(&mut self) {
-        self.component.as_mut().map(|comp| comp.mark_clean());
+        self.component_as_mut().mark_clean()
     }
 
     fn refresh_state(&mut self) {
-        self.component.as_mut().map(|comp| comp.refresh_state());
+        self.component_as_mut().refresh_state()
     }
 
     fn mounted(&self) {
-        self.component.as_ref().map(|comp| comp.mounted());
+        self.component_as_ref().mounted()
     }
 
     fn destroyed(&self) {
-        self.component.as_ref().map(|comp| comp.destroyed());
+        self.component_as_ref().destroyed()
     }
 
-    fn render(&self) -> Option<KeyedVNodes> {
-        self.component.as_ref().map(|comp| comp.render())
+    fn render(&self) -> KeyedVNodes {
+        self.component_as_ref().render()
     }
 }
 
