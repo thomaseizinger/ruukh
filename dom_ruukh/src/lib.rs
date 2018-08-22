@@ -49,30 +49,6 @@ pub enum VNode {
     Component(VComponent),
 }
 
-/// Keys to identify the VNode in Virtual DOM.
-/// Only the basic types are supported.
-#[derive(Debug)]
-pub enum Key {
-    /// An `i8` key
-    I8(i8),
-    /// An `i16` key
-    I16(i16),
-    /// An `i32` key
-    I32(i32),
-    /// An `i64` key
-    I64(i64),
-    /// An `u8` key
-    U8(u8),
-    /// An `u16` key
-    U16(u16),
-    /// An `u32` key
-    U32(u32),
-    /// An `u64` key
-    U64(u64),
-    /// An `String` key
-    String(String),
-}
-
 impl Display for KeyedVNodes {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "{}", self.vnode)
