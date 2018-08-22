@@ -6,7 +6,7 @@ extern crate wasm_bindgen;
 extern crate wasm_bindgen_test;
 
 use dom::DOMPatch;
-use key::Key;
+use std::borrow::Cow;
 use std::fmt::{self, Display, Formatter};
 use vcomponent::VComponent;
 use velement::VElement;
@@ -22,7 +22,6 @@ wasm_bindgen_test_configure!(run_in_browser);
 
 mod component;
 mod dom;
-mod key;
 pub mod vcomponent;
 pub mod velement;
 pub mod vlist;
@@ -32,12 +31,11 @@ pub mod web_api;
 #[allow(missing_docs)]
 pub mod prelude {
     pub use component::{Component, ComponentStatus, Lifecycle, Render};
-    pub use key::Key;
     pub use vcomponent::VComponent;
     pub use velement::{Attribute, VElement};
     pub use vlist::VList;
     pub use vtext::VText;
-    pub use {KeyedVNodes, VNode};
+    pub use {Key, KeyedVNodes, VNode};
 }
 
 /// A keyed virtual node in a virtual DOM tree.
@@ -186,6 +184,60 @@ impl DOMPatch for VNode {
             VNode::List(li) => li.node(),
             VNode::Component(comp) => comp.node(),
         }
+    }
+}
+
+/// Keys to identify a VNode in VDOM.
+/// Only the basic types are supported.
+#[derive(Debug, Eq, PartialEq)]
+pub enum Key {
+    /// An `i64` key
+    I64(i64),
+    /// An `u64` key
+    U64(u64),
+    /// A `String` key
+    String(String),
+}
+
+macro_rules! convert {
+    ([$($f:ty),*] to I64) => {
+        $(
+            impl From<$f> for Key {
+                fn from(num: $f) -> Key {
+                    Key::I64(num as i64)
+                }
+            }
+        )*
+    };
+    ([$($f:ty),*] to U64) => {
+        $(
+            impl From<$f> for Key {
+                fn from(num: $f) -> Key {
+                    Key::U64(num as u64)
+                }
+            }
+        )*
+    };
+}
+
+convert!([i8, i16, i32, i64] to I64);
+convert!([u8, u16, u32, u64] to U64);
+
+impl<'a> From<&'a str> for Key {
+    fn from(string: &'a str) -> Key {
+        Key::String(string.to_string())
+    }
+}
+
+impl<'a> From<Cow<'a, str>> for Key {
+    fn from(string: Cow<'a, str>) -> Key {
+        Key::String(string.to_string())
+    }
+}
+
+impl From<String> for Key {
+    fn from(string: String) -> Key {
+        Key::String(string)
     }
 }
 
