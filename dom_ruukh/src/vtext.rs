@@ -45,7 +45,7 @@ impl From<VText> for VNode {
 impl Display for VText {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         if self.is_comment {
-            write!(f, "<!-- {} -->", self.content)
+            write!(f, "<!--{}-->", self.content)
         } else {
             write!(f, "{}", self.content)
         }
@@ -130,7 +130,7 @@ mod test {
         let comment = VText::comment("Something to remind the hacky users.");
         assert_eq!(
             format!("{}", comment),
-            "<!-- Something to remind the hacky users. -->"
+            "<!--Something to remind the hacky users.-->"
         );
     }
 }
