@@ -32,6 +32,7 @@ pub mod web_api;
 #[allow(missing_docs)]
 pub mod prelude {
     pub use component::{Component, ComponentStatus, Lifecycle, Render};
+    pub use key::Key;
     pub use vcomponent::VComponent;
     pub use velement::{Attribute, VElement};
     pub use vlist::VList;
@@ -50,9 +51,9 @@ pub struct KeyedVNodes {
 
 impl KeyedVNodes {
     /// Constructor for a keyed VNode
-    pub fn keyed<T: Into<VNode>>(key: Key, vnode: T) -> KeyedVNodes {
+    pub fn keyed<K: Into<Key>, T: Into<VNode>>(key: K, vnode: T) -> KeyedVNodes {
         KeyedVNodes {
-            key: Some(key),
+            key: Some(key.into()),
             vnode: vnode.into(),
         }
     }
