@@ -1,11 +1,9 @@
 //! Representation of text/comment in virtual dom tree.
 
 use std::fmt::{self, Display, Formatter};
+use wasm_bindgen::prelude::JsValue;
+use web_api::*;
 use VNode;
-if_wasm! {
-    use web_api::*;
-    use wasm_bindgen::prelude::JsValue;
-}
 
 /// The representation of text/comment in virtual dom tree.
 #[derive(Debug)]
@@ -15,7 +13,6 @@ pub struct VText {
     /// Whether the content is a comment
     is_comment: bool,
     /// Text/Comment reference to the DOM
-    #[cfg(target_arch = "wasm32")]
     node: Option<Node>,
 }
 
@@ -25,7 +22,6 @@ impl VText {
         VText {
             content: content.into(),
             is_comment: false,
-            #[cfg(target_arch = "wasm32")]
             node: None,
         }
     }
@@ -35,7 +31,6 @@ impl VText {
         VText {
             content: content.into(),
             is_comment: true,
-            #[cfg(target_arch = "wasm32")]
             node: None,
         }
     }
@@ -57,7 +52,6 @@ impl Display for VText {
     }
 }
 
-#[cfg(target_arch = "wasm32")]
 impl VText {
     fn patch_new(&mut self, parent: Node, next: Option<Node>) -> Result<(), JsValue> {
         let node: Node = if self.is_comment {
@@ -76,7 +70,6 @@ impl VText {
     }
 }
 
-#[cfg(target_arch = "wasm32")]
 impl ::dom::DOMPatch for VText {
     type Node = Node;
 
@@ -123,7 +116,6 @@ impl ::dom::DOMPatch for VText {
 }
 
 #[cfg(test)]
-#[cfg(not(target_arch = "wasm32"))]
 mod test {
     use super::VText;
 
@@ -150,7 +142,7 @@ mod test {
 }
 
 #[cfg(test)]
-#[cfg(target_arch = "wasm32")]
+
 pub mod wasm_test {
     use dom::*;
     use prelude::*;

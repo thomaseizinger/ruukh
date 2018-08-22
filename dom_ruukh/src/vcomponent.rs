@@ -1,14 +1,12 @@
 //! Component representation in a VDOM.
 
 use component::{ComponentStatus, Lifecycle};
+use dom::DOMPatch;
 use std::any::Any;
 use std::fmt::{self, Debug, Display, Formatter};
+use wasm_bindgen::prelude::JsValue;
+use web_api::*;
 use {KeyedVNodes, VNode};
-if_wasm! {
-    use wasm_bindgen::prelude::JsValue;
-    use dom::DOMPatch;
-    use web_api::*;
-}
 
 /// The representation of a component in a Virtual DOM.
 pub struct VComponent {
@@ -51,7 +49,6 @@ impl Display for VComponent {
     }
 }
 
-#[cfg(target_arch = "wasm32")]
 impl DOMPatch for VComponent {
     type Node = Node;
 
@@ -263,7 +260,6 @@ impl<T: Any> Downcast for T {
 }
 
 #[cfg(test)]
-#[cfg(target_arch = "wasm32")]
 pub mod wasm_test {
     use dom::*;
     use prelude::*;

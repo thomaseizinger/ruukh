@@ -1,12 +1,10 @@
 //! Element representation in a VDOM.
 
+use dom::DOMPatch;
 use std::fmt::{self, Display, Formatter};
+use wasm_bindgen::prelude::JsValue;
+use web_api::*;
 use {KeyedVNodes, VNode};
-if_wasm! {
-    use web_api::*;
-    use wasm_bindgen::prelude::JsValue;
-    use dom::DOMPatch;
-}
 
 /// The representation of an element in virtual DOM.
 #[derive(Debug)]
@@ -18,7 +16,6 @@ pub struct VElement {
     /// The child node of the given element
     child: Option<Box<KeyedVNodes>>,
     /// Element reference to the DOM
-    #[cfg(target_arch = "wasm32")]
     node: Option<Element>,
 }
 
@@ -33,7 +30,6 @@ impl VElement {
             tag: tag.into(),
             attributes: Attributes(attributes),
             child: Some(Box::new(child)),
-            #[cfg(target_arch = "wasm32")]
             node: None,
         }
     }
@@ -44,7 +40,7 @@ impl VElement {
             tag: tag.into(),
             attributes: Attributes(attributes),
             child: None,
-            #[cfg(target_arch = "wasm32")]
+
             node: None,
         }
     }
@@ -79,7 +75,6 @@ impl From<VElement> for VNode {
     }
 }
 
-#[cfg(target_arch = "wasm32")]
 impl VElement {
     fn patch_new(&mut self, parent: Node, next: Option<Node>) -> Result<(), JsValue> {
         let el = html_document.create_element(&self.tag)?;
@@ -98,7 +93,6 @@ impl VElement {
     }
 }
 
-#[cfg(target_arch = "wasm32")]
 impl DOMPatch for VElement {
     type Node = Node;
 
@@ -206,7 +200,6 @@ impl Display for Attributes {
     }
 }
 
-#[cfg(target_arch = "wasm32")]
 impl DOMPatch for Attributes {
     type Node = Element;
 
@@ -250,7 +243,6 @@ impl Display for Attribute {
     }
 }
 
-#[cfg(target_arch = "wasm32")]
 impl DOMPatch for Attribute {
     type Node = Element;
 
@@ -279,7 +271,6 @@ impl DOMPatch for Attribute {
 }
 
 #[cfg(test)]
-#[cfg(not(target_arch = "wasm32"))]
 mod test {
     use super::*;
     use vtext::VText;
@@ -320,7 +311,7 @@ mod test {
 }
 
 #[cfg(test)]
-#[cfg(target_arch = "wasm32")]
+
 pub mod wasm_test {
     use dom::*;
     use prelude::*;

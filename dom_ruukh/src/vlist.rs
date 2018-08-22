@@ -1,12 +1,10 @@
 //! Representation of a list of nodes in VDOM.
 
+use dom::DOMPatch;
 use std::fmt::{self, Display, Formatter};
+use wasm_bindgen::prelude::JsValue;
+use web_api::*;
 use {KeyedVNodes, VNode};
-if_wasm! {
-    use wasm_bindgen::prelude::JsValue;
-    use web_api::*;
-    use dom::DOMPatch;
-}
 
 /// The representation of a list of vnodes in the vtree.
 #[derive(Debug)]
@@ -34,7 +32,6 @@ impl Display for VList {
     }
 }
 
-#[cfg(target_arch = "wasm32")]
 impl DOMPatch for VList {
     type Node = Node;
 
@@ -88,7 +85,6 @@ impl DOMPatch for VList {
 }
 
 #[cfg(test)]
-#[cfg(not(target_arch = "wasm32"))]
 mod test {
     use super::VList;
     use velement::VElement;
@@ -106,7 +102,6 @@ mod test {
 }
 
 #[cfg(test)]
-#[cfg(target_arch = "wasm32")]
 pub mod wasm_test {
     use dom::*;
     use prelude::*;

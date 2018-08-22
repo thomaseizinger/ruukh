@@ -1,48 +1,33 @@
 //! The Virtual DOM library which backs the `ruukh` frontend framework.
 #![deny(missing_docs)]
 
-if_wasm! {
-    extern crate wasm_bindgen;
-    #[cfg(test)]
-    extern crate wasm_bindgen_test;
-}
+extern crate wasm_bindgen;
+#[cfg(test)]
+extern crate wasm_bindgen_test;
 
+use dom::DOMPatch;
 use key::Key;
 use std::fmt::{self, Display, Formatter};
 use vcomponent::VComponent;
 use velement::VElement;
 use vlist::VList;
 use vtext::VText;
-if_wasm! {
-    use web_api::*;
-    use dom::DOMPatch;
-    use wasm_bindgen::prelude::JsValue;
-    #[cfg(test)]
-    use wasm_bindgen_test::*;
+use wasm_bindgen::prelude::JsValue;
+#[cfg(test)]
+use wasm_bindgen_test::*;
+use web_api::*;
 
-    #[cfg(test)]
-    wasm_bindgen_test_configure!(run_in_browser);
-}
-
-#[macro_export]
-macro_rules! if_wasm {
-    ($($i:item)*) => {
-        $(
-            #[cfg(target_arch = "wasm32")] $i
-        )*
-    };
-}
+#[cfg(test)]
+wasm_bindgen_test_configure!(run_in_browser);
 
 mod component;
+mod dom;
 mod key;
 pub mod vcomponent;
 pub mod velement;
 pub mod vlist;
 pub mod vtext;
-if_wasm! {
-    mod dom;
-    pub mod web_api;
-}
+pub mod web_api;
 
 #[allow(missing_docs)]
 pub mod prelude {
@@ -111,7 +96,6 @@ impl Display for VNode {
     }
 }
 
-#[cfg(target_arch = "wasm32")]
 impl DOMPatch for KeyedVNodes {
     type Node = Node;
 
@@ -146,7 +130,6 @@ impl DOMPatch for KeyedVNodes {
     }
 }
 
-#[cfg(target_arch = "wasm32")]
 macro_rules! patch {
     ($variant:ident => $this:ident, $old:ident, $parent:ident, $next:ident) => {
         match $old {
@@ -160,7 +143,6 @@ macro_rules! patch {
     };
 }
 
-#[cfg(target_arch = "wasm32")]
 impl DOMPatch for VNode {
     type Node = Node;
 
@@ -207,7 +189,6 @@ impl DOMPatch for VNode {
 }
 
 #[cfg(test)]
-#[cfg(not(target_arch = "wasm32"))]
 mod test {
     use super::KeyedVNodes;
     use vtext::VText;

@@ -74,7 +74,6 @@ extern "C" {
 }
 
 #[cfg(test)]
-#[cfg(target_arch = "wasm32")]
 pub mod wasm_test {
     use super::*;
     use wasm_bindgen_test::*;
