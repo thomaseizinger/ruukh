@@ -1,3 +1,5 @@
+//! Element representation in a VDOM.
+
 use std::fmt::{self, Display, Formatter};
 use {KeyedVNodes, VNode};
 if_wasm! {
@@ -10,27 +12,65 @@ if_wasm! {
 #[derive(Debug)]
 pub struct VElement {
     /// The tag of the element. Eg: h, p, div, ...
-    pub tag: String,
+    tag: String,
     /// The attributes of the given element
-    pub attributes: Attributes,
+    attributes: Attributes,
     /// The child node of the given element
-    pub child: Option<Box<KeyedVNodes>>,
+    child: Option<Box<KeyedVNodes>>,
     /// Element reference to the DOM
     #[cfg(target_arch = "wasm32")]
-    pub node: Option<Element>,
+    node: Option<Element>,
+}
+
+impl VElement {
+    /// Constructor to create a VElement.
+    pub fn new<T: Into<String>>(
+        tag: T,
+        attributes: Vec<Attribute>,
+        child: KeyedVNodes,
+    ) -> VElement {
+        VElement {
+            tag: tag.into(),
+            attributes: Attributes(attributes),
+            child: Some(Box::new(child)),
+            #[cfg(target_arch = "wasm32")]
+            node: None,
+        }
+    }
+
+    /// Constructor to create a VElement without a child.
+    pub fn childless<T: Into<String>>(tag: T, attributes: Vec<Attribute>) -> VElement {
+        VElement {
+            tag: tag.into(),
+            attributes: Attributes(attributes),
+            child: None,
+            #[cfg(target_arch = "wasm32")]
+            node: None,
+        }
+    }
 }
 
 /// A list of attributes.
 #[derive(Debug)]
-pub struct Attributes(pub Vec<Attribute>);
+struct Attributes(Vec<Attribute>);
 
 /// The key, value pair of the attributes on an element.
 #[derive(Debug)]
 pub struct Attribute {
     /// The key of the attribute
-    pub key: String,
+    key: String,
     /// The value pair of the attribute key
-    pub value: String,
+    value: String,
+}
+
+impl Attribute {
+    /// Constructor to create an Attribute for a VElement.
+    pub fn new<K: Into<String>, V: Into<String>>(key: K, value: V) -> Attribute {
+        Attribute {
+            key: key.into(),
+            value: value.into(),
+        }
+    }
 }
 
 impl From<VElement> for VNode {
@@ -241,61 +281,37 @@ impl DOMPatch for Attribute {
 #[cfg(test)]
 #[cfg(not(target_arch = "wasm32"))]
 mod test {
-    use super::{Attribute, Attributes, VElement};
+    use super::*;
     use vtext::VText;
     use KeyedVNodes;
 
     #[test]
     fn should_display_an_attribute() {
-        let attribute = Attribute {
-            key: "class".to_string(),
-            value: "font-large bg-white".to_string(),
-        };
+        let attribute = Attribute::new("class", "font-large bg-white");
         assert_eq!(format!("{}", attribute), "class=\"font-large bg-white\"");
     }
 
     #[test]
     fn should_display_a_div() {
-        let div = VElement {
-            tag: "div".to_string(),
-            attributes: Attributes(vec![]),
-            child: None,
-        };
+        let div = VElement::childless("div", vec![]);
         assert_eq!(format!("{}", div), "<div></div>");
     }
 
     #[test]
     fn should_display_a_button_with_text() {
-        let button = VElement {
-            tag: "button".to_string(),
-            attributes: Attributes(vec![]),
-            child: Some(Box::new(KeyedVNodes {
-                key: None,
-                vnode: VText {
-                    content: "Click".to_string(),
-                    is_comment: false,
-                }.into(),
-            })),
-        };
+        let button = VElement::new("button", vec![], KeyedVNodes::unkeyed(VText::text("Click")));
         assert_eq!(format!("{}", button), "<button>Click</button>");
     }
 
     #[test]
     fn should_display_an_attributed_p() {
-        let p = VElement {
-            tag: "p".to_string(),
-            attributes: Attributes(vec![
-                Attribute {
-                    key: "class".to_string(),
-                    value: "mt-3".to_string(),
-                },
-                Attribute {
-                    key: "style".to_string(),
-                    value: "background-color: grey;".to_string(),
-                },
-            ]),
-            child: None,
-        };
+        let p = VElement::childless(
+            "p",
+            vec![
+                Attribute::new("class", "mt-3"),
+                Attribute::new("style", "background-color: grey;"),
+            ],
+        );
         assert_eq!(
             format!("{}", p),
             "<p class=\"mt-3\" style=\"background-color: grey;\"></p>"
@@ -317,12 +333,7 @@ pub mod wasm_test {
 
     #[wasm_bindgen_test]
     fn should_patch_container_with_button_element() {
-        let mut button_el = VElement {
-            tag: "button".to_string(),
-            attributes: Attributes(vec![]),
-            child: None,
-            node: None,
-        };
+        let mut button_el = VElement::childless("button", vec![]);
         let div = container();
         button_el
             .patch(None, div.clone().into(), None)
@@ -333,21 +344,13 @@ pub mod wasm_test {
 
     #[wasm_bindgen_test]
     fn should_patch_container_with_button_with_attrs() {
-        let mut button_el = VElement {
-            tag: "button".to_string(),
-            attributes: Attributes(vec![
-                Attribute {
-                    key: "disabled".to_string(),
-                    value: "true".to_string(),
-                },
-                Attribute {
-                    key: "class".to_string(),
-                    value: "bg-white txt-black".to_string(),
-                },
-            ]),
-            child: None,
-            node: None,
-        };
+        let mut button_el = VElement::childless(
+            "button",
+            vec![
+                Attribute::new("disabled", "true"),
+                Attribute::new("class", "bg-white txt-black"),
+            ],
+        );
         let div = container();
         button_el
             .patch(None, div.clone().into(), None)
@@ -361,23 +364,14 @@ pub mod wasm_test {
 
     #[wasm_bindgen_test]
     fn should_patch_container_with_anchor_nested_in_div() {
-        let mut div_el = VElement {
-            tag: "div".to_string(),
-            attributes: Attributes(vec![]),
-            child: Some(Box::new(KeyedVNodes {
-                key: None,
-                vnode: VElement {
-                    tag: "a".to_string(),
-                    attributes: Attributes(vec![Attribute {
-                        key: "href".to_string(),
-                        value: "http://www.rust-lang.org/".to_string(),
-                    }]),
-                    child: None,
-                    node: None,
-                }.into(),
-            })),
-            node: None,
-        };
+        let mut div_el = VElement::new(
+            "div",
+            vec![],
+            KeyedVNodes::unkeyed(VElement::childless(
+                "a",
+                vec![Attribute::new("href", "http://www.rust-lang.org/")],
+            )),
+        );
         let div = container();
         div_el
             .patch(None, div.clone().into(), None)
@@ -391,12 +385,7 @@ pub mod wasm_test {
 
     #[wasm_bindgen_test]
     fn should_patch_container_with_button_on_div() {
-        let mut div_el = VElement {
-            tag: "div".to_string(),
-            attributes: Attributes(vec![]),
-            child: None,
-            node: None,
-        };
+        let mut div_el = VElement::childless("div", vec![]);
         let div = container();
         div_el
             .patch(None, div.clone().into(), None)
@@ -404,12 +393,7 @@ pub mod wasm_test {
 
         assert_eq!(div.inner_html(), "<div></div>");
 
-        let mut button_el = VElement {
-            tag: "button".to_string(),
-            attributes: Attributes(vec![]),
-            child: None,
-            node: None,
-        };
+        let mut button_el = VElement::childless("button", vec![]);
         button_el
             .patch(Some(div_el), div.clone().into(), None)
             .expect("To patch div");
@@ -419,15 +403,7 @@ pub mod wasm_test {
 
     #[wasm_bindgen_test]
     fn should_patch_container_with_div_of_diff_attributes() {
-        let mut div_el = VElement {
-            tag: "div".to_string(),
-            attributes: Attributes(vec![Attribute {
-                key: "class".to_string(),
-                value: "bg-white".to_string(),
-            }]),
-            child: None,
-            node: None,
-        };
+        let mut div_el = VElement::childless("div", vec![Attribute::new("class", "bg-white")]);
         let div = container();
         div_el
             .patch(None, div.clone().into(), None)
@@ -435,21 +411,13 @@ pub mod wasm_test {
 
         assert_eq!(div.inner_html(), r#"<div class="bg-white"></div>"#);
 
-        let mut div_diff = VElement {
-            tag: "div".to_string(),
-            attributes: Attributes(vec![
-                Attribute {
-                    key: "class".to_string(),
-                    value: "bg-white txt-black".to_string(),
-                },
-                Attribute {
-                    key: "id".to_string(),
-                    value: "main".to_string(),
-                },
-            ]),
-            child: None,
-            node: None,
-        };
+        let mut div_diff = VElement::childless(
+            "div",
+            vec![
+                Attribute::new("class", "bg-white txt-black"),
+                Attribute::new("id", "main"),
+            ],
+        );
         div_diff
             .patch(Some(div_el), div.clone().into(), None)
             .expect("To patch div");
@@ -459,5 +427,4 @@ pub mod wasm_test {
             r#"<div class="bg-white txt-black" id="main"></div>"#
         )
     }
-
 }

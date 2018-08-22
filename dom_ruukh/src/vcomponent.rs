@@ -1,3 +1,5 @@
+//! Component representation in a VDOM.
+
 use component::{ComponentStatus, Lifecycle};
 use std::any::Any;
 use std::fmt::{self, Debug, Display, Formatter};
@@ -312,25 +314,11 @@ pub mod wasm_test {
 
     impl Render for Button {
         fn render(&self) -> KeyedVNodes {
-            KeyedVNodes {
-                key: None,
-                vnode: VElement {
-                    tag: "button".to_string(),
-                    attributes: Attributes(vec![Attribute {
-                        key: "disabled".to_string(),
-                        value: self.disabled.to_string(),
-                    }]),
-                    child: Some(Box::new(KeyedVNodes {
-                        key: None,
-                        vnode: VText {
-                            content: "Click".to_string(),
-                            is_comment: false,
-                            node: None,
-                        }.into(),
-                    })),
-                    node: None,
-                }.into(),
-            }
+            KeyedVNodes::unkeyed(VElement::new(
+                "button",
+                vec![Attribute::new("disabled", self.disabled.to_string())],
+                KeyedVNodes::unkeyed(VText::text("Click")),
+            ))
         }
     }
 

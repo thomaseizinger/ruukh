@@ -1,3 +1,5 @@
+//! Representation of text/comment in virtual dom tree.
+
 use std::fmt::{self, Display, Formatter};
 use VNode;
 if_wasm! {
@@ -5,16 +7,38 @@ if_wasm! {
     use wasm_bindgen::prelude::JsValue;
 }
 
-/// The representation of string in virtual dom tree.
+/// The representation of text/comment in virtual dom tree.
 #[derive(Debug)]
 pub struct VText {
     /// The content of a text string
-    pub content: String,
+    content: String,
     /// Whether the content is a comment
-    pub is_comment: bool,
+    is_comment: bool,
     /// Text/Comment reference to the DOM
     #[cfg(target_arch = "wasm32")]
-    pub node: Option<Node>,
+    node: Option<Node>,
+}
+
+impl VText {
+    /// Constructor to create a textual VNode.
+    pub fn text<T: Into<String>>(content: T) -> VText {
+        VText {
+            content: content.into(),
+            is_comment: false,
+            #[cfg(target_arch = "wasm32")]
+            node: None,
+        }
+    }
+
+    /// Constructor to create a comment VNode.
+    pub fn comment<T: Into<String>>(content: T) -> VText {
+        VText {
+            content: content.into(),
+            is_comment: true,
+            #[cfg(target_arch = "wasm32")]
+            node: None,
+        }
+    }
 }
 
 impl From<VText> for VNode {

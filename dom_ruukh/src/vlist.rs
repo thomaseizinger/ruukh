@@ -1,3 +1,5 @@
+//! Representation of a list of nodes in VDOM.
+
 use std::fmt::{self, Display, Formatter};
 use {KeyedVNodes, VNode};
 if_wasm! {
@@ -8,7 +10,14 @@ if_wasm! {
 
 /// The representation of a list of vnodes in the vtree.
 #[derive(Debug)]
-pub struct VList(pub Vec<KeyedVNodes>);
+pub struct VList(Vec<KeyedVNodes>);
+
+impl VList {
+    /// Constructor to create a list of VNodes.
+    pub fn new(list: Vec<KeyedVNodes>) -> VList {
+        VList(list)
+    }
+}
 
 impl From<VList> for VNode {
     fn from(list: VList) -> VNode {
@@ -82,28 +91,15 @@ impl DOMPatch for VList {
 #[cfg(not(target_arch = "wasm32"))]
 mod test {
     use super::VList;
-    use velement::{Attributes, VElement};
+    use velement::VElement;
     use vtext::VText;
     use KeyedVNodes;
 
     #[test]
     fn should_display_a_list_of_vnodes() {
-        let list = VList(vec![
-            KeyedVNodes {
-                key: None,
-                vnode: VText {
-                    content: "First of the node".to_string(),
-                    is_comment: false,
-                }.into(),
-            },
-            KeyedVNodes {
-                key: None,
-                vnode: VElement {
-                    tag: "input".to_string(),
-                    attributes: Attributes(vec![]),
-                    child: None,
-                }.into(),
-            },
+        let list = VList::new(vec![
+            KeyedVNodes::unkeyed(VText::text("First of the node")),
+            KeyedVNodes::unkeyed(VElement::childless("input", vec![])),
         ]);
         assert_eq!(format!("{}", list), "First of the node<input>");
     }
@@ -123,24 +119,9 @@ pub mod wasm_test {
 
     #[wasm_bindgen_test]
     fn should_patch_container_with_list_of_vnodes() {
-        let mut list = VList(vec![
-            KeyedVNodes {
-                key: None,
-                vnode: VText {
-                    content: "Hello World!".to_string(),
-                    is_comment: false,
-                    node: None,
-                }.into(),
-            },
-            KeyedVNodes {
-                key: None,
-                vnode: VElement {
-                    tag: "div".to_string(),
-                    attributes: Attributes(vec![]),
-                    child: None,
-                    node: None,
-                }.into(),
-            },
+        let mut list = VList::new(vec![
+            KeyedVNodes::unkeyed(VText::text("Hello World!")),
+            KeyedVNodes::unkeyed(VElement::childless("div", vec![])),
         ]);
         let div = container();
         list.patch(None, div.clone().into(), None)
@@ -151,24 +132,9 @@ pub mod wasm_test {
 
     #[wasm_bindgen_test]
     fn should_patch_container_with_updated_list() {
-        let mut list = VList(vec![
-            KeyedVNodes {
-                key: None,
-                vnode: VText {
-                    content: "Hello World!".to_string(),
-                    is_comment: false,
-                    node: None,
-                }.into(),
-            },
-            KeyedVNodes {
-                key: None,
-                vnode: VElement {
-                    tag: "div".to_string(),
-                    attributes: Attributes(vec![]),
-                    child: None,
-                    node: None,
-                }.into(),
-            },
+        let mut list = VList::new(vec![
+            KeyedVNodes::unkeyed(VText::text("Hello World!")),
+            KeyedVNodes::unkeyed(VElement::childless("div", vec![])),
         ]);
         let div = container();
         list.patch(None, div.clone().into(), None)
@@ -176,32 +142,10 @@ pub mod wasm_test {
 
         assert_eq!(div.inner_html(), "Hello World!<div></div>");
 
-        let mut new_list = VList(vec![
-            KeyedVNodes {
-                key: None,
-                vnode: VElement {
-                    tag: "div".to_string(),
-                    attributes: Attributes(vec![]),
-                    child: None,
-                    node: None,
-                }.into(),
-            },
-            KeyedVNodes {
-                key: None,
-                vnode: VText {
-                    content: "Hello World!".to_string(),
-                    is_comment: false,
-                    node: None,
-                }.into(),
-            },
-            KeyedVNodes {
-                key: None,
-                vnode: VText {
-                    content: "How are you?".to_string(),
-                    is_comment: false,
-                    node: None,
-                }.into(),
-            },
+        let mut new_list = VList::new(vec![
+            KeyedVNodes::unkeyed(VElement::childless("div", vec![])),
+            KeyedVNodes::unkeyed(VText::text("Hello World!")),
+            KeyedVNodes::unkeyed(VText::text("How are you?")),
         ]);
         new_list
             .patch(Some(list), div.clone().into(), None)

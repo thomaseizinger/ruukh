@@ -40,8 +40,8 @@ pub trait Component: Render {
 // Stores the metadata related to the state along with the state
 #[derive(Debug)]
 struct Status<T> {
-    pub state: T,
-    pub dirty: bool,
+    state: T,
+    dirty: bool,
 }
 
 /// Stores the state as well as the metadata to the state

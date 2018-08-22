@@ -35,13 +35,9 @@ macro_rules! if_wasm {
 
 mod component;
 mod key;
-#[allow(missing_docs)]
 pub mod vcomponent;
-#[allow(missing_docs)]
 pub mod velement;
-#[allow(missing_docs)]
 pub mod vlist;
-#[allow(missing_docs)]
 pub mod vtext;
 if_wasm! {
     mod dom;
@@ -52,7 +48,7 @@ if_wasm! {
 pub mod prelude {
     pub use component::{Component, ComponentStatus, Lifecycle, Render};
     pub use vcomponent::VComponent;
-    pub use velement::{Attribute, Attributes, VElement};
+    pub use velement::{Attribute, VElement};
     pub use vlist::VList;
     pub use vtext::VText;
     pub use {KeyedVNodes, VNode};
@@ -62,9 +58,27 @@ pub mod prelude {
 #[derive(Debug)]
 pub struct KeyedVNodes {
     /// A uniquely identifying key in the list of vnodes.
-    pub key: Option<Key>,
+    key: Option<Key>,
     /// A virtual node
-    pub vnode: VNode,
+    vnode: VNode,
+}
+
+impl KeyedVNodes {
+    /// Constructor for a keyed VNode
+    pub fn keyed<T: Into<VNode>>(key: Key, vnode: T) -> KeyedVNodes {
+        KeyedVNodes {
+            key: Some(key),
+            vnode: vnode.into(),
+        }
+    }
+
+    /// Constructor for an unkeyed VNode
+    pub fn unkeyed<T: Into<VNode>>(vnode: T) -> KeyedVNodes {
+        KeyedVNodes {
+            key: None,
+            vnode: vnode.into(),
+        }
+    }
 }
 
 /// A virtual node in a virtual DOM tree.
@@ -200,13 +214,7 @@ mod test {
 
     #[test]
     fn should_display_vnode() {
-        let node = KeyedVNodes {
-            key: None,
-            vnode: VText {
-                content: "Hello World!".to_string(),
-                is_comment: false,
-            }.into(),
-        };
+        let node = KeyedVNodes::unkeyed(VText::text("Hello World!"));
         assert_eq!(format!("{}", node), "Hello World!");
     }
 }
