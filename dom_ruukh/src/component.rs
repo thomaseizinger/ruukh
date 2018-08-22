@@ -13,7 +13,9 @@ use KeyedVNodes;
 /// Note: The user should not worry about the implementation detail of the
 /// actual component. Use the auto derive on the component.
 pub trait Component: Render {
+    /// The prop type of a Component.
     type Props;
+    /// The state type of a Component.
     type State: Default;
 
     /// Initializes a component with props as well as a meta-state called status
@@ -36,15 +38,18 @@ pub trait Component: Render {
 }
 
 // Stores the metadata related to the state along with the state
+#[derive(Debug)]
 struct Status<T> {
     pub state: T,
     pub dirty: bool,
 }
 
 /// Stores the state as well as the metadata to the state
+#[derive(Debug, Clone)]
 pub struct ComponentStatus<T>(Rc<RefCell<Status<T>>>);
 
 impl<T> ComponentStatus<T> {
+    #[allow(missing_docs)]
     pub fn new(state: T) -> ComponentStatus<T> {
         ComponentStatus(Rc::new(RefCell::new(Status {
             state,
@@ -74,5 +79,6 @@ pub trait Lifecycle: Component {
 
 /// Trait to render a view for the component.
 pub trait Render {
+    #[allow(missing_docs)]
     fn render(&self) -> KeyedVNodes;
 }
