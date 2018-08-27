@@ -28,17 +28,20 @@ pub trait Component: Render {
     /// Update the read only state from the mutated status and return true if it has been updated.
     fn refresh_state(&mut self) -> bool;
 
-    /// To find whether the component status has been altered
-    fn is_dirty(&self) -> bool;
+    /// To find whether the component status has been altered. If altered, reset
+    /// it to undirtied state.
+    fn is_state_dirty(&mut self) -> bool;
 
-    /// Mark the component as clean after updation
-    fn mark_clean(&mut self);
+    /// To find whether the component has been updated with newer props. If a newer
+    /// props, reset it to undirtied state.
+    fn is_props_dirty(&mut self) -> bool;
 }
 
 // Stores the metadata related to the state along with the state
 struct Status<T> {
     state: T,
-    dirty: bool,
+    state_dirty: bool,
+    props_dirty: bool,
 }
 
 /// Stores the state as well as the metadata to the state
@@ -50,7 +53,8 @@ impl<T> ComponentStatus<T> {
     pub fn new(state: T) -> ComponentStatus<T> {
         ComponentStatus(Rc::new(RefCell::new(Status {
             state,
-            dirty: false,
+            state_dirty: false,
+            props_dirty: false,
         })))
     }
 }

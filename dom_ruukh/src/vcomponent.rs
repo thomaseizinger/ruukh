@@ -109,13 +109,18 @@ impl<COMP: Lifecycle + 'static> ComponentManager for ComponentWrapper<COMP> {
             self.cached_render = Some(initial_render);
         } else {
             let comp = self.component.as_ref().unwrap();
-            if comp.borrow().is_dirty() {
-                if comp.borrow_mut().refresh_state() {
-                    let mut rerender = comp.borrow().render();
-                    let cached_render = self.cached_render.take();
-                    rerender.patch(cached_render, parent.clone(), next.clone())?;
-                    self.cached_render = Some(rerender);
-                }
+
+            let state_changed = if comp.borrow_mut().is_state_dirty() {
+                comp.borrow_mut().refresh_state()
+            } else {
+                false
+            };
+
+            if state_changed || comp.borrow_mut().is_props_dirty() {
+                let mut rerender = comp.borrow().render();
+                let cached_render = self.cached_render.take();
+                rerender.patch(cached_render, parent.clone(), next.clone())?;
+                self.cached_render = Some(rerender);
             }
         }
         self.render_walk(parent, next)
