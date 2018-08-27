@@ -7,7 +7,6 @@ use web_api::*;
 use {KeyedVNodes, VNode};
 
 /// The representation of a list of vnodes in the vtree.
-#[derive(Debug)]
 pub struct VList(Vec<KeyedVNodes>);
 
 impl VList {

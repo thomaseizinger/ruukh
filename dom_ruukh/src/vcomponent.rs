@@ -4,27 +4,22 @@ use component::{ComponentStatus, Lifecycle};
 use dom::DOMPatch;
 use std::any::Any;
 use std::cell::RefCell;
-use std::fmt::{self, Debug, Display, Formatter};
+use std::fmt::{self, Display, Formatter};
 use std::rc::Rc;
 use wasm_bindgen::prelude::JsValue;
 use web_api::*;
 use {KeyedVNodes, Shared, VNode};
 
 /// The representation of a component in a Virtual DOM.
-#[derive(Debug)]
 pub struct VComponent(Box<ComponentManager>);
 
 impl VComponent {
     #[allow(missing_docs)]
-    pub fn new<COMP: Lifecycle + Debug + 'static>(props: COMP::Props) -> VComponent
-    where
-        COMP::Props: Debug,
-    {
+    pub fn new<COMP: Lifecycle + 'static>(props: COMP::Props) -> VComponent {
         VComponent(Box::new(ComponentWrapper::<COMP>::new(props)))
     }
 }
 
-#[derive(Debug)]
 struct ComponentWrapper<COMP: Lifecycle + 'static> {
     component: Option<Shared<COMP>>,
     props: Option<COMP::Props>,
@@ -87,7 +82,7 @@ impl DOMPatch for VComponent {
     }
 }
 
-trait ComponentManager: Downcast + Display + Debug {
+trait ComponentManager: Downcast + Display {
     fn render_walk(&mut self, parent: Node, next: Option<Node>) -> Result<(), JsValue>;
 
     fn patch(
@@ -102,10 +97,7 @@ trait ComponentManager: Downcast + Display + Debug {
     fn node(&self) -> Option<Node>;
 }
 
-impl<COMP: Lifecycle + 'static> ComponentManager for ComponentWrapper<COMP>
-where
-    Self: Debug,
-{
+impl<COMP: Lifecycle + 'static> ComponentManager for ComponentWrapper<COMP> {
     fn render_walk(&mut self, parent: Node, next: Option<Node>) -> Result<(), JsValue> {
         if self.component.is_none() {
             let props = self.props.take().unwrap();

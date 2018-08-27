@@ -6,7 +6,6 @@ use web_api::*;
 use VNode;
 
 /// The representation of text/comment in virtual dom tree.
-#[derive(Debug)]
 pub struct VText {
     /// The content of a text string
     content: String,

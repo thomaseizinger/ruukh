@@ -38,14 +38,13 @@ pub trait Component: Render {
 }
 
 // Stores the metadata related to the state along with the state
-#[derive(Debug)]
 struct Status<T> {
     state: T,
     dirty: bool,
 }
 
 /// Stores the state as well as the metadata to the state
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ComponentStatus<T>(Rc<RefCell<Status<T>>>);
 
 impl<T> ComponentStatus<T> {

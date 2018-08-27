@@ -7,7 +7,6 @@ use web_api::*;
 use {KeyedVNodes, VNode};
 
 /// The representation of an element in virtual DOM.
-#[derive(Debug)]
 pub struct VElement {
     /// The tag of the element. Eg: h, p, div, ...
     tag: String,
@@ -47,11 +46,9 @@ impl VElement {
 }
 
 /// A list of attributes.
-#[derive(Debug)]
 struct Attributes(Vec<Attribute>);
 
 /// The key, value pair of the attributes on an element.
-#[derive(Debug)]
 pub struct Attribute {
     /// The key of the attribute
     key: String,

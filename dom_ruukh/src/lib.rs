@@ -41,7 +41,6 @@ pub mod prelude {
 }
 
 /// A keyed virtual node in a virtual DOM tree.
-#[derive(Debug)]
 pub struct KeyedVNodes {
     /// A uniquely identifying key in the list of vnodes.
     key: Option<Key>,
@@ -68,7 +67,6 @@ impl KeyedVNodes {
 }
 
 /// A virtual node in a virtual DOM tree.
-#[derive(Debug)]
 pub enum VNode {
     /// A text vnode
     Text(VText),
@@ -193,7 +191,7 @@ impl DOMPatch for VNode {
 
 /// Keys to identify a VNode in VDOM.
 /// Only the basic types are supported.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Eq, PartialEq)]
 pub enum Key {
     /// An `i64` key
     I64(i64),
