@@ -136,14 +136,17 @@ impl<COMP: RenderableComponent + 'static> ComponentManager for ComponentWrapper<
                 self.cached_render = Some(rerender);
             }
         }
-        self.render_walk(parent, next)
+        if let Some(ref mut cached) = self.cached_render {
+            cached.render_walk(parent, next, self.component.as_ref().unwrap().clone())?;
+        }
+        Ok(())
     }
 
     fn patch(
         &mut self,
         old: Option<Box<ComponentManager>>,
         parent: Node,
-        next: Option<Node>,
+        _: Option<Node>,
     ) -> Result<(), JsValue> {
         if let Some(old) = old {
             match Self::try_cast(old) {
@@ -165,7 +168,7 @@ impl<COMP: RenderableComponent + 'static> ComponentManager for ComponentWrapper<
                 }
             }
         }
-        self.render_walk(parent, next)
+        Ok(())
     }
 
     fn remove(&mut self, parent: Node) -> Result<(), JsValue> {
