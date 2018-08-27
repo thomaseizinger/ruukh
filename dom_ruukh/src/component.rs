@@ -12,7 +12,7 @@ use KeyedVNodes;
 ///
 /// Note: The user should not worry about the implementation detail of the
 /// actual component. Use the auto derive on the component.
-pub trait Component: Render {
+pub trait Component {
     /// The prop type of a Component.
     type Props;
     /// The state type of a Component.
@@ -83,3 +83,10 @@ pub trait Render {
     #[allow(missing_docs)]
     fn render(&self) -> KeyedVNodes;
 }
+
+/// This is convenience trait to group all the component traits into one.
+/// You don't need to implement it, only implement the individual constituent
+/// traits.
+pub trait RenderableComponent: Lifecycle + Component + Render {}
+
+impl<COMP: Lifecycle + Component + Render> RenderableComponent for COMP {}
