@@ -22,13 +22,13 @@ pub trait Component: Render {
     fn init(props: Self::Props, status: ComponentStatus<Self::State>) -> Self;
 
     /// Consume props of the component
-    fn props(self) -> Self::Props;
+    fn props(&self) -> Self::Props;
 
     /// Clone the status of the component
     fn status(&self) -> ComponentStatus<Self::State>;
 
-    /// Update the read only state from the mutated status
-    fn refresh_state(&mut self);
+    /// Update the read only state from the mutated status and return true if it has been updated.
+    fn refresh_state(&mut self) -> bool;
 
     /// To find whether the component status has been altered
     fn is_dirty(&self) -> bool;

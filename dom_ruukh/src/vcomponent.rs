@@ -3,49 +3,62 @@
 use component::{ComponentStatus, Lifecycle};
 use dom::DOMPatch;
 use std::any::Any;
+use std::cell::RefCell;
 use std::fmt::{self, Debug, Display, Formatter};
+use std::rc::Rc;
 use wasm_bindgen::prelude::JsValue;
 use web_api::*;
-use {KeyedVNodes, VNode};
+use {KeyedVNodes, Shared, VNode};
 
 /// The representation of a component in a Virtual DOM.
-pub struct VComponent {
-    /// The manager of the components, handles render as well as state management.
-    manager: Box<ComponentManager>,
-    /// If there are no changes in the state/props of the component, reuse the render
-    cached_render: Option<Box<KeyedVNodes>>,
-}
+#[derive(Debug)]
+pub struct VComponent(Box<ComponentManager>);
 
 impl VComponent {
     #[allow(missing_docs)]
-    pub fn new<T: Lifecycle + Debug + 'static>(props: T::Props) -> VComponent {
-        VComponent {
-            manager: Box::new(ComponentWrapper::<T>::new(props)),
+    pub fn new<COMP: Lifecycle + Debug + 'static>(props: COMP::Props) -> VComponent
+    where
+        COMP::Props: Debug,
+    {
+        VComponent(Box::new(ComponentWrapper::<COMP>::new(props)))
+    }
+}
+
+#[derive(Debug)]
+struct ComponentWrapper<COMP: Lifecycle + 'static> {
+    component: Option<Shared<COMP>>,
+    props: Option<COMP::Props>,
+    cached_render: Option<KeyedVNodes>,
+}
+
+impl<COMP: Lifecycle + 'static> ComponentWrapper<COMP> {
+    fn new(props: COMP::Props) -> ComponentWrapper<COMP> {
+        ComponentWrapper {
+            component: None,
+            props: Some(props),
             cached_render: None,
         }
     }
-}
 
-impl Debug for VComponent {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(
-            f,
-            "VComponent {{ component: {}, cached_render: {:?} }}",
-            self.manager.debug(),
-            self.cached_render
-        )
-    }
-}
+    fn try_cast(
+        other: Box<ComponentManager>,
+    ) -> Result<ComponentWrapper<COMP>, Box<ComponentManager>> {
+        let mut same_type = false;
+        {
+            let any = &other as &Any;
+            if any.is::<ComponentWrapper<COMP>>() {
+                same_type = true;
+            }
+        }
 
-impl Display for VComponent {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            self.cached_render
-                .as_ref()
-                .expect("The component should have been pre-rendered.")
-        )
+        if same_type {
+            let boxed = other.into_any();
+            Ok(*boxed
+                .downcast::<ComponentWrapper<COMP>>()
+                .expect("Impossible! The type cannot be different."))
+        } else {
+            Err(other)
+        }
     }
 }
 
@@ -53,27 +66,7 @@ impl DOMPatch for VComponent {
     type Node = Node;
 
     fn render_walk(&mut self, parent: Self::Node, next: Option<Self::Node>) -> Result<(), JsValue> {
-        if !self.manager.is_init() {
-            self.manager.init();
-            let mut rendered = self.manager.render();
-            rendered.patch(None, parent, next)?;
-            self.cached_render = Some(Box::new(rendered));
-            self.manager.mounted();
-        } else {
-            if self.manager.is_dirty() {
-                let cached = self.cached_render.take().unwrap();
-                self.manager.refresh_state();
-                let mut new_render = self.manager.render();
-                new_render.patch(Some(*cached), parent, next)?;
-                self.cached_render = Some(Box::new(new_render));
-            } else {
-                self.cached_render
-                    .as_mut()
-                    .unwrap()
-                    .render_walk(parent, next)?;
-            }
-        }
-        Ok(())
+        self.0.render_walk(parent, next)
     }
 
     fn patch(
@@ -82,182 +75,102 @@ impl DOMPatch for VComponent {
         parent: Self::Node,
         next: Option<Self::Node>,
     ) -> Result<(), JsValue> {
-        if let Some(old) = old {
-            if let Some(old_manager) = self.manager.merge(old.manager) {
-                let old_render = old
-                    .cached_render
-                    .expect("Old components have already rendered once.");
-                old_render.remove(parent.clone())?;
-                old_manager.destroyed();
+        self.0.patch(old.map(|old| old.0), parent, next)
+    }
+
+    fn remove(mut self, parent: Self::Node) -> Result<(), JsValue> {
+        self.0.remove(parent)
+    }
+
+    fn node(&self) -> Option<Node> {
+        self.0.node()
+    }
+}
+
+trait ComponentManager: Downcast + Display + Debug {
+    fn render_walk(&mut self, parent: Node, next: Option<Node>) -> Result<(), JsValue>;
+
+    fn patch(
+        &mut self,
+        old: Option<Box<ComponentManager>>,
+        parent: Node,
+        next: Option<Node>,
+    ) -> Result<(), JsValue>;
+
+    fn remove(&mut self, parent: Node) -> Result<(), JsValue>;
+
+    fn node(&self) -> Option<Node>;
+}
+
+impl<COMP: Lifecycle + 'static> ComponentManager for ComponentWrapper<COMP>
+where
+    Self: Debug,
+{
+    fn render_walk(&mut self, parent: Node, next: Option<Node>) -> Result<(), JsValue> {
+        if self.component.is_none() {
+            let props = self.props.take().unwrap();
+            let instance = COMP::init(props, ComponentStatus::new(COMP::State::default()));
+            instance.created();
+            let mut initial_render = instance.render();
+            initial_render.patch(None, parent.clone(), next.clone())?;
+            self.component = Some(Rc::new(RefCell::new(instance)));
+            self.cached_render = Some(initial_render);
+        } else {
+            let comp = self.component.as_ref().unwrap();
+            if comp.borrow().is_dirty() {
+                if comp.borrow_mut().refresh_state() {
+                    let mut rerender = comp.borrow().render();
+                    let cached_render = self.cached_render.take();
+                    rerender.patch(cached_render, parent.clone(), next.clone())?;
+                    self.cached_render = Some(rerender);
+                }
             }
         }
         self.render_walk(parent, next)
     }
 
-    fn remove(self, parent: Self::Node) -> Result<(), JsValue> {
-        if let Some(cached_render) = self.cached_render {
+    fn patch(
+        &mut self,
+        old: Option<Box<ComponentManager>>,
+        parent: Node,
+        next: Option<Node>,
+    ) -> Result<(), JsValue> {
+        if let Some(old) = old {
+            match Self::try_cast(old) {
+                Ok(same) => {
+                    let comp = same.component.unwrap();
+                    let old_status = comp.borrow().status();
+                    // TODO: Replace the new component initialization with old status with passing
+                    // the props to the older component
+                    let new_comp = COMP::init(self.props.take().unwrap(), old_status);
+                    new_comp.updated(comp.borrow().props());
+                    self.component = Some(Rc::new(RefCell::new(new_comp)));
+                }
+                Err(mut not_same) => {
+                    not_same.remove(parent.clone())?;
+                }
+            }
+        }
+        self.render_walk(parent, next)
+    }
+
+    fn remove(&mut self, parent: Node) -> Result<(), JsValue> {
+        if let Some(cached_render) = self.cached_render.take() {
             cached_render.remove(parent)?;
+            let comp = self.component.as_ref().unwrap();
+            comp.borrow().destroyed();
         }
         Ok(())
     }
 
     fn node(&self) -> Option<Node> {
-        self.cached_render.as_ref().and_then(|cached| cached.node())
+        self.cached_render.as_ref().and_then(|inner| inner.node())
     }
 }
 
 impl From<VComponent> for VNode {
     fn from(comp: VComponent) -> VNode {
         VNode::Component(comp)
-    }
-}
-
-/// Trait to handle the lifecycle of the component from initialization to render.Box<ComponentManager>
-/// Currently, the interface is not thought out, will define it as needed.
-trait ComponentManager: Downcast {
-    /// The debug implementation of the component.
-    fn debug(&self) -> String;
-
-    /// Whether the component is initialized.
-    fn is_init(&self) -> bool;
-
-    /// Initialization of the component for the first time.
-    fn init(&mut self);
-
-    /// Try to merge the state of the older component with self
-    fn merge(&mut self, other: Box<ComponentManager>) -> Option<Box<ComponentManager>>;
-
-    /// Check whether the component is dirtied
-    fn is_dirty(&self) -> bool;
-
-    /// Mark the component as clean after updation
-    fn mark_clean(&mut self);
-
-    /// Refresh the state after it has been found dirty
-    fn refresh_state(&mut self);
-
-    /// Propagate the mounted lifecycle hook to the component
-    fn mounted(&self);
-
-    /// Propagate the destroyed lifecylce hook to the component
-    fn destroyed(&self);
-
-    /// Generate a markup from the component
-    fn render(&self) -> KeyedVNodes;
-}
-
-struct ComponentWrapper<T: Lifecycle + 'static> {
-    component: Option<T>,
-    props: Option<T::Props>,
-}
-
-impl<T: Lifecycle + 'static> ComponentWrapper<T> {
-    fn new(props: T::Props) -> ComponentWrapper<T> {
-        ComponentWrapper {
-            component: None,
-            props: Some(props),
-        }
-    }
-
-    fn try_cast(
-        other: Box<ComponentManager>,
-    ) -> Result<ComponentWrapper<T>, Box<ComponentManager>> {
-        let mut same_type = false;
-        {
-            let any = &other as &Any;
-            if any.is::<ComponentWrapper<T>>() {
-                same_type = true;
-            }
-        }
-
-        if same_type {
-            let boxed = other.into_any();
-            Ok(*boxed
-                .downcast::<ComponentWrapper<T>>()
-                .expect("Impossible! The type cannot be different."))
-        } else {
-            Err(other)
-        }
-    }
-
-    fn component(self) -> T {
-        self.component
-            .expect("The component must be initialized first.")
-    }
-
-    fn component_as_ref(&self) -> &T {
-        self.component
-            .as_ref()
-            .expect("The component must be initialized first.")
-    }
-
-    fn component_as_mut(&mut self) -> &mut T {
-        self.component
-            .as_mut()
-            .expect("The component must be initialized first.")
-    }
-
-    fn take_props(&mut self) -> T::Props {
-        self.props
-            .take()
-            .expect("The component seems to be initialized already.")
-    }
-}
-
-impl<T: Lifecycle + Debug + 'static> ComponentManager for ComponentWrapper<T> {
-    fn debug(&self) -> String {
-        format!("{:?}", self.component)
-    }
-
-    fn is_init(&self) -> bool {
-        self.component.is_some()
-    }
-
-    fn init(&mut self) {
-        let comp = T::init(self.take_props(), ComponentStatus::new(T::State::default()));
-        comp.created();
-        self.component = Some(comp);
-    }
-
-    fn merge(&mut self, other: Box<ComponentManager>) -> Option<Box<ComponentManager>> {
-        match Self::try_cast(other) {
-            // The components are same
-            Ok(other) => {
-                let props = self.take_props();
-                let old_comp = other.component();
-                // Use the state/status from the older component
-                let new_comp = T::init(props, old_comp.status());
-                // Invoke the lifecycle event of updated.
-                new_comp.updated(old_comp.props());
-                self.component = Some(new_comp);
-                None
-            }
-            Err(manager) => Some(manager),
-        }
-    }
-
-    fn is_dirty(&self) -> bool {
-        self.component_as_ref().is_dirty()
-    }
-
-    fn mark_clean(&mut self) {
-        self.component_as_mut().mark_clean()
-    }
-
-    fn refresh_state(&mut self) {
-        self.component_as_mut().refresh_state()
-    }
-
-    fn mounted(&self) {
-        self.component_as_ref().mounted()
-    }
-
-    fn destroyed(&self) {
-        self.component_as_ref().destroyed()
-    }
-
-    fn render(&self) -> KeyedVNodes {
-        self.component_as_ref().render()
     }
 }
 
@@ -268,6 +181,24 @@ trait Downcast: Any {
 impl<T: Any> Downcast for T {
     fn into_any(self: Box<Self>) -> Box<Any> {
         self
+    }
+}
+
+impl Display for VComponent {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl<COMP: Lifecycle + 'static> Display for ComponentWrapper<COMP> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            self.cached_render
+                .as_ref()
+                .expect("Render the component first.")
+        )
     }
 }
 
