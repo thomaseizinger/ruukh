@@ -42,6 +42,23 @@ extern "C" {
     #[wasm_bindgen(method, getter = innerHTML)]
     pub fn inner_html(this: &Element) -> String;
 
+    #[wasm_bindgen(method, catch, js_name = addEventListener)]
+    pub fn add_event_listener(
+        this: &Element,
+        type_: &str,
+        listener: &Closure<Fn(Event)>,
+    ) -> Result<(), JsValue>;
+
+    #[wasm_bindgen(method, catch, js_name = removeEventListener)]
+    pub fn remove_event_listener(
+        this: &Element,
+        type_: &str,
+        listener: &Closure<Fn(Event)>,
+    ) -> Result<(), JsValue>;
+
+    #[wasm_bindgen(method, catch, js_name = dispatchEvent)]
+    pub fn dispatch_event(this: &Element, event: &Event) -> Result<bool, JsValue>;
+
     #[wasm_bindgen(extends = Node)]
     #[derive(Debug, Clone)]
     pub type Text;
@@ -71,6 +88,12 @@ extern "C" {
 
     #[wasm_bindgen(method, setter = textContent)]
     pub fn set_text_content(this: &Node, val: &str);
+
+    #[derive(Debug, Clone)]
+    pub type Event;
+
+    #[wasm_bindgen(constructor)]
+    pub fn new(type_: &str) -> Event;
 }
 
 #[cfg(test)]

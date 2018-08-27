@@ -79,14 +79,17 @@ pub trait Lifecycle: Component {
 }
 
 /// Trait to render a view for the component.
-pub trait Render {
+pub trait Render: Lifecycle
+where
+    Self: Sized + 'static,
+{
     #[allow(missing_docs)]
-    fn render(&self) -> KeyedVNodes;
+    fn render(&self) -> KeyedVNodes<Self>;
 }
 
 /// This is convenience trait to group all the component traits into one.
 /// You don't need to implement it, only implement the individual constituent
 /// traits.
-pub trait RenderableComponent: Lifecycle + Component + Render {}
+pub trait RenderableComponent: Lifecycle + Component + Render + 'static {}
 
-impl<COMP: Lifecycle + Component + Render> RenderableComponent for COMP {}
+impl<COMP: Lifecycle + Component + Render + 'static> RenderableComponent for COMP {}

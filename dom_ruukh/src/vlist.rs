@@ -1,28 +1,30 @@
 //! Representation of a list of nodes in VDOM.
 
-use dom::DOMPatch;
+use component::RenderableComponent;
+use dom::{DOMInfo, DOMPatch, DOMRemove};
 use std::fmt::{self, Display, Formatter};
 use wasm_bindgen::prelude::JsValue;
 use web_api::*;
+use Shared;
 use {KeyedVNodes, VNode};
 
 /// The representation of a list of vnodes in the vtree.
-pub struct VList(Vec<KeyedVNodes>);
+pub struct VList<RCTX: RenderableComponent>(Vec<KeyedVNodes<RCTX>>);
 
-impl VList {
+impl<RCTX: RenderableComponent> VList<RCTX> {
     /// Constructor to create a list of VNodes.
-    pub fn new(list: Vec<KeyedVNodes>) -> VList {
+    pub fn new(list: Vec<KeyedVNodes<RCTX>>) -> VList<RCTX> {
         VList(list)
     }
 }
 
-impl From<VList> for VNode {
-    fn from(list: VList) -> VNode {
+impl<RCTX: RenderableComponent> From<VList<RCTX>> for VNode<RCTX> {
+    fn from(list: VList<RCTX>) -> VNode<RCTX> {
         VNode::List(list)
     }
 }
 
-impl Display for VList {
+impl<RCTX: RenderableComponent> Display for VList<RCTX> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         for vnode in self.0.iter() {
             write!(f, "{}", vnode)?;
@@ -31,13 +33,18 @@ impl Display for VList {
     }
 }
 
-impl DOMPatch for VList {
+impl<RCTX: RenderableComponent> DOMPatch<RCTX> for VList<RCTX> {
     type Node = Node;
 
-    fn render_walk(&mut self, parent: Self::Node, next: Option<Self::Node>) -> Result<(), JsValue> {
+    fn render_walk(
+        &mut self,
+        parent: Self::Node,
+        next: Option<Self::Node>,
+        render_ctx: Shared<RCTX>,
+    ) -> Result<(), JsValue> {
         let mut next = next;
         for vnode in self.0.iter_mut().rev() {
-            vnode.render_walk(parent.clone(), next)?;
+            vnode.render_walk(parent.clone(), next, render_ctx.clone())?;
             next = vnode.node();
         }
         Ok(())
@@ -48,6 +55,7 @@ impl DOMPatch for VList {
         old: Option<Self>,
         parent: Self::Node,
         next: Option<Self::Node>,
+        render_ctx: Shared<RCTX>,
     ) -> Result<(), JsValue> {
         let mut next = next;
         if let Some(mut old) = old {
@@ -58,18 +66,22 @@ impl DOMPatch for VList {
                 } else {
                     None
                 };
-                vnode.patch(old, parent.clone(), next)?;
+                vnode.patch(old, parent.clone(), next, render_ctx.clone())?;
                 next = vnode.node();
             }
             old.remove(parent)?;
         } else {
             for vnode in self.0.iter_mut().rev() {
-                vnode.patch(None, parent.clone(), next)?;
+                vnode.patch(None, parent.clone(), next, render_ctx.clone())?;
                 next = vnode.node();
             }
         }
         Ok(())
     }
+}
+
+impl<RCTX: RenderableComponent> DOMRemove for VList<RCTX> {
+    type Node = Node;
 
     fn remove(self, parent: Self::Node) -> Result<(), JsValue> {
         for vnode in self.0 {
@@ -77,7 +89,9 @@ impl DOMPatch for VList {
         }
         Ok(())
     }
+}
 
+impl<RCTX: RenderableComponent> DOMInfo for VList<RCTX> {
     fn node(&self) -> Option<Node> {
         self.0.get(0).and_then(|first| first.node())
     }

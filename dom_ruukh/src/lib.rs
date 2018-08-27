@@ -5,7 +5,8 @@ extern crate wasm_bindgen;
 #[cfg(test)]
 extern crate wasm_bindgen_test;
 
-use dom::DOMPatch;
+use component::RenderableComponent;
+use dom::{DOMInfo, DOMPatch, DOMRemove};
 use std::borrow::Cow;
 use std::cell::RefCell;
 use std::fmt::{self, Display, Formatter};
@@ -41,16 +42,16 @@ pub mod prelude {
 }
 
 /// A keyed virtual node in a virtual DOM tree.
-pub struct KeyedVNodes {
+pub struct KeyedVNodes<RCTX: RenderableComponent> {
     /// A uniquely identifying key in the list of vnodes.
     key: Option<Key>,
     /// A virtual node
-    vnode: VNode,
+    vnode: VNode<RCTX>,
 }
 
-impl KeyedVNodes {
+impl<RCTX: RenderableComponent> KeyedVNodes<RCTX> {
     /// Constructor for a keyed VNode
-    pub fn keyed<K: Into<Key>, T: Into<VNode>>(key: K, vnode: T) -> KeyedVNodes {
+    pub fn keyed<K: Into<Key>, T: Into<VNode<RCTX>>>(key: K, vnode: T) -> KeyedVNodes<RCTX> {
         KeyedVNodes {
             key: Some(key.into()),
             vnode: vnode.into(),
@@ -58,7 +59,7 @@ impl KeyedVNodes {
     }
 
     /// Constructor for an unkeyed VNode
-    pub fn unkeyed<T: Into<VNode>>(vnode: T) -> KeyedVNodes {
+    pub fn unkeyed<T: Into<VNode<RCTX>>>(vnode: T) -> KeyedVNodes<RCTX> {
         KeyedVNodes {
             key: None,
             vnode: vnode.into(),
@@ -67,26 +68,26 @@ impl KeyedVNodes {
 }
 
 /// A virtual node in a virtual DOM tree.
-pub enum VNode {
+pub enum VNode<RCTX: RenderableComponent> {
     /// A text vnode
     Text(VText),
     /// An element vnode
-    Element(VElement),
+    Element(VElement<RCTX>),
     /// A list vnode
-    List(VList),
+    List(VList<RCTX>),
     /// A component vnode
     Component(VComponent),
 }
 
 type Shared<T> = Rc<RefCell<T>>;
 
-impl Display for KeyedVNodes {
+impl<RCTX: RenderableComponent> Display for KeyedVNodes<RCTX> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "{}", self.vnode)
     }
 }
 
-impl Display for VNode {
+impl<RCTX: RenderableComponent> Display for VNode<RCTX> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
             VNode::Text(inner) => write!(f, "{}", inner),
@@ -97,11 +98,16 @@ impl Display for VNode {
     }
 }
 
-impl DOMPatch for KeyedVNodes {
+impl<RCTX: RenderableComponent> DOMPatch<RCTX> for KeyedVNodes<RCTX> {
     type Node = Node;
 
-    fn render_walk(&mut self, parent: Self::Node, next: Option<Self::Node>) -> Result<(), JsValue> {
-        self.vnode.render_walk(parent, next)
+    fn render_walk(
+        &mut self,
+        parent: Self::Node,
+        next: Option<Self::Node>,
+        render_ctx: Shared<RCTX>,
+    ) -> Result<(), JsValue> {
+        self.vnode.render_walk(parent, next, render_ctx)
     }
 
     fn patch(
@@ -109,49 +115,61 @@ impl DOMPatch for KeyedVNodes {
         old: Option<Self>,
         parent: Self::Node,
         next: Option<Self::Node>,
+        render_ctx: Shared<RCTX>,
     ) -> Result<(), JsValue> {
         if let Some(old) = old {
             if self.key == old.key {
-                self.vnode.patch(Some(old.vnode), parent, next)
+                self.vnode.patch(Some(old.vnode), parent, next, render_ctx)
             } else {
                 old.vnode.remove(parent.clone())?;
-                self.vnode.patch(None, parent, next)
+                self.vnode.patch(None, parent, next, render_ctx)
             }
         } else {
-            self.vnode.patch(None, parent, next)
+            self.vnode.patch(None, parent, next, render_ctx)
         }
     }
+}
+
+impl<RCTX: RenderableComponent> DOMRemove for KeyedVNodes<RCTX> {
+    type Node = Node;
 
     fn remove(self, parent: Self::Node) -> Result<(), JsValue> {
         self.vnode.remove(parent)
     }
+}
 
+impl<RCTX: RenderableComponent> DOMInfo for KeyedVNodes<RCTX> {
     fn node(&self) -> Option<Node> {
         self.vnode.node()
     }
 }
 
 macro_rules! patch {
-    ($variant:ident => $this:ident, $old:ident, $parent:ident, $next:ident) => {
+    ($variant:ident => $this:ident, $old:ident, $parent:ident, $next:ident, $render_ctx:ident) => {
         match $old {
-            Some(VNode::$variant(old)) => $this.patch(Some(old), $parent, $next),
+            Some(VNode::$variant(old)) => $this.patch(Some(old), $parent, $next, $render_ctx),
             Some(old) => {
                 old.remove($parent.clone())?;
-                $this.patch(None, $parent, $next)
+                $this.patch(None, $parent, $next, $render_ctx)
             }
-            None => $this.patch(None, $parent, $next),
+            None => $this.patch(None, $parent, $next, $render_ctx),
         }
     };
 }
 
-impl DOMPatch for VNode {
+impl<RCTX: RenderableComponent> DOMPatch<RCTX> for VNode<RCTX> {
     type Node = Node;
 
-    fn render_walk(&mut self, parent: Self::Node, next: Option<Self::Node>) -> Result<(), JsValue> {
+    fn render_walk(
+        &mut self,
+        parent: Self::Node,
+        next: Option<Self::Node>,
+        render_ctx: Shared<RCTX>,
+    ) -> Result<(), JsValue> {
         match self {
-            VNode::Element(ref mut el) => el.render_walk(parent, next),
-            VNode::List(ref mut list) => list.render_walk(parent, next),
-            VNode::Component(ref mut comp) => comp.render_walk(parent, next),
+            VNode::Element(ref mut el) => el.render_walk(parent, next, render_ctx),
+            VNode::List(ref mut list) => list.render_walk(parent, next, render_ctx),
+            VNode::Component(ref mut comp) => comp.render_walk(parent, next, render_ctx),
             VNode::Text(_) => Ok(()),
         }
     }
@@ -161,14 +179,23 @@ impl DOMPatch for VNode {
         old: Option<Self>,
         parent: Self::Node,
         next: Option<Self::Node>,
+        render_ctx: Shared<RCTX>,
     ) -> Result<(), JsValue> {
         match self {
-            VNode::Element(ref mut new_el) => patch!(Element => new_el, old, parent, next),
-            VNode::Text(ref mut new_txt) => patch!(Text => new_txt, old, parent, next),
-            VNode::List(ref mut new_li) => patch!(List => new_li, old, parent, next),
-            VNode::Component(ref mut new_comp) => patch!(Component => new_comp, old, parent, next),
+            VNode::Element(ref mut new_el) => {
+                patch!(Element => new_el, old, parent, next, render_ctx)
+            }
+            VNode::Text(ref mut new_txt) => patch!(Text => new_txt, old, parent, next, render_ctx),
+            VNode::List(ref mut new_li) => patch!(List => new_li, old, parent, next, render_ctx),
+            VNode::Component(ref mut new_comp) => {
+                patch!(Component => new_comp, old, parent, next, render_ctx)
+            }
         }
     }
+}
+
+impl<RCTX: RenderableComponent> DOMRemove for VNode<RCTX> {
+    type Node = Node;
 
     fn remove(self, parent: Self::Node) -> Result<(), JsValue> {
         match self {
@@ -178,7 +205,9 @@ impl DOMPatch for VNode {
             VNode::Component(comp) => comp.remove(parent),
         }
     }
+}
 
+impl<RCTX: RenderableComponent> DOMInfo for VNode<RCTX> {
     fn node(&self) -> Option<Node> {
         match self {
             VNode::Text(txt) => txt.node(),

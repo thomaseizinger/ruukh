@@ -1,7 +1,7 @@
 //! Component representation in a VDOM.
 
 use component::{ComponentStatus, RenderableComponent};
-use dom::DOMPatch;
+use dom::{DOMInfo, DOMPatch, DOMRemove};
 use std::any::Any;
 use std::cell::RefCell;
 use std::fmt::{self, Display, Formatter};
@@ -23,7 +23,7 @@ impl VComponent {
 struct ComponentWrapper<COMP: RenderableComponent + 'static> {
     component: Option<Shared<COMP>>,
     props: Option<COMP::Props>,
-    cached_render: Option<KeyedVNodes>,
+    cached_render: Option<KeyedVNodes<COMP>>,
 }
 
 impl<COMP: RenderableComponent + 'static> ComponentWrapper<COMP> {
@@ -57,10 +57,15 @@ impl<COMP: RenderableComponent + 'static> ComponentWrapper<COMP> {
     }
 }
 
-impl DOMPatch for VComponent {
+impl<RCTX: RenderableComponent> DOMPatch<RCTX> for VComponent {
     type Node = Node;
 
-    fn render_walk(&mut self, parent: Self::Node, next: Option<Self::Node>) -> Result<(), JsValue> {
+    fn render_walk(
+        &mut self,
+        parent: Self::Node,
+        next: Option<Self::Node>,
+        _: Shared<RCTX>,
+    ) -> Result<(), JsValue> {
         self.0.render_walk(parent, next)
     }
 
@@ -69,14 +74,21 @@ impl DOMPatch for VComponent {
         old: Option<Self>,
         parent: Self::Node,
         next: Option<Self::Node>,
+        _: Shared<RCTX>,
     ) -> Result<(), JsValue> {
         self.0.patch(old.map(|old| old.0), parent, next)
     }
+}
+
+impl DOMRemove for VComponent {
+    type Node = Node;
 
     fn remove(mut self, parent: Self::Node) -> Result<(), JsValue> {
         self.0.remove(parent)
     }
+}
 
+impl DOMInfo for VComponent {
     fn node(&self) -> Option<Node> {
         self.0.node()
     }
@@ -104,8 +116,9 @@ impl<COMP: RenderableComponent + 'static> ComponentManager for ComponentWrapper<
             let instance = COMP::init(props, ComponentStatus::new(COMP::State::default()));
             instance.created();
             let mut initial_render = instance.render();
-            initial_render.patch(None, parent.clone(), next.clone())?;
-            self.component = Some(Rc::new(RefCell::new(instance)));
+            let shared_instance = Rc::new(RefCell::new(instance));
+            initial_render.patch(None, parent.clone(), next.clone(), shared_instance.clone())?;
+            self.component = Some(shared_instance);
             self.cached_render = Some(initial_render);
         } else {
             let comp = self.component.as_ref().unwrap();
@@ -119,7 +132,7 @@ impl<COMP: RenderableComponent + 'static> ComponentManager for ComponentWrapper<
             if state_changed || comp.borrow_mut().is_props_dirty() {
                 let mut rerender = comp.borrow().render();
                 let cached_render = self.cached_render.take();
-                rerender.patch(cached_render, parent.clone(), next.clone())?;
+                rerender.patch(cached_render, parent.clone(), next.clone(), comp.clone())?;
                 self.cached_render = Some(rerender);
             }
         }
@@ -169,8 +182,8 @@ impl<COMP: RenderableComponent + 'static> ComponentManager for ComponentWrapper<
     }
 }
 
-impl From<VComponent> for VNode {
-    fn from(comp: VComponent) -> VNode {
+impl<RCTX: RenderableComponent> From<VComponent> for VNode<RCTX> {
+    fn from(comp: VComponent) -> VNode<RCTX> {
         VNode::Component(comp)
     }
 }
