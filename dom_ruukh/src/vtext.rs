@@ -1,8 +1,11 @@
 //! Representation of text/comment in virtual dom tree.
 
+use component::RenderableComponent;
+use dom::{DOMInfo, DOMPatch, DOMRemove};
 use std::fmt::{self, Display, Formatter};
 use wasm_bindgen::prelude::JsValue;
 use web_api::*;
+use Shared;
 use VNode;
 
 /// The representation of text/comment in virtual dom tree.
@@ -35,8 +38,8 @@ impl VText {
     }
 }
 
-impl From<VText> for VNode {
-    fn from(text: VText) -> VNode {
+impl<RCTX: RenderableComponent> From<VText> for VNode<RCTX> {
+    fn from(text: VText) -> VNode<RCTX> {
         VNode::Text(text)
     }
 }
@@ -69,10 +72,10 @@ impl VText {
     }
 }
 
-impl ::dom::DOMPatch for VText {
+impl<RCTX: RenderableComponent> DOMPatch<RCTX> for VText {
     type Node = Node;
 
-    fn render_walk(&mut self, _: Node, _: Option<Node>) -> Result<(), JsValue> {
+    fn render_walk(&mut self, _: Node, _: Option<Node>, _: Shared<RCTX>) -> Result<(), JsValue> {
         unreachable!("There is nothing to render in a VText");
     }
 
@@ -81,6 +84,7 @@ impl ::dom::DOMPatch for VText {
         old: Option<Self>,
         parent: Node,
         next: Option<Node>,
+        _: Shared<RCTX>,
     ) -> Result<(), JsValue> {
         if let Some(old) = old {
             if self.is_comment == old.is_comment {
@@ -100,6 +104,10 @@ impl ::dom::DOMPatch for VText {
             self.patch_new(parent, next)
         }
     }
+}
+
+impl DOMRemove for VText {
+    type Node = Node;
 
     fn remove(self, parent: Node) -> Result<(), JsValue> {
         parent.remove_child(
@@ -108,7 +116,9 @@ impl ::dom::DOMPatch for VText {
         )?;
         Ok(())
     }
+}
 
+impl DOMInfo for VText {
     fn node(&self) -> Option<Node> {
         self.node.as_ref().map(|n| n.clone())
     }
