@@ -5,7 +5,7 @@ extern crate wasm_bindgen;
 #[cfg(test)]
 extern crate wasm_bindgen_test;
 
-use component::RenderableComponent;
+use component::Render;
 use dom::{DOMInfo, DOMPatch, DOMRemove};
 use std::borrow::Cow;
 use std::cell::RefCell;
@@ -42,14 +42,14 @@ pub mod prelude {
 }
 
 /// A keyed virtual node in a virtual DOM tree.
-pub struct KeyedVNodes<RCTX: RenderableComponent> {
+pub struct KeyedVNodes<RCTX: Render> {
     /// A uniquely identifying key in the list of vnodes.
     key: Option<Key>,
     /// A virtual node
     vnode: VNode<RCTX>,
 }
 
-impl<RCTX: RenderableComponent> KeyedVNodes<RCTX> {
+impl<RCTX: Render> KeyedVNodes<RCTX> {
     /// Constructor for a keyed VNode
     pub fn keyed<K: Into<Key>, T: Into<VNode<RCTX>>>(key: K, vnode: T) -> KeyedVNodes<RCTX> {
         KeyedVNodes {
@@ -68,7 +68,7 @@ impl<RCTX: RenderableComponent> KeyedVNodes<RCTX> {
 }
 
 /// A virtual node in a virtual DOM tree.
-pub enum VNode<RCTX: RenderableComponent> {
+pub enum VNode<RCTX: Render> {
     /// A text vnode
     Text(VText),
     /// An element vnode
@@ -81,13 +81,13 @@ pub enum VNode<RCTX: RenderableComponent> {
 
 type Shared<T> = Rc<RefCell<T>>;
 
-impl<RCTX: RenderableComponent> Display for KeyedVNodes<RCTX> {
+impl<RCTX: Render> Display for KeyedVNodes<RCTX> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "{}", self.vnode)
     }
 }
 
-impl<RCTX: RenderableComponent> Display for VNode<RCTX> {
+impl<RCTX: Render> Display for VNode<RCTX> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
             VNode::Text(inner) => write!(f, "{}", inner),
@@ -98,7 +98,7 @@ impl<RCTX: RenderableComponent> Display for VNode<RCTX> {
     }
 }
 
-impl<RCTX: RenderableComponent> DOMPatch<RCTX> for KeyedVNodes<RCTX> {
+impl<RCTX: Render> DOMPatch<RCTX> for KeyedVNodes<RCTX> {
     type Node = Node;
 
     fn render_walk(
@@ -130,7 +130,7 @@ impl<RCTX: RenderableComponent> DOMPatch<RCTX> for KeyedVNodes<RCTX> {
     }
 }
 
-impl<RCTX: RenderableComponent> DOMRemove for KeyedVNodes<RCTX> {
+impl<RCTX: Render> DOMRemove for KeyedVNodes<RCTX> {
     type Node = Node;
 
     fn remove(self, parent: Self::Node) -> Result<(), JsValue> {
@@ -138,7 +138,7 @@ impl<RCTX: RenderableComponent> DOMRemove for KeyedVNodes<RCTX> {
     }
 }
 
-impl<RCTX: RenderableComponent> DOMInfo for KeyedVNodes<RCTX> {
+impl<RCTX: Render> DOMInfo for KeyedVNodes<RCTX> {
     fn node(&self) -> Option<Node> {
         self.vnode.node()
     }
@@ -157,7 +157,7 @@ macro_rules! patch {
     };
 }
 
-impl<RCTX: RenderableComponent> DOMPatch<RCTX> for VNode<RCTX> {
+impl<RCTX: Render> DOMPatch<RCTX> for VNode<RCTX> {
     type Node = Node;
 
     fn render_walk(
@@ -194,7 +194,7 @@ impl<RCTX: RenderableComponent> DOMPatch<RCTX> for VNode<RCTX> {
     }
 }
 
-impl<RCTX: RenderableComponent> DOMRemove for VNode<RCTX> {
+impl<RCTX: Render> DOMRemove for VNode<RCTX> {
     type Node = Node;
 
     fn remove(self, parent: Self::Node) -> Result<(), JsValue> {
@@ -207,7 +207,7 @@ impl<RCTX: RenderableComponent> DOMRemove for VNode<RCTX> {
     }
 }
 
-impl<RCTX: RenderableComponent> DOMInfo for VNode<RCTX> {
+impl<RCTX: Render> DOMInfo for VNode<RCTX> {
     fn node(&self) -> Option<Node> {
         match self {
             VNode::Text(txt) => txt.node(),

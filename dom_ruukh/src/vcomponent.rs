@@ -1,6 +1,6 @@
 //! Component representation in a VDOM.
 
-use component::{ComponentStatus, RenderableComponent};
+use component::{ComponentStatus, Render};
 use dom::{DOMInfo, DOMPatch, DOMRemove};
 use std::any::Any;
 use std::cell::RefCell;
@@ -15,18 +15,18 @@ pub struct VComponent(Box<ComponentManager>);
 
 impl VComponent {
     #[allow(missing_docs)]
-    pub fn new<COMP: RenderableComponent + 'static>(props: COMP::Props) -> VComponent {
+    pub fn new<COMP: Render + 'static>(props: COMP::Props) -> VComponent {
         VComponent(Box::new(ComponentWrapper::<COMP>::new(props)))
     }
 }
 
-struct ComponentWrapper<COMP: RenderableComponent + 'static> {
+struct ComponentWrapper<COMP: Render + 'static> {
     component: Option<Shared<COMP>>,
     props: Option<COMP::Props>,
     cached_render: Option<KeyedVNodes<COMP>>,
 }
 
-impl<COMP: RenderableComponent + 'static> ComponentWrapper<COMP> {
+impl<COMP: Render + 'static> ComponentWrapper<COMP> {
     fn new(props: COMP::Props) -> ComponentWrapper<COMP> {
         ComponentWrapper {
             component: None,
@@ -57,7 +57,7 @@ impl<COMP: RenderableComponent + 'static> ComponentWrapper<COMP> {
     }
 }
 
-impl<RCTX: RenderableComponent> DOMPatch<RCTX> for VComponent {
+impl<RCTX: Render> DOMPatch<RCTX> for VComponent {
     type Node = Node;
 
     fn render_walk(
@@ -109,7 +109,7 @@ trait ComponentManager: Downcast + Display {
     fn node(&self) -> Option<Node>;
 }
 
-impl<COMP: RenderableComponent + 'static> ComponentManager for ComponentWrapper<COMP> {
+impl<COMP: Render + 'static> ComponentManager for ComponentWrapper<COMP> {
     fn render_walk(&mut self, parent: Node, next: Option<Node>) -> Result<(), JsValue> {
         if self.component.is_none() {
             let props = self.props.take().unwrap();
@@ -185,7 +185,7 @@ impl<COMP: RenderableComponent + 'static> ComponentManager for ComponentWrapper<
     }
 }
 
-impl<RCTX: RenderableComponent> From<VComponent> for VNode<RCTX> {
+impl<RCTX: Render> From<VComponent> for VNode<RCTX> {
     fn from(comp: VComponent) -> VNode<RCTX> {
         VNode::Component(comp)
     }
@@ -207,7 +207,7 @@ impl Display for VComponent {
     }
 }
 
-impl<COMP: RenderableComponent + 'static> Display for ComponentWrapper<COMP> {
+impl<COMP: Render + 'static> Display for ComponentWrapper<COMP> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(
             f,

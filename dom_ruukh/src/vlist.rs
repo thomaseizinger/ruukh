@@ -1,6 +1,6 @@
 //! Representation of a list of nodes in VDOM.
 
-use component::RenderableComponent;
+use component::Render;
 use dom::{DOMInfo, DOMPatch, DOMRemove};
 use std::fmt::{self, Display, Formatter};
 use wasm_bindgen::prelude::JsValue;
@@ -9,22 +9,22 @@ use Shared;
 use {KeyedVNodes, VNode};
 
 /// The representation of a list of vnodes in the vtree.
-pub struct VList<RCTX: RenderableComponent>(Vec<KeyedVNodes<RCTX>>);
+pub struct VList<RCTX: Render>(Vec<KeyedVNodes<RCTX>>);
 
-impl<RCTX: RenderableComponent> VList<RCTX> {
+impl<RCTX: Render> VList<RCTX> {
     /// Constructor to create a list of VNodes.
     pub fn new(list: Vec<KeyedVNodes<RCTX>>) -> VList<RCTX> {
         VList(list)
     }
 }
 
-impl<RCTX: RenderableComponent> From<VList<RCTX>> for VNode<RCTX> {
+impl<RCTX: Render> From<VList<RCTX>> for VNode<RCTX> {
     fn from(list: VList<RCTX>) -> VNode<RCTX> {
         VNode::List(list)
     }
 }
 
-impl<RCTX: RenderableComponent> Display for VList<RCTX> {
+impl<RCTX: Render> Display for VList<RCTX> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         for vnode in self.0.iter() {
             write!(f, "{}", vnode)?;
@@ -33,7 +33,7 @@ impl<RCTX: RenderableComponent> Display for VList<RCTX> {
     }
 }
 
-impl<RCTX: RenderableComponent> DOMPatch<RCTX> for VList<RCTX> {
+impl<RCTX: Render> DOMPatch<RCTX> for VList<RCTX> {
     type Node = Node;
 
     fn render_walk(
@@ -80,7 +80,7 @@ impl<RCTX: RenderableComponent> DOMPatch<RCTX> for VList<RCTX> {
     }
 }
 
-impl<RCTX: RenderableComponent> DOMRemove for VList<RCTX> {
+impl<RCTX: Render> DOMRemove for VList<RCTX> {
     type Node = Node;
 
     fn remove(self, parent: Self::Node) -> Result<(), JsValue> {
@@ -91,7 +91,7 @@ impl<RCTX: RenderableComponent> DOMRemove for VList<RCTX> {
     }
 }
 
-impl<RCTX: RenderableComponent> DOMInfo for VList<RCTX> {
+impl<RCTX: Render> DOMInfo for VList<RCTX> {
     fn node(&self) -> Option<Node> {
         self.0.get(0).and_then(|first| first.node())
     }

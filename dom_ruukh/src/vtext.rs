@@ -1,6 +1,6 @@
 //! Representation of text/comment in virtual dom tree.
 
-use component::RenderableComponent;
+use component::Render;
 use dom::{DOMInfo, DOMPatch, DOMRemove};
 use std::fmt::{self, Display, Formatter};
 use wasm_bindgen::prelude::JsValue;
@@ -38,7 +38,7 @@ impl VText {
     }
 }
 
-impl<RCTX: RenderableComponent> From<VText> for VNode<RCTX> {
+impl<RCTX: Render> From<VText> for VNode<RCTX> {
     fn from(text: VText) -> VNode<RCTX> {
         VNode::Text(text)
     }
@@ -72,7 +72,7 @@ impl VText {
     }
 }
 
-impl<RCTX: RenderableComponent> DOMPatch<RCTX> for VText {
+impl<RCTX: Render> DOMPatch<RCTX> for VText {
     type Node = Node;
 
     fn render_walk(&mut self, _: Node, _: Option<Node>, _: Shared<RCTX>) -> Result<(), JsValue> {

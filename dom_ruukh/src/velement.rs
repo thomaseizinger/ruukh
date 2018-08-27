@@ -1,6 +1,6 @@
 //! Element representation in a VDOM.
 
-use component::RenderableComponent;
+use component::Render;
 use dom::{DOMInfo, DOMPatch, DOMRemove};
 use std::fmt::{self, Display, Formatter};
 use wasm_bindgen::prelude::*;
@@ -9,7 +9,7 @@ use Shared;
 use {KeyedVNodes, VNode};
 
 /// The representation of an element in virtual DOM.
-pub struct VElement<RCTX: RenderableComponent> {
+pub struct VElement<RCTX: Render> {
     /// The tag of the element. Eg: h, p, div, ...
     tag: String,
     /// The attributes of the given element
@@ -33,16 +33,16 @@ pub struct Attribute {
     value: String,
 }
 
-struct EventListeners<RCTX: RenderableComponent>(Vec<Box<EventManager<RCTX>>>);
+struct EventListeners<RCTX: Render>(Vec<Box<EventManager<RCTX>>>);
 
 /// Event listener to be invoked on a DOM event.
-pub struct EventListener<RCTX: RenderableComponent> {
+pub struct EventListener<RCTX: Render> {
     type_: &'static str,
     listener: Option<Box<Fn(&RCTX, Event)>>,
     dom_listener: Option<Closure<Fn(Event)>>,
 }
 
-impl<RCTX: RenderableComponent> VElement<RCTX> {
+impl<RCTX: Render> VElement<RCTX> {
     /// Constructor to create a VElement.
     pub fn new<T: Into<String>>(
         tag: T,
@@ -99,7 +99,7 @@ impl Attribute {
     }
 }
 
-impl<RCTX: RenderableComponent> From<VElement<RCTX>> for VNode<RCTX> {
+impl<RCTX: Render> From<VElement<RCTX>> for VNode<RCTX> {
     fn from(el: VElement<RCTX>) -> VNode<RCTX> {
         VNode::Element(el)
     }
@@ -110,7 +110,7 @@ const VOID_TAGS: [&'static str; 14] = [
     "track", "wbr",
 ];
 
-impl<RCTX: RenderableComponent> Display for VElement<RCTX> {
+impl<RCTX: Render> Display for VElement<RCTX> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         if VOID_TAGS.contains(&self.tag.as_str()) {
             write!(f, "<{}{}>", self.tag, self.attributes)?;
@@ -158,7 +158,7 @@ impl Display for Attribute {
     }
 }
 
-impl<RCTX: RenderableComponent> VElement<RCTX> {
+impl<RCTX: Render> VElement<RCTX> {
     fn patch_new(
         &mut self,
         parent: Node,
@@ -184,7 +184,7 @@ impl<RCTX: RenderableComponent> VElement<RCTX> {
     }
 }
 
-impl<RCTX: RenderableComponent> DOMPatch<RCTX> for VElement<RCTX> {
+impl<RCTX: Render> DOMPatch<RCTX> for VElement<RCTX> {
     type Node = Node;
 
     fn render_walk(
@@ -244,7 +244,7 @@ impl<RCTX: RenderableComponent> DOMPatch<RCTX> for VElement<RCTX> {
     }
 }
 
-impl<RCTX: RenderableComponent> DOMRemove for VElement<RCTX> {
+impl<RCTX: Render> DOMRemove for VElement<RCTX> {
     type Node = Node;
 
     fn remove(self, parent: Node) -> Result<(), JsValue> {
@@ -260,13 +260,13 @@ impl<RCTX: RenderableComponent> DOMRemove for VElement<RCTX> {
     }
 }
 
-impl<RCTX: RenderableComponent> DOMInfo for VElement<RCTX> {
+impl<RCTX: Render> DOMInfo for VElement<RCTX> {
     fn node(&self) -> Option<Node> {
         self.node.as_ref().map(|n| n.clone().into())
     }
 }
 
-impl<RCTX: RenderableComponent> DOMPatch<RCTX> for Attributes {
+impl<RCTX: Render> DOMPatch<RCTX> for Attributes {
     type Node = Element;
 
     fn render_walk(
@@ -307,7 +307,7 @@ impl DOMRemove for Attributes {
     }
 }
 
-impl<RCTX: RenderableComponent> DOMPatch<RCTX> for Attribute {
+impl<RCTX: Render> DOMPatch<RCTX> for Attribute {
     type Node = Element;
 
     fn render_walk(
@@ -340,7 +340,7 @@ impl DOMRemove for Attribute {
     }
 }
 
-impl<RCTX: RenderableComponent> DOMPatch<RCTX> for EventListeners<RCTX> {
+impl<RCTX: Render> DOMPatch<RCTX> for EventListeners<RCTX> {
     type Node = Element;
 
     fn render_walk(
@@ -369,7 +369,7 @@ impl<RCTX: RenderableComponent> DOMPatch<RCTX> for EventListeners<RCTX> {
     }
 }
 
-impl<RCTX: RenderableComponent> DOMRemove for EventListeners<RCTX> {
+impl<RCTX: Render> DOMRemove for EventListeners<RCTX> {
     type Node = Element;
 
     fn remove(self, parent: Element) -> Result<(), JsValue> {
@@ -380,14 +380,14 @@ impl<RCTX: RenderableComponent> DOMRemove for EventListeners<RCTX> {
     }
 }
 
-trait EventManager<RCTX: RenderableComponent> {
+trait EventManager<RCTX: Render> {
     fn start_listening(&mut self, parent: Element, render_ctx: Shared<RCTX>)
         -> Result<(), JsValue>;
 
     fn stop_listening(&mut self, parent: Element) -> Result<(), JsValue>;
 }
 
-impl<RCTX: RenderableComponent> EventManager<RCTX> for EventListener<RCTX> {
+impl<RCTX: Render> EventManager<RCTX> for EventListener<RCTX> {
     fn start_listening(
         &mut self,
         parent: Element,

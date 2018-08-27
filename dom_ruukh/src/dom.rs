@@ -1,10 +1,10 @@
-use component::RenderableComponent;
+use component::Render;
 use wasm_bindgen::prelude::JsValue;
 use web_api::Node;
 use Shared;
 
 /// Trait to patch the DOM to reflect the VDOM structure.
-pub trait DOMPatch<RCTX: RenderableComponent>
+pub trait DOMPatch<RCTX: Render>
 where
     Self: Sized,
 {
