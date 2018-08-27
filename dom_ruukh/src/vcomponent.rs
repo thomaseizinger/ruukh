@@ -15,18 +15,18 @@ pub struct VComponent(Box<ComponentManager>);
 
 impl VComponent {
     #[allow(missing_docs)]
-    pub fn new<COMP: Render + 'static>(props: COMP::Props) -> VComponent {
+    pub fn new<COMP: Render>(props: COMP::Props) -> VComponent {
         VComponent(Box::new(ComponentWrapper::<COMP>::new(props)))
     }
 }
 
-struct ComponentWrapper<COMP: Render + 'static> {
+struct ComponentWrapper<COMP: Render> {
     component: Option<Shared<COMP>>,
     props: Option<COMP::Props>,
     cached_render: Option<KeyedVNodes<COMP>>,
 }
 
-impl<COMP: Render + 'static> ComponentWrapper<COMP> {
+impl<COMP: Render> ComponentWrapper<COMP> {
     fn new(props: COMP::Props) -> ComponentWrapper<COMP> {
         ComponentWrapper {
             component: None,
@@ -109,7 +109,7 @@ trait ComponentManager: Downcast + Display {
     fn node(&self) -> Option<Node>;
 }
 
-impl<COMP: Render + 'static> ComponentManager for ComponentWrapper<COMP> {
+impl<COMP: Render> ComponentManager for ComponentWrapper<COMP> {
     fn render_walk(&mut self, parent: Node, next: Option<Node>) -> Result<(), JsValue> {
         if self.component.is_none() {
             let props = self.props.take().unwrap();
@@ -207,7 +207,7 @@ impl Display for VComponent {
     }
 }
 
-impl<COMP: Render + 'static> Display for ComponentWrapper<COMP> {
+impl<COMP: Render> Display for ComponentWrapper<COMP> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(
             f,
