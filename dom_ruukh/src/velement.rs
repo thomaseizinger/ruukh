@@ -287,9 +287,7 @@ impl<RCTX: RenderableComponent> DOMPatch<RCTX> for Attributes {
     ) -> Result<(), JsValue> {
         debug_assert!(next.is_none());
         if let Some(old) = old {
-            for attr in old.0 {
-                attr.remove(parent.clone())?;
-            }
+            old.remove(parent.clone())?;
         }
         for attr in self.0.iter_mut() {
             attr.patch(None, parent.clone(), None, render_ctx.clone())?;
