@@ -7,7 +7,9 @@ extern crate wasm_bindgen_test;
 
 use dom::DOMPatch;
 use std::borrow::Cow;
+use std::cell::RefCell;
 use std::fmt::{self, Display, Formatter};
+use std::rc::Rc;
 use vcomponent::VComponent;
 use velement::VElement;
 use vlist::VList;
@@ -77,6 +79,8 @@ pub enum VNode {
     /// A component vnode
     Component(VComponent),
 }
+
+type Shared<T> = Rc<RefCell<T>>;
 
 impl Display for KeyedVNodes {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
