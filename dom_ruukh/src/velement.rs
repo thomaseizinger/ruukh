@@ -18,6 +18,17 @@ pub struct VElement {
     node: Option<Element>,
 }
 
+/// A list of attributes.
+struct Attributes(Vec<Attribute>);
+
+/// The key, value pair of the attributes on an element.
+pub struct Attribute {
+    /// The key of the attribute
+    key: String,
+    /// The value pair of the attribute key
+    value: String,
+}
+
 impl VElement {
     /// Constructor to create a VElement.
     pub fn new<T: Into<String>>(
@@ -45,17 +56,6 @@ impl VElement {
     }
 }
 
-/// A list of attributes.
-struct Attributes(Vec<Attribute>);
-
-/// The key, value pair of the attributes on an element.
-pub struct Attribute {
-    /// The key of the attribute
-    key: String,
-    /// The value pair of the attribute key
-    value: String,
-}
-
 impl Attribute {
     /// Constructor to create an Attribute for a VElement.
     pub fn new<K: Into<String>, V: Into<String>>(key: K, value: V) -> Attribute {
@@ -69,6 +69,59 @@ impl Attribute {
 impl From<VElement> for VNode {
     fn from(el: VElement) -> VNode {
         VNode::Element(el)
+    }
+}
+
+const VOID_TAGS: [&'static str; 14] = [
+    "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source",
+    "track", "wbr",
+];
+
+impl Display for VElement {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        if VOID_TAGS.contains(&self.tag.as_str()) {
+            write!(f, "<{}{}>", self.tag, self.attributes)?;
+            if self.child.is_some() {
+                panic!(
+                    "Element with a void tag `{}` cannot have a child.",
+                    self.tag
+                );
+            } else {
+                Ok(())
+            }
+        } else {
+            if let Some(ref child) = self.child {
+                write!(
+                    f,
+                    "<{tag}{attributes}>{child}</{tag}>",
+                    tag = self.tag,
+                    attributes = self.attributes,
+                    child = child
+                )
+            } else {
+                write!(
+                    f,
+                    "<{tag}{attributes}></{tag}>",
+                    tag = self.tag,
+                    attributes = self.attributes
+                )
+            }
+        }
+    }
+}
+
+impl Display for Attributes {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        for attr in self.0.iter() {
+            write!(f, " {}", attr)?;
+        }
+        Ok(())
+    }
+}
+
+impl Display for Attribute {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{}=\"{}\"", self.key, self.value)
     }
 }
 
@@ -150,53 +203,6 @@ impl DOMPatch for VElement {
     }
 }
 
-const VOID_TAGS: [&'static str; 14] = [
-    "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source",
-    "track", "wbr",
-];
-
-impl Display for VElement {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        if VOID_TAGS.contains(&self.tag.as_str()) {
-            write!(f, "<{}{}>", self.tag, self.attributes)?;
-            if self.child.is_some() {
-                panic!(
-                    "Element with a void tag `{}` cannot have a child.",
-                    self.tag
-                );
-            } else {
-                Ok(())
-            }
-        } else {
-            if let Some(ref child) = self.child {
-                write!(
-                    f,
-                    "<{tag}{attributes}>{child}</{tag}>",
-                    tag = self.tag,
-                    attributes = self.attributes,
-                    child = child
-                )
-            } else {
-                write!(
-                    f,
-                    "<{tag}{attributes}></{tag}>",
-                    tag = self.tag,
-                    attributes = self.attributes
-                )
-            }
-        }
-    }
-}
-
-impl Display for Attributes {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        for attr in self.0.iter() {
-            write!(f, " {}", attr)?;
-        }
-        Ok(())
-    }
-}
-
 impl DOMPatch for Attributes {
     type Node = Element;
 
@@ -231,12 +237,6 @@ impl DOMPatch for Attributes {
 
     fn node(&self) -> Option<Element> {
         unreachable!("There is no node for an attribute.")
-    }
-}
-
-impl Display for Attribute {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "{}=\"{}\"", self.key, self.value)
     }
 }
 
