@@ -131,14 +131,18 @@ impl<COMP: Lifecycle + 'static> ComponentManager for ComponentWrapper<COMP> {
             match Self::try_cast(old) {
                 Ok(same) => {
                     let comp = same.component.unwrap();
-                    let old_status = comp.borrow().status();
-                    // TODO: Replace the new component initialization with old status with passing
-                    // the props to the older component
-                    let new_comp = COMP::init(self.props.take().unwrap(), old_status);
-                    new_comp.updated(comp.borrow().props());
-                    self.component = Some(Rc::new(RefCell::new(new_comp)));
+
+                    // Reuse the older component by passing in the newer props.
+                    if let Some(old_props) = comp.borrow_mut().update(self.props.take().unwrap()) {
+                        comp.borrow().updated(old_props);
+                    }
+                    self.component = Some(comp);
+
+                    // Reuse the cached render too to do patches on.
+                    self.cached_render = same.cached_render;
                 }
                 Err(mut not_same) => {
+                    // The component is not the same, remove it from the DOM tree.
                     not_same.remove(parent.clone())?;
                 }
             }

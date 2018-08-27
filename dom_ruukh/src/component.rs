@@ -21,11 +21,9 @@ pub trait Component: Render {
     /// Initializes a component with props as well as a meta-state called status
     fn init(props: Self::Props, status: ComponentStatus<Self::State>) -> Self;
 
-    /// Consume props of the component
-    fn props(&self) -> Self::Props;
-
-    /// Clone the status of the component
-    fn status(&self) -> ComponentStatus<Self::State>;
+    /// Updated the component with newer props and return older props (if changed). Also, set
+    /// the component as dirty (if props changed), so that the component is re-rendered.
+    fn update(&mut self, props: Self::Props) -> Option<Self::Props>;
 
     /// Update the read only state from the mutated status and return true if it has been updated.
     fn refresh_state(&mut self) -> bool;
