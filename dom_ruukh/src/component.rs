@@ -12,7 +12,7 @@ use KeyedVNodes;
 ///
 /// Note: The user should not worry about the implementation detail of the
 /// actual component. Use the auto derive on the component.
-pub trait Component {
+pub trait Component: 'static {
     /// The prop type of a Component.
     type Props;
     /// The state type of a Component.
@@ -81,7 +81,7 @@ pub trait Lifecycle: Component {
 /// Trait to render a view for the component.
 pub trait Render: Lifecycle
 where
-    Self: Sized + 'static,
+    Self: Sized,
 {
     #[allow(missing_docs)]
     fn render(&self) -> KeyedVNodes<Self>;
