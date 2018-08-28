@@ -123,3 +123,105 @@ where
     #[allow(missing_docs)]
     fn render(&self) -> KeyedVNodes<Self>;
 }
+
+/// A void component to be used as a render context for a root component.
+/// Simply the parent of the root.
+pub type RootParent = ();
+
+impl Component for RootParent {
+    type Props = ();
+    type Events = ();
+    type State = ();
+
+    fn init<RCTX: Render>(
+        _: Self::Props,
+        _: Self::Events,
+        _: Shared<Status<()>>,
+        _: Shared<RCTX>,
+    ) -> RootParent {
+        unreachable!(
+            "It is a void component to be used as a render context for a root \
+             component. Not to be used as a component itself."
+        )
+    }
+
+    fn update<RCTX: Render>(
+        &mut self,
+        _: Self::Props,
+        _: Self::Events,
+        _: Shared<RCTX>,
+    ) -> Option<Self::Props> {
+        unreachable!(
+            "It is a void component to be used as a render context for a root \
+             component. Not to be used as a component itself."
+        )
+    }
+
+    fn refresh_state(&mut self) -> bool {
+        unreachable!(
+            "It is a void component to be used as a render context for a root \
+             component. Not to be used as a component itself."
+        )
+    }
+
+    fn is_state_dirty(&mut self) -> bool {
+        unreachable!(
+            "It is a void component to be used as a render context for a root \
+             component. Not to be used as a component itself."
+        )
+    }
+
+    fn is_props_dirty(&mut self) -> bool {
+        unreachable!(
+            "It is a void component to be used as a render context for a root \
+             component. Not to be used as a component itself."
+        )
+    }
+}
+
+impl Lifecycle for RootParent {
+    fn created(&self) {
+        unreachable!(
+            "It is a void component to be used as a render context for a root \
+             component. Not to be used as a component itself."
+        )
+    }
+
+    fn updated(&self, _: Self::Props) {
+        unreachable!(
+            "It is a void component to be used as a render context for a root \
+             component. Not to be used as a component itself."
+        )
+    }
+
+    fn mounted(&self) {
+        unreachable!(
+            "It is a void component to be used as a render context for a root \
+             component. Not to be used as a component itself."
+        )
+    }
+
+    fn destroyed(&self) {
+        unreachable!(
+            "It is a void component to be used as a render context for a root \
+             component. Not to be used as a component itself."
+        )
+    }
+}
+
+impl Render for RootParent {
+    fn render(&self) -> KeyedVNodes<Self> {
+        unreachable!(
+            "It is a void component to be used as a render context for a root \
+             component. Not to be used as a component itself."
+        )
+    }
+}
+
+#[cfg(test)]
+pub fn root_render_ctx() -> Shared<()> {
+    use std::cell::RefCell;
+    use std::rc::Rc;
+    
+    Rc::new(RefCell::new(()))
+}
