@@ -6,7 +6,7 @@ use std::fmt::{self, Display, Formatter};
 use wasm_bindgen::prelude::JsValue;
 use web_api::*;
 use Shared;
-use {KeyedVNodes, VNode};
+use vdom::{KeyedVNodes, VNode};
 
 /// The representation of a list of vnodes in the vtree.
 pub struct VList<RCTX: Render>(Vec<KeyedVNodes<RCTX>>);

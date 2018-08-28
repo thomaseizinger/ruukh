@@ -1,45 +1,21 @@
 //! The Virtual DOM library which backs the `ruukh` frontend framework.
-#![deny(missing_docs)]
-
-extern crate wasm_bindgen;
-#[cfg(test)]
-extern crate wasm_bindgen_test;
 
 use component::Render;
 use dom::{DOMInfo, DOMPatch, DOMRemove};
 use std::borrow::Cow;
-use std::cell::RefCell;
 use std::fmt::{self, Display, Formatter};
-use std::rc::Rc;
-use vcomponent::VComponent;
-use velement::VElement;
-use vlist::VList;
-use vtext::VText;
+use vdom::vcomponent::VComponent;
+use vdom::velement::VElement;
+use vdom::vlist::VList;
+use vdom::vtext::VText;
 use wasm_bindgen::prelude::JsValue;
-#[cfg(test)]
-use wasm_bindgen_test::*;
 use web_api::*;
+use Shared;
 
-#[cfg(test)]
-wasm_bindgen_test_configure!(run_in_browser);
-
-mod component;
-mod dom;
 pub mod vcomponent;
 pub mod velement;
 pub mod vlist;
 pub mod vtext;
-pub mod web_api;
-
-#[allow(missing_docs)]
-pub mod prelude {
-    pub use component::{Component, Status, Lifecycle, Render};
-    pub use vcomponent::VComponent;
-    pub use velement::{Attribute, VElement};
-    pub use vlist::VList;
-    pub use vtext::VText;
-    pub use {Key, KeyedVNodes, VNode};
-}
 
 /// A keyed virtual node in a virtual DOM tree.
 pub struct KeyedVNodes<RCTX: Render> {
@@ -78,8 +54,6 @@ pub enum VNode<RCTX: Render> {
     /// A component vnode
     Component(VComponent<RCTX>),
 }
-
-type Shared<T> = Rc<RefCell<T>>;
 
 impl<RCTX: Render> Display for KeyedVNodes<RCTX> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {

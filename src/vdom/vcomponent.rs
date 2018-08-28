@@ -9,7 +9,7 @@ use std::marker::PhantomData;
 use std::rc::Rc;
 use wasm_bindgen::prelude::JsValue;
 use web_api::*;
-use {KeyedVNodes, Shared, VNode};
+use vdom::{KeyedVNodes, Shared, VNode};
 
 /// The representation of a component in a Virtual DOM.
 pub struct VComponent<RCTX: Render>(Box<ComponentManager<RCTX>>);

@@ -6,7 +6,7 @@ use std::fmt::{self, Display, Formatter};
 use wasm_bindgen::prelude::*;
 use web_api::*;
 use Shared;
-use {KeyedVNodes, VNode};
+use vdom::{KeyedVNodes, VNode};
 
 /// The representation of an element in virtual DOM.
 pub struct VElement<RCTX: Render> {

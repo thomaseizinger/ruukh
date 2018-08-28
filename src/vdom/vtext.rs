@@ -6,7 +6,7 @@ use std::fmt::{self, Display, Formatter};
 use wasm_bindgen::prelude::JsValue;
 use web_api::*;
 use Shared;
-use VNode;
+use vdom::VNode;
 
 /// The representation of text/comment in virtual dom tree.
 pub struct VText {

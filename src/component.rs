@@ -1,4 +1,4 @@
-use KeyedVNodes;
+use vdom::KeyedVNodes;
 use Shared;
 
 /// Trait to define a Component. You do not need to implement this trait.
