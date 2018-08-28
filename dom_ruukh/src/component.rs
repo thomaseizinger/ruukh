@@ -64,6 +64,36 @@ impl<T> Status<T> {
             props_dirty: false,
         }
     }
+
+    /// Get and reset `state_dirty` flag.
+    pub fn is_state_dirty(&mut self) -> bool {
+        if self.state_dirty {
+            self.state_dirty = false;
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Get and reset `props_dirty` flag.
+    pub fn is_props_dirty(&mut self) -> bool {
+        if self.props_dirty {
+            self.props_dirty = false;
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Get the state immutably.
+    pub fn state_as_ref(&self) -> &T {
+        &self.state
+    }
+
+    /// Get the state mutably.
+    pub fn state_as_mut(&mut self) -> &mut T {
+        &mut self.state
+    }
 }
 
 /// The lifecycle of a stateful component. Implement only the appropriate
