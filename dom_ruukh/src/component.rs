@@ -1,5 +1,3 @@
-use std::cell::RefCell;
-use std::rc::Rc;
 use KeyedVNodes;
 use Shared;
 
@@ -25,7 +23,7 @@ pub trait Component: 'static {
     fn init<RCTX: Render>(
         props: Self::Props,
         events: Self::Events,
-        status: ComponentStatus<Self::State>,
+        status: Shared<Status<Self::State>>,
         render_ctx: Shared<RCTX>,
     ) -> Self;
 
@@ -50,25 +48,21 @@ pub trait Component: 'static {
     fn is_props_dirty(&mut self) -> bool;
 }
 
-// Stores the metadata related to the state along with the state
-struct Status<T> {
+/// Stores the metadata related to the state along with the state.
+pub struct Status<T> {
     state: T,
     state_dirty: bool,
     props_dirty: bool,
 }
 
-/// Stores the state as well as the metadata to the state
-#[derive(Clone)]
-pub struct ComponentStatus<T>(Shared<Status<T>>);
-
-impl<T> ComponentStatus<T> {
-    #[allow(missing_docs)]
-    pub fn new(state: T) -> ComponentStatus<T> {
-        ComponentStatus(Rc::new(RefCell::new(Status {
+impl<T> Status<T> {
+    /// Initialize the status with a given state.
+    pub fn new(state: T) -> Status<T> {
+        Status {
             state,
             state_dirty: false,
             props_dirty: false,
-        })))
+        }
     }
 }
 

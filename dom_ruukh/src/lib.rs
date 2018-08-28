@@ -33,7 +33,7 @@ pub mod web_api;
 
 #[allow(missing_docs)]
 pub mod prelude {
-    pub use component::{Component, ComponentStatus, Lifecycle, Render};
+    pub use component::{Component, Status, Lifecycle, Render};
     pub use vcomponent::VComponent;
     pub use velement::{Attribute, VElement};
     pub use vlist::VList;

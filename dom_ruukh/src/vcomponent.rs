@@ -1,6 +1,6 @@
 //! Component representation in a VDOM.
 
-use component::{ComponentStatus, Render};
+use component::{Render, Status};
 use dom::{DOMInfo, DOMPatch, DOMRemove};
 use std::any::Any;
 use std::cell::RefCell;
@@ -133,7 +133,7 @@ impl<COMP: Render, RCTX: Render> ComponentManager<RCTX> for ComponentWrapper<COM
             let instance = COMP::init(
                 props,
                 events,
-                ComponentStatus::new(COMP::State::default()),
+                Rc::new(RefCell::new(Status::new(COMP::State::default()))),
                 render_ctx,
             );
             instance.created();
