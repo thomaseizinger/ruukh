@@ -328,7 +328,7 @@ pub mod wasm_test {
         let mut vcomp = VComponent::new::<Button>(ButtonProps { disabled: false }, ());
         let div = container();
         vcomp
-            .patch(None, div.clone().into(), None, root_render_ctx())
+            .render_walk(div.clone().into(), None, root_render_ctx())
             .expect("To patch div");
 
         assert_eq!(
@@ -342,7 +342,7 @@ pub mod wasm_test {
         let mut vcomp = VComponent::new::<Button>(ButtonProps { disabled: false }, ());
         let div = container();
         vcomp
-            .patch(None, div.clone().into(), None, root_render_ctx())
+            .render_walk(div.clone().into(), None, root_render_ctx())
             .expect("To patch div");
 
         assert_eq!(
@@ -353,6 +353,9 @@ pub mod wasm_test {
         let mut patched = VComponent::new::<Button>(ButtonProps { disabled: true }, ());
         patched
             .patch(Some(vcomp), div.clone().into(), None, root_render_ctx())
+            .unwrap();
+        patched
+            .render_walk(div.clone().into(), None, root_render_ctx())
             .expect("To patch div");
 
         assert_eq!(
