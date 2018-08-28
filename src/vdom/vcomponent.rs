@@ -67,8 +67,8 @@ impl<RCTX: Render> DOMPatch<RCTX> for VComponent<RCTX> {
 
     fn render_walk(
         &mut self,
-        parent: Self::Node,
-        next: Option<Self::Node>,
+        parent: &Self::Node,
+        next: Option<&Self::Node>,
         render_ctx: Shared<RCTX>,
     ) -> Result<(), JsValue> {
         self.0.render_walk(parent, next, render_ctx)
@@ -77,8 +77,8 @@ impl<RCTX: Render> DOMPatch<RCTX> for VComponent<RCTX> {
     fn patch(
         &mut self,
         old: Option<Self>,
-        parent: Self::Node,
-        next: Option<Self::Node>,
+        parent: &Self::Node,
+        next: Option<&Self::Node>,
         render_ctx: Shared<RCTX>,
     ) -> Result<(), JsValue> {
         self.0.patch(old.map(|old| old.0), parent, next, render_ctx)
@@ -88,13 +88,13 @@ impl<RCTX: Render> DOMPatch<RCTX> for VComponent<RCTX> {
 impl<RCTX: Render> DOMRemove for VComponent<RCTX> {
     type Node = Node;
 
-    fn remove(mut self, parent: Self::Node) -> Result<(), JsValue> {
+    fn remove(mut self, parent: &Self::Node) -> Result<(), JsValue> {
         self.0.remove(parent)
     }
 }
 
 impl<RCTX: Render> DOMInfo for VComponent<RCTX> {
-    fn node(&self) -> Option<Node> {
+    fn node(&self) -> Option<&Node> {
         self.0.node()
     }
 }
@@ -102,29 +102,29 @@ impl<RCTX: Render> DOMInfo for VComponent<RCTX> {
 trait ComponentManager<RCTX: Render>: Downcast + Display {
     fn render_walk(
         &mut self,
-        parent: Node,
-        next: Option<Node>,
+        parent: &Node,
+        next: Option<&Node>,
         render_ctx: Shared<RCTX>,
     ) -> Result<(), JsValue>;
 
     fn patch(
         &mut self,
         old: Option<Box<ComponentManager<RCTX>>>,
-        parent: Node,
-        next: Option<Node>,
+        parent: &Node,
+        next: Option<&Node>,
         render_ctx: Shared<RCTX>,
     ) -> Result<(), JsValue>;
 
-    fn remove(&mut self, parent: Node) -> Result<(), JsValue>;
+    fn remove(&mut self, parent: &Node) -> Result<(), JsValue>;
 
-    fn node(&self) -> Option<Node>;
+    fn node(&self) -> Option<&Node>;
 }
 
 impl<COMP: Render, RCTX: Render> ComponentManager<RCTX> for ComponentWrapper<COMP, RCTX> {
     fn render_walk(
         &mut self,
-        parent: Node,
-        next: Option<Node>,
+        parent: &Node,
+        next: Option<&Node>,
         render_ctx: Shared<RCTX>,
     ) -> Result<(), JsValue> {
         if self.component.is_none() {
@@ -139,7 +139,7 @@ impl<COMP: Render, RCTX: Render> ComponentManager<RCTX> for ComponentWrapper<COM
             instance.created();
             let mut initial_render = instance.render();
             let shared_instance = Rc::new(RefCell::new(instance));
-            initial_render.patch(None, parent.clone(), next.clone(), shared_instance.clone())?;
+            initial_render.patch(None, parent, next, shared_instance.clone())?;
             self.component = Some(shared_instance);
             self.cached_render = Some(initial_render);
         } else {
@@ -154,7 +154,7 @@ impl<COMP: Render, RCTX: Render> ComponentManager<RCTX> for ComponentWrapper<COM
             if state_changed || comp.borrow_mut().is_props_dirty() {
                 let mut rerender = comp.borrow().render();
                 let cached_render = self.cached_render.take();
-                rerender.patch(cached_render, parent.clone(), next.clone(), comp.clone())?;
+                rerender.patch(cached_render, parent, next, comp.clone())?;
                 self.cached_render = Some(rerender);
             }
         }
@@ -167,8 +167,8 @@ impl<COMP: Render, RCTX: Render> ComponentManager<RCTX> for ComponentWrapper<COM
     fn patch(
         &mut self,
         old: Option<Box<ComponentManager<RCTX>>>,
-        parent: Node,
-        _: Option<Node>,
+        parent: &Node,
+        _: Option<&Node>,
         render_ctx: Shared<RCTX>,
     ) -> Result<(), JsValue> {
         if let Some(old) = old {
@@ -189,14 +189,14 @@ impl<COMP: Render, RCTX: Render> ComponentManager<RCTX> for ComponentWrapper<COM
                 }
                 Err(mut not_same) => {
                     // The component is not the same, remove it from the DOM tree.
-                    not_same.remove(parent.clone())?;
+                    not_same.remove(parent)?;
                 }
             }
         }
         Ok(())
     }
 
-    fn remove(&mut self, parent: Node) -> Result<(), JsValue> {
+    fn remove(&mut self, parent: &Node) -> Result<(), JsValue> {
         if let Some(cached_render) = self.cached_render.take() {
             cached_render.remove(parent)?;
             let comp = self.component.as_ref().unwrap();
@@ -205,7 +205,7 @@ impl<COMP: Render, RCTX: Render> ComponentManager<RCTX> for ComponentWrapper<COM
         Ok(())
     }
 
-    fn node(&self) -> Option<Node> {
+    fn node(&self) -> Option<&Node> {
         self.cached_render.as_ref().and_then(|inner| inner.node())
     }
 }
@@ -328,7 +328,7 @@ pub mod wasm_test {
         let mut vcomp = VComponent::new::<Button>(ButtonProps { disabled: false }, ());
         let div = container();
         vcomp
-            .render_walk(div.clone().into(), None, root_render_ctx())
+            .render_walk(div.as_ref(), None, root_render_ctx())
             .expect("To patch div");
 
         assert_eq!(
@@ -342,7 +342,7 @@ pub mod wasm_test {
         let mut vcomp = VComponent::new::<Button>(ButtonProps { disabled: false }, ());
         let div = container();
         vcomp
-            .render_walk(div.clone().into(), None, root_render_ctx())
+            .render_walk(div.as_ref(), None, root_render_ctx())
             .expect("To patch div");
 
         assert_eq!(
@@ -352,10 +352,10 @@ pub mod wasm_test {
 
         let mut patched = VComponent::new::<Button>(ButtonProps { disabled: true }, ());
         patched
-            .patch(Some(vcomp), div.clone().into(), None, root_render_ctx())
+            .patch(Some(vcomp), div.as_ref(), None, root_render_ctx())
             .unwrap();
         patched
-            .render_walk(div.clone().into(), None, root_render_ctx())
+            .render_walk(div.as_ref(), None, root_render_ctx())
             .expect("To patch div");
 
         assert_eq!(

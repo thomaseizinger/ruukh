@@ -73,15 +73,15 @@ extern "C" {
     #[wasm_bindgen(method, catch, js_name = insertBefore)]
     pub fn insert_before(
         this: &Node,
-        new_node: Node,
-        reference_node: Node,
+        new_node: &Node,
+        reference_node: &Node,
     ) -> Result<Node, JsValue>;
 
     #[wasm_bindgen(method, catch, js_name = appendChild)]
-    pub fn append_child(this: &Node, new_node: Node) -> Result<Node, JsValue>;
+    pub fn append_child(this: &Node, new_node: &Node) -> Result<Node, JsValue>;
 
     #[wasm_bindgen(method, catch, js_name = removeChild)]
-    pub fn remove_child(this: &Node, child: Node) -> Result<Node, JsValue>;
+    pub fn remove_child(this: &Node, child: &Node) -> Result<Node, JsValue>;
 
     #[wasm_bindgen(method, getter = textContent)]
     pub fn text_content(this: &Node) -> String;
@@ -112,7 +112,7 @@ pub mod wasm_test {
         let div = html_document.create_element("div").unwrap();
         div.set_attribute("id", "app").unwrap();
         let body: Node = html_document.body().unwrap().into();
-        body.append_child(div.into()).unwrap();
+        body.append_child(div.as_ref()).unwrap();
         let el = html_document.get_element_by_id("app");
         assert!(el.is_some());
     }
@@ -121,7 +121,7 @@ pub mod wasm_test {
     fn should_append_element_to_document() {
         let body: Node = html_document.body().unwrap().into();
         let el = html_document.create_element("div").unwrap();
-        body.append_child(el.into()).expect("To append element");
+        body.append_child(el.as_ref()).expect("To append element");
     }
 
     #[wasm_bindgen_test]
@@ -162,8 +162,7 @@ pub mod wasm_test {
         let div = html_document.create_element("div").unwrap();
         let span = html_document.create_element("span").unwrap();
         let div: &Node = div.as_ref();
-        let span: Node = span.into();
-        div.append_child(span).expect("To append span");
+        div.append_child(span.as_ref()).expect("To append span");
     }
 
     #[wasm_bindgen_test]
@@ -171,10 +170,9 @@ pub mod wasm_test {
         let div = html_document.create_element("div").unwrap();
         let span = html_document.create_element("span").unwrap();
         let div: &Node = div.as_ref();
-        let span: Node = span.into();
-        div.append_child(span.clone()).unwrap();
-        let anchor: Node = html_document.create_text_node("Hello World!").into();
-        div.insert_before(anchor, span)
+        div.append_child(span.as_ref()).unwrap();
+        let anchor = html_document.create_text_node("Hello World!");
+        div.insert_before(anchor.as_ref(), span.as_ref())
             .expect("To insert anchor before span");
     }
 
@@ -187,9 +185,8 @@ pub mod wasm_test {
             .create_element("span")
             .expect("To create span element");
         let div: &Node = div.as_ref();
-        let span: Node = span.into();
-        div.append_child(span.clone()).unwrap();
-        div.remove_child(span).expect("To remove span");
+        div.append_child(span.as_ref()).unwrap();
+        div.remove_child(span.as_ref()).expect("To remove span");
     }
 
     #[wasm_bindgen_test]
@@ -204,8 +201,7 @@ pub mod wasm_test {
         let div = html_document.create_element("div").unwrap();
         let span = html_document.create_element("span").unwrap();
         let div_node: &Node = div.as_ref();
-        div_node.append_child(span.into()).unwrap();
+        div_node.append_child(span.as_ref()).unwrap();
         assert_eq!(div.inner_html(), "<span></span>");
     }
-
 }

@@ -77,8 +77,8 @@ impl<RCTX: Render> DOMPatch<RCTX> for KeyedVNodes<RCTX> {
 
     fn render_walk(
         &mut self,
-        parent: Self::Node,
-        next: Option<Self::Node>,
+        parent: &Self::Node,
+        next: Option<&Self::Node>,
         render_ctx: Shared<RCTX>,
     ) -> Result<(), JsValue> {
         self.vnode.render_walk(parent, next, render_ctx)
@@ -87,15 +87,15 @@ impl<RCTX: Render> DOMPatch<RCTX> for KeyedVNodes<RCTX> {
     fn patch(
         &mut self,
         old: Option<Self>,
-        parent: Self::Node,
-        next: Option<Self::Node>,
+        parent: &Self::Node,
+        next: Option<&Self::Node>,
         render_ctx: Shared<RCTX>,
     ) -> Result<(), JsValue> {
         if let Some(old) = old {
             if self.key == old.key {
                 self.vnode.patch(Some(old.vnode), parent, next, render_ctx)
             } else {
-                old.vnode.remove(parent.clone())?;
+                old.vnode.remove(parent)?;
                 self.vnode.patch(None, parent, next, render_ctx)
             }
         } else {
@@ -107,13 +107,13 @@ impl<RCTX: Render> DOMPatch<RCTX> for KeyedVNodes<RCTX> {
 impl<RCTX: Render> DOMRemove for KeyedVNodes<RCTX> {
     type Node = Node;
 
-    fn remove(self, parent: Self::Node) -> Result<(), JsValue> {
+    fn remove(self, parent: &Self::Node) -> Result<(), JsValue> {
         self.vnode.remove(parent)
     }
 }
 
 impl<RCTX: Render> DOMInfo for KeyedVNodes<RCTX> {
-    fn node(&self) -> Option<Node> {
+    fn node(&self) -> Option<&Node> {
         self.vnode.node()
     }
 }
@@ -123,7 +123,7 @@ macro_rules! patch {
         match $old {
             Some(VNode::$variant(old)) => $this.patch(Some(old), $parent, $next, $render_ctx),
             Some(old) => {
-                old.remove($parent.clone())?;
+                old.remove($parent)?;
                 $this.patch(None, $parent, $next, $render_ctx)
             }
             None => $this.patch(None, $parent, $next, $render_ctx),
@@ -136,8 +136,8 @@ impl<RCTX: Render> DOMPatch<RCTX> for VNode<RCTX> {
 
     fn render_walk(
         &mut self,
-        parent: Self::Node,
-        next: Option<Self::Node>,
+        parent: &Self::Node,
+        next: Option<&Self::Node>,
         render_ctx: Shared<RCTX>,
     ) -> Result<(), JsValue> {
         match self {
@@ -151,8 +151,8 @@ impl<RCTX: Render> DOMPatch<RCTX> for VNode<RCTX> {
     fn patch(
         &mut self,
         old: Option<Self>,
-        parent: Self::Node,
-        next: Option<Self::Node>,
+        parent: &Self::Node,
+        next: Option<&Self::Node>,
         render_ctx: Shared<RCTX>,
     ) -> Result<(), JsValue> {
         match self {
@@ -171,7 +171,7 @@ impl<RCTX: Render> DOMPatch<RCTX> for VNode<RCTX> {
 impl<RCTX: Render> DOMRemove for VNode<RCTX> {
     type Node = Node;
 
-    fn remove(self, parent: Self::Node) -> Result<(), JsValue> {
+    fn remove(self, parent: &Self::Node) -> Result<(), JsValue> {
         match self {
             VNode::Text(txt) => txt.remove(parent),
             VNode::Element(el) => el.remove(parent),
@@ -182,7 +182,7 @@ impl<RCTX: Render> DOMRemove for VNode<RCTX> {
 }
 
 impl<RCTX: Render> DOMInfo for VNode<RCTX> {
-    fn node(&self) -> Option<Node> {
+    fn node(&self) -> Option<&Node> {
         match self {
             VNode::Text(txt) => txt.node(),
             VNode::Element(el) => el.node(),

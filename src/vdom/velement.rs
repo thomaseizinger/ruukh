@@ -161,23 +161,22 @@ impl Display for Attribute {
 impl<RCTX: Render> VElement<RCTX> {
     fn patch_new(
         &mut self,
-        parent: Node,
-        next: Option<Node>,
+        parent: &Node,
+        next: Option<&Node>,
         render_ctx: Shared<RCTX>,
     ) -> Result<(), JsValue> {
         let el = html_document.create_element(&self.tag)?;
-        let el_node: Node = el.clone().into();
         self.attributes
-            .patch(None, el.clone(), None, render_ctx.clone())?;
+            .patch(None, &el, None, render_ctx.clone())?;
         self.event_listeners
-            .patch(None, el.clone(), None, render_ctx.clone())?;
+            .patch(None, &el, None, render_ctx.clone())?;
         if let Some(ref mut child) = self.child {
-            child.patch(None, el_node.clone(), None, render_ctx)?;
+            child.patch(None, el.as_ref(), None, render_ctx)?;
         }
         if let Some(next) = next {
-            parent.insert_before(el_node, next)?;
+            parent.insert_before(el.as_ref(), next)?;
         } else {
-            parent.append_child(el_node)?;
+            parent.append_child(el.as_ref())?;
         }
         self.node = Some(el);
         Ok(())
@@ -189,17 +188,16 @@ impl<RCTX: Render> DOMPatch<RCTX> for VElement<RCTX> {
 
     fn render_walk(
         &mut self,
-        _: Node,
-        _: Option<Node>,
+        _: &Node,
+        _: Option<&Node>,
         render_ctx: Shared<RCTX>,
     ) -> Result<(), JsValue> {
         if let Some(ref mut child) = self.child {
             let node = self
                 .node
                 .as_ref()
-                .expect("The element itself must be patched before rendering the child")
-                .clone();
-            child.render_walk(node.into(), None, render_ctx)?;
+                .expect("The element itself must be patched before rendering the child");
+            child.render_walk(node.as_ref(), None, render_ctx)?;
         }
         Ok(())
     }
@@ -207,8 +205,8 @@ impl<RCTX: Render> DOMPatch<RCTX> for VElement<RCTX> {
     fn patch(
         &mut self,
         old: Option<Self>,
-        parent: Node,
-        next: Option<Node>,
+        parent: &Node,
+        next: Option<&Node>,
         render_ctx: Shared<RCTX>,
     ) -> Result<(), JsValue> {
         if let Some(old) = old {
@@ -216,26 +214,25 @@ impl<RCTX: Render> DOMPatch<RCTX> for VElement<RCTX> {
                 let old_el = old
                     .node
                     .expect("The old node is expected to be attached to the DOM");
-                let old_node: Node = old_el.clone().into();
                 self.attributes.patch(
                     Some(old.attributes),
-                    old_el.clone(),
+                    &old_el,
                     None,
                     render_ctx.clone(),
                 )?;
                 self.event_listeners.patch(
                     Some(old.event_listeners),
-                    old_el.clone(),
+                    &old_el,
                     None,
                     render_ctx.clone(),
                 )?;
                 if let Some(ref mut child) = self.child {
-                    child.patch(old.child.map(|bx| *bx), old_node, None, render_ctx.clone())?;
+                    child.patch(old.child.map(|bx| *bx), old_el.as_ref(), None, render_ctx.clone())?;
                 }
                 self.node = Some(old_el);
                 Ok(())
             } else {
-                old.remove(parent.clone())?;
+                old.remove(parent)?;
                 self.patch_new(parent, next, render_ctx)
             }
         } else {
@@ -247,22 +244,22 @@ impl<RCTX: Render> DOMPatch<RCTX> for VElement<RCTX> {
 impl<RCTX: Render> DOMRemove for VElement<RCTX> {
     type Node = Node;
 
-    fn remove(self, parent: Node) -> Result<(), JsValue> {
+    fn remove(self, parent: &Node) -> Result<(), JsValue> {
         let el = self
             .node
             .expect("The old node is expected to be attached to the DOM");
         if let Some(child) = self.child {
-            child.remove(el.clone().into())?;
+            child.remove(el.as_ref())?;
         }
-        self.attributes.remove(el.clone())?;
-        parent.remove_child(el.into())?;
+        self.attributes.remove(&el)?;
+        parent.remove_child(el.as_ref())?;
         Ok(())
     }
 }
 
 impl<RCTX: Render> DOMInfo for VElement<RCTX> {
-    fn node(&self) -> Option<Node> {
-        self.node.as_ref().map(|n| n.clone().into())
+    fn node(&self) -> Option<&Node> {
+        self.node.as_ref().map(|el| el.as_ref())
     }
 }
 
@@ -271,8 +268,8 @@ impl<RCTX: Render> DOMPatch<RCTX> for Attributes {
 
     fn render_walk(
         &mut self,
-        _: Element,
-        _: Option<Element>,
+        _: &Element,
+        _: Option<&Element>,
         _: Shared<RCTX>,
     ) -> Result<(), JsValue> {
         unreachable!("Attributes do not have nested Components");
@@ -281,16 +278,16 @@ impl<RCTX: Render> DOMPatch<RCTX> for Attributes {
     fn patch(
         &mut self,
         old: Option<Self>,
-        parent: Element,
-        next: Option<Element>,
+        parent: &Element,
+        next: Option<&Element>,
         render_ctx: Shared<RCTX>,
     ) -> Result<(), JsValue> {
         debug_assert!(next.is_none());
         if let Some(old) = old {
-            old.remove(parent.clone())?;
+            old.remove(parent)?;
         }
         for attr in self.0.iter_mut() {
-            attr.patch(None, parent.clone(), None, render_ctx.clone())?;
+            attr.patch(None, parent, None, render_ctx.clone())?;
         }
         Ok(())
     }
@@ -299,9 +296,9 @@ impl<RCTX: Render> DOMPatch<RCTX> for Attributes {
 impl DOMRemove for Attributes {
     type Node = Element;
 
-    fn remove(self, parent: Element) -> Result<(), JsValue> {
+    fn remove(self, parent: &Element) -> Result<(), JsValue> {
         for attr in self.0 {
-            attr.remove(parent.clone())?;
+            attr.remove(parent)?;
         }
         Ok(())
     }
@@ -312,8 +309,8 @@ impl<RCTX: Render> DOMPatch<RCTX> for Attribute {
 
     fn render_walk(
         &mut self,
-        _: Element,
-        _: Option<Element>,
+        _: &Element,
+        _: Option<&Element>,
         _: Shared<RCTX>,
     ) -> Result<(), JsValue> {
         unreachable!("Attribute does not have nested Components");
@@ -322,8 +319,8 @@ impl<RCTX: Render> DOMPatch<RCTX> for Attribute {
     fn patch(
         &mut self,
         old: Option<Self>,
-        parent: Element,
-        next: Option<Element>,
+        parent: &Element,
+        next: Option<&Element>,
         _: Shared<RCTX>,
     ) -> Result<(), JsValue> {
         debug_assert!(old.is_none());
@@ -335,7 +332,7 @@ impl<RCTX: Render> DOMPatch<RCTX> for Attribute {
 impl DOMRemove for Attribute {
     type Node = Element;
 
-    fn remove(self, parent: Element) -> Result<(), JsValue> {
+    fn remove(self, parent: &Element) -> Result<(), JsValue> {
         parent.remove_attribute(&self.key)
     }
 }
@@ -345,8 +342,8 @@ impl<RCTX: Render> DOMPatch<RCTX> for EventListeners<RCTX> {
 
     fn render_walk(
         &mut self,
-        _: Element,
-        _: Option<Element>,
+        _: &Element,
+        _: Option<&Element>,
         _: Shared<RCTX>,
     ) -> Result<(), JsValue> {
         unreachable!("EventListeners does not have nested Components");
@@ -355,15 +352,15 @@ impl<RCTX: Render> DOMPatch<RCTX> for EventListeners<RCTX> {
     fn patch(
         &mut self,
         old: Option<Self>,
-        parent: Element,
-        _: Option<Element>,
+        parent: &Element,
+        _: Option<&Element>,
         render_ctx: Shared<RCTX>,
     ) -> Result<(), JsValue> {
         if let Some(old) = old {
-            old.remove(parent.clone())?;
+            old.remove(parent)?;
         }
         for listener in self.0.iter_mut() {
-            listener.start_listening(parent.clone(), render_ctx.clone())?;
+            listener.start_listening(parent, render_ctx.clone())?;
         }
         Ok(())
     }
@@ -372,25 +369,25 @@ impl<RCTX: Render> DOMPatch<RCTX> for EventListeners<RCTX> {
 impl<RCTX: Render> DOMRemove for EventListeners<RCTX> {
     type Node = Element;
 
-    fn remove(self, parent: Element) -> Result<(), JsValue> {
+    fn remove(self, parent: &Element) -> Result<(), JsValue> {
         for mut listener in self.0 {
-            listener.stop_listening(parent.clone())?;
+            listener.stop_listening(parent)?;
         }
         Ok(())
     }
 }
 
 trait EventManager<RCTX: Render> {
-    fn start_listening(&mut self, parent: Element, render_ctx: Shared<RCTX>)
+    fn start_listening(&mut self, parent: &Element, render_ctx: Shared<RCTX>)
         -> Result<(), JsValue>;
 
-    fn stop_listening(&mut self, parent: Element) -> Result<(), JsValue>;
+    fn stop_listening(&mut self, parent: &Element) -> Result<(), JsValue>;
 }
 
 impl<RCTX: Render> EventManager<RCTX> for EventListener<RCTX> {
     fn start_listening(
         &mut self,
-        parent: Element,
+        parent: &Element,
         render_ctx: Shared<RCTX>,
     ) -> Result<(), JsValue> {
         let listener = self.listener.take().unwrap();
@@ -400,7 +397,7 @@ impl<RCTX: Render> EventManager<RCTX> for EventListener<RCTX> {
         Ok(())
     }
 
-    fn stop_listening(&mut self, parent: Element) -> Result<(), JsValue> {
+    fn stop_listening(&mut self, parent: &Element) -> Result<(), JsValue> {
         let js_closure = self.dom_listener.take().unwrap();
         parent.remove_event_listener(&self.type_, &js_closure)
     }
@@ -470,7 +467,7 @@ pub mod wasm_test {
         let mut button_el = VElement::childless("button", vec![], vec![]);
         let div = container();
         button_el
-            .patch(None, div.clone().into(), None, root_render_ctx())
+            .patch(None, div.as_ref(), None, root_render_ctx())
             .expect("To patch div");
 
         assert_eq!(div.inner_html(), "<button></button>");
@@ -488,7 +485,7 @@ pub mod wasm_test {
         );
         let div = container();
         button_el
-            .patch(None, div.clone().into(), None, root_render_ctx())
+            .patch(None, div.as_ref(), None, root_render_ctx())
             .expect("To patch div");
 
         assert_eq!(
@@ -511,7 +508,7 @@ pub mod wasm_test {
         );
         let div = container();
         div_el
-            .patch(None, div.clone().into(), None, root_render_ctx())
+            .patch(None, div.as_ref(), None, root_render_ctx())
             .expect("To patch div");
 
         assert_eq!(
@@ -525,14 +522,14 @@ pub mod wasm_test {
         let mut div_el = VElement::childless("div", vec![], vec![]);
         let div = container();
         div_el
-            .patch(None, div.clone().into(), None, root_render_ctx())
+            .patch(None, div.as_ref(), None, root_render_ctx())
             .expect("To patch div");
 
         assert_eq!(div.inner_html(), "<div></div>");
 
         let mut button_el = VElement::childless("button", vec![], vec![]);
         button_el
-            .patch(Some(div_el), div.clone().into(), None, root_render_ctx())
+            .patch(Some(div_el), div.as_ref(), None, root_render_ctx())
             .expect("To patch div");
 
         assert_eq!(div.inner_html(), "<button></button>");
@@ -544,7 +541,7 @@ pub mod wasm_test {
             VElement::childless("div", vec![Attribute::new("class", "bg-white")], vec![]);
         let div = container();
         div_el
-            .patch(None, div.clone().into(), None, root_render_ctx())
+            .patch(None, div.as_ref(), None, root_render_ctx())
             .expect("To patch div");
 
         assert_eq!(div.inner_html(), r#"<div class="bg-white"></div>"#);
@@ -558,7 +555,7 @@ pub mod wasm_test {
             vec![],
         );
         div_diff
-            .patch(Some(div_el), div.clone().into(), None, root_render_ctx())
+            .patch(Some(div_el), div.as_ref(), None, root_render_ctx())
             .expect("To patch div");
 
         assert_eq!(

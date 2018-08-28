@@ -60,7 +60,7 @@ impl<RCTX: Render> Display for VText<RCTX> {
 }
 
 impl<RCTX: Render> VText<RCTX> {
-    fn patch_new(&mut self, parent: Node, next: Option<Node>) -> Result<(), JsValue> {
+    fn patch_new(&mut self, parent: &Node, next: Option<&Node>) -> Result<(), JsValue> {
         let node: Node = if self.is_comment {
             html_document.create_comment(&self.content).into()
         } else {
@@ -68,9 +68,9 @@ impl<RCTX: Render> VText<RCTX> {
         };
 
         if let Some(next) = next {
-            parent.insert_before(node.clone(), next)?;
+            parent.insert_before(&node, next)?;
         } else {
-            parent.append_child(node.clone())?;
+            parent.append_child(&node)?;
         }
         self.node = Some(node);
         Ok(())
@@ -80,15 +80,15 @@ impl<RCTX: Render> VText<RCTX> {
 impl<RCTX: Render> DOMPatch<RCTX> for VText<RCTX> {
     type Node = Node;
 
-    fn render_walk(&mut self, _: Node, _: Option<Node>, _: Shared<RCTX>) -> Result<(), JsValue> {
+    fn render_walk(&mut self, _: &Node, _: Option<&Node>, _: Shared<RCTX>) -> Result<(), JsValue> {
         unreachable!("There is nothing to render in a VText");
     }
 
     fn patch(
         &mut self,
         old: Option<Self>,
-        parent: Node,
-        next: Option<Node>,
+        parent: &Node,
+        next: Option<&Node>,
         _: Shared<RCTX>,
     ) -> Result<(), JsValue> {
         if let Some(old) = old {
@@ -102,7 +102,7 @@ impl<RCTX: Render> DOMPatch<RCTX> for VText<RCTX> {
                 self.node = Some(old_node);
                 Ok(())
             } else {
-                old.remove(parent.clone())?;
+                old.remove(parent)?;
                 self.patch_new(parent, next)
             }
         } else {
@@ -114,9 +114,10 @@ impl<RCTX: Render> DOMPatch<RCTX> for VText<RCTX> {
 impl<RCTX: Render> DOMRemove for VText<RCTX> {
     type Node = Node;
 
-    fn remove(self, parent: Node) -> Result<(), JsValue> {
+    fn remove(self, parent: &Node) -> Result<(), JsValue> {
         parent.remove_child(
             self.node
+                .as_ref()
                 .expect("The old node is expected to be attached to the DOM"),
         )?;
         Ok(())
@@ -124,8 +125,8 @@ impl<RCTX: Render> DOMRemove for VText<RCTX> {
 }
 
 impl<RCTX: Render> DOMInfo for VText<RCTX> {
-    fn node(&self) -> Option<Node> {
-        self.node.as_ref().map(|n| n.clone())
+    fn node(&self) -> Option<&Node> {
+        self.node.as_ref()
     }
 }
 
@@ -163,7 +164,7 @@ pub mod wasm_test {
         let mut vtext = VText::text("Hello World! It is nice to render.");
         let div = html_document.create_element("div").unwrap();
         vtext
-            .patch(None, div.clone().into(), None, root_render_ctx())
+            .patch(None, div.as_ref(), None, root_render_ctx())
             .expect("To patch the div");
 
         assert_eq!(div.inner_html(), "Hello World! It is nice to render.");
@@ -174,14 +175,14 @@ pub mod wasm_test {
         let mut vtext = VText::text("Hello World! It is nice to render.");
         let div = html_document.create_element("div").unwrap();
         vtext
-            .patch(None, div.clone().into(), None, root_render_ctx())
+            .patch(None, div.as_ref(), None, root_render_ctx())
             .expect("To patch div");
 
         assert_eq!(div.inner_html(), "Hello World! It is nice to render.");
 
         let mut updated = VText::text("How you doing?");
         updated
-            .patch(Some(vtext), div.clone().into(), None, root_render_ctx())
+            .patch(Some(vtext), div.as_ref(), None, root_render_ctx())
             .expect("To patch div");
 
         assert_eq!(div.inner_html(), "How you doing?");
@@ -192,7 +193,7 @@ pub mod wasm_test {
         let mut comment = VText::comment("This is a comment");
         let div = html_document.create_element("div").unwrap();
         comment
-            .patch(None, div.clone().into(), None, root_render_ctx())
+            .patch(None, div.as_ref(), None, root_render_ctx())
             .expect("To patch div");
 
         assert_eq!(div.inner_html(), "<!--This is a comment-->");
@@ -203,13 +204,13 @@ pub mod wasm_test {
         let mut comment = VText::comment("This is a comment");
         let div = html_document.create_element("div").unwrap();
         comment
-            .patch(None, div.clone().into(), None, root_render_ctx())
+            .patch(None, div.as_ref(), None, root_render_ctx())
             .expect("To patch div");
 
         assert_eq!(div.inner_html(), "<!--This is a comment-->");
 
         let mut text = VText::text("This is a text");
-        text.patch(Some(comment), div.clone().into(), None, root_render_ctx())
+        text.patch(Some(comment), div.as_ref(), None, root_render_ctx())
             .expect("To patch div");
 
         assert_eq!(div.inner_html(), "This is a text");

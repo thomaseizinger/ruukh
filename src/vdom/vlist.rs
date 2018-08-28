@@ -38,13 +38,13 @@ impl<RCTX: Render> DOMPatch<RCTX> for VList<RCTX> {
 
     fn render_walk(
         &mut self,
-        parent: Self::Node,
-        next: Option<Self::Node>,
+        parent: &Self::Node,
+        next: Option<&Self::Node>,
         render_ctx: Shared<RCTX>,
     ) -> Result<(), JsValue> {
         let mut next = next;
         for vnode in self.0.iter_mut().rev() {
-            vnode.render_walk(parent.clone(), next, render_ctx.clone())?;
+            vnode.render_walk(parent, next, render_ctx.clone())?;
             next = vnode.node();
         }
         Ok(())
@@ -53,8 +53,8 @@ impl<RCTX: Render> DOMPatch<RCTX> for VList<RCTX> {
     fn patch(
         &mut self,
         old: Option<Self>,
-        parent: Self::Node,
-        next: Option<Self::Node>,
+        parent: &Self::Node,
+        next: Option<&Self::Node>,
         render_ctx: Shared<RCTX>,
     ) -> Result<(), JsValue> {
         let mut next = next;
@@ -66,13 +66,13 @@ impl<RCTX: Render> DOMPatch<RCTX> for VList<RCTX> {
                 } else {
                     None
                 };
-                vnode.patch(old, parent.clone(), next, render_ctx.clone())?;
+                vnode.patch(old, parent, next, render_ctx.clone())?;
                 next = vnode.node();
             }
             old.remove(parent)?;
         } else {
             for vnode in self.0.iter_mut().rev() {
-                vnode.patch(None, parent.clone(), next, render_ctx.clone())?;
+                vnode.patch(None, parent, next, render_ctx.clone())?;
                 next = vnode.node();
             }
         }
@@ -83,16 +83,16 @@ impl<RCTX: Render> DOMPatch<RCTX> for VList<RCTX> {
 impl<RCTX: Render> DOMRemove for VList<RCTX> {
     type Node = Node;
 
-    fn remove(self, parent: Self::Node) -> Result<(), JsValue> {
+    fn remove(self, parent: &Self::Node) -> Result<(), JsValue> {
         for vnode in self.0 {
-            vnode.remove(parent.clone())?;
+            vnode.remove(parent)?;
         }
         Ok(())
     }
 }
 
 impl<RCTX: Render> DOMInfo for VList<RCTX> {
-    fn node(&self) -> Option<Node> {
+    fn node(&self) -> Option<&Node> {
         self.0.get(0).and_then(|first| first.node())
     }
 }
@@ -133,7 +133,7 @@ pub mod wasm_test {
             KeyedVNodes::unkeyed(VElement::childless("div", vec![], vec![])),
         ]);
         let div = container();
-        list.patch(None, div.clone().into(), None, root_render_ctx())
+        list.patch(None, div.as_ref(), None, root_render_ctx())
             .expect("To patch div");
 
         assert_eq!(div.inner_html(), "Hello World!<div></div>");
@@ -146,7 +146,7 @@ pub mod wasm_test {
             KeyedVNodes::unkeyed(VElement::childless("div", vec![], vec![])),
         ]);
         let div = container();
-        list.patch(None, div.clone().into(), None, root_render_ctx())
+        list.patch(None, div.as_ref(), None, root_render_ctx())
             .expect("To patch div");
 
         assert_eq!(div.inner_html(), "Hello World!<div></div>");
@@ -157,7 +157,7 @@ pub mod wasm_test {
             KeyedVNodes::unkeyed(VText::text("How are you?")),
         ]);
         new_list
-            .patch(Some(list), div.clone().into(), None, root_render_ctx())
+            .patch(Some(list), div.as_ref(), None, root_render_ctx())
             .expect("To patch div");
 
         assert_eq!(div.inner_html(), "<div></div>Hello World!How are you?");

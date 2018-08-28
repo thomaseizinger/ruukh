@@ -14,8 +14,8 @@ where
     /// Walks through the VDOM till an uninitialized or a dirty Component is found and renders it recursively.
     fn render_walk(
         &mut self,
-        parent: Self::Node,
-        next: Option<Self::Node>,
+        parent: &Self::Node,
+        next: Option<&Self::Node>,
         render_ctx: Shared<RCTX>,
     ) -> Result<(), JsValue>;
 
@@ -23,8 +23,8 @@ where
     fn patch(
         &mut self,
         old: Option<Self>,
-        parent: Self::Node,
-        next: Option<Self::Node>,
+        parent: &Self::Node,
+        next: Option<&Self::Node>,
         render_ctx: Shared<RCTX>,
     ) -> Result<(), JsValue>;
 }
@@ -34,11 +34,11 @@ pub trait DOMRemove {
     type Node;
 
     /// Remove the VDOM from the actual DOM.
-    fn remove(self, parent: Self::Node) -> Result<(), JsValue>;
+    fn remove(self, parent: &Self::Node) -> Result<(), JsValue>;
 }
 
 /// Glean out the info from the DOM attached VDOM.
 pub trait DOMInfo {
     /// The node value of the DOM attached VDOM.
-    fn node(&self) -> Option<Node>;
+    fn node(&self) -> Option<&Node>;
 }
