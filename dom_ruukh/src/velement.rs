@@ -356,7 +356,7 @@ impl<RCTX: Render> DOMPatch<RCTX> for EventListeners<RCTX> {
         &mut self,
         old: Option<Self>,
         parent: Element,
-        next: Option<Element>,
+        _: Option<Element>,
         render_ctx: Shared<RCTX>,
     ) -> Result<(), JsValue> {
         if let Some(old) = old {
