@@ -3,48 +3,53 @@
 use component::Render;
 use dom::{DOMInfo, DOMPatch, DOMRemove};
 use std::fmt::{self, Display, Formatter};
+use std::marker::PhantomData;
+use vdom::VNode;
 use wasm_bindgen::prelude::JsValue;
 use web_api::*;
 use Shared;
-use vdom::VNode;
 
 /// The representation of text/comment in virtual dom tree.
-pub struct VText {
+pub struct VText<RCTX: Render> {
     /// The content of a text string
     content: String,
     /// Whether the content is a comment
     is_comment: bool,
     /// Text/Comment reference to the DOM
     node: Option<Node>,
+    /// Render context
+    _phantom: PhantomData<RCTX>,
 }
 
-impl VText {
+impl<RCTX: Render> VText<RCTX> {
     /// Constructor to create a textual VNode.
-    pub fn text<T: Into<String>>(content: T) -> VText {
+    pub fn text<T: Into<String>>(content: T) -> VText<RCTX> {
         VText {
             content: content.into(),
             is_comment: false,
             node: None,
+            _phantom: PhantomData,
         }
     }
 
     /// Constructor to create a comment VNode.
-    pub fn comment<T: Into<String>>(content: T) -> VText {
+    pub fn comment<T: Into<String>>(content: T) -> VText<RCTX> {
         VText {
             content: content.into(),
             is_comment: true,
             node: None,
+            _phantom: PhantomData,
         }
     }
 }
 
-impl<RCTX: Render> From<VText> for VNode<RCTX> {
-    fn from(text: VText) -> VNode<RCTX> {
+impl<RCTX: Render> From<VText<RCTX>> for VNode<RCTX> {
+    fn from(text: VText<RCTX>) -> VNode<RCTX> {
         VNode::Text(text)
     }
 }
 
-impl Display for VText {
+impl<RCTX: Render> Display for VText<RCTX> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         if self.is_comment {
             write!(f, "<!--{}-->", self.content)
@@ -54,7 +59,7 @@ impl Display for VText {
     }
 }
 
-impl VText {
+impl<RCTX: Render> VText<RCTX> {
     fn patch_new(&mut self, parent: Node, next: Option<Node>) -> Result<(), JsValue> {
         let node: Node = if self.is_comment {
             html_document.create_comment(&self.content).into()
@@ -72,7 +77,7 @@ impl VText {
     }
 }
 
-impl<RCTX: Render> DOMPatch<RCTX> for VText {
+impl<RCTX: Render> DOMPatch<RCTX> for VText<RCTX> {
     type Node = Node;
 
     fn render_walk(&mut self, _: Node, _: Option<Node>, _: Shared<RCTX>) -> Result<(), JsValue> {
@@ -106,7 +111,7 @@ impl<RCTX: Render> DOMPatch<RCTX> for VText {
     }
 }
 
-impl DOMRemove for VText {
+impl<RCTX: Render> DOMRemove for VText<RCTX> {
     type Node = Node;
 
     fn remove(self, parent: Node) -> Result<(), JsValue> {
@@ -118,7 +123,7 @@ impl DOMRemove for VText {
     }
 }
 
-impl DOMInfo for VText {
+impl<RCTX: Render> DOMInfo for VText<RCTX> {
     fn node(&self) -> Option<Node> {
         self.node.as_ref().map(|n| n.clone())
     }
@@ -130,13 +135,13 @@ mod test {
 
     #[test]
     fn should_display_text() {
-        let text = VText::text("This is a very fine day!");
+        let text = VText::<()>::text("This is a very fine day!");
         assert_eq!(format!("{}", text), "This is a very fine day!");
     }
 
     #[test]
     fn should_display_comment() {
-        let comment = VText::comment("Something to remind the hacky users.");
+        let comment = VText::<()>::comment("Something to remind the hacky users.");
         assert_eq!(
             format!("{}", comment),
             "<!--Something to remind the hacky users.-->"
@@ -147,11 +152,11 @@ mod test {
 #[cfg(test)]
 
 pub mod wasm_test {
+    use component::root_render_ctx;
     use dom::*;
     use prelude::*;
     use wasm_bindgen_test::*;
     use web_api::*;
-    use component::root_render_ctx;
 
     #[wasm_bindgen_test]
     fn should_patch_container_with_new_text() {

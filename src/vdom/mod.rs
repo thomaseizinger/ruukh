@@ -46,7 +46,7 @@ impl<RCTX: Render> KeyedVNodes<RCTX> {
 /// A virtual node in a virtual DOM tree.
 pub enum VNode<RCTX: Render> {
     /// A text vnode
-    Text(VText),
+    Text(VText<RCTX>),
     /// An element vnode
     Element(VElement<RCTX>),
     /// A list vnode
