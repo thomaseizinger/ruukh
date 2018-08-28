@@ -99,6 +99,17 @@ impl Attribute {
     }
 }
 
+impl<RCTX: Render> EventListener<RCTX> {
+    /// Initializer for EventListener
+    pub fn new(type_: &'static str, listener: Box<Fn(&RCTX, Event)>) -> EventListener<RCTX> {
+        EventListener {
+            type_,
+            listener: Some(listener),
+            dom_listener: None,
+        }
+    }
+}
+
 impl<RCTX: Render> From<VElement<RCTX>> for VNode<RCTX> {
     fn from(el: VElement<RCTX>) -> VNode<RCTX> {
         VNode::Element(el)
