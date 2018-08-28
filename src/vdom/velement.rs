@@ -28,7 +28,7 @@ struct Attributes(Vec<Attribute>);
 /// The key, value pair of the attributes on an element.
 pub struct Attribute {
     /// The key of the attribute
-    key: String,
+    key: &'static str,
     /// The value pair of the attribute key
     value: String,
 }
@@ -91,9 +91,9 @@ impl<RCTX: Render> VElement<RCTX> {
 
 impl Attribute {
     /// Constructor to create an Attribute for a VElement.
-    pub fn new<K: Into<String>, V: Into<String>>(key: K, value: V) -> Attribute {
+    pub fn new<V: Into<String>>(key: &'static str, value: V) -> Attribute {
         Attribute {
-            key: key.into(),
+            key,
             value: value.into(),
         }
     }
@@ -166,8 +166,7 @@ impl<RCTX: Render> VElement<RCTX> {
         render_ctx: Shared<RCTX>,
     ) -> Result<(), JsValue> {
         let el = html_document.create_element(&self.tag)?;
-        self.attributes
-            .patch(None, &el, None, render_ctx.clone())?;
+        self.attributes.patch(None, &el, None, render_ctx.clone())?;
         self.event_listeners
             .patch(None, &el, None, render_ctx.clone())?;
         if let Some(ref mut child) = self.child {
@@ -214,12 +213,8 @@ impl<RCTX: Render> DOMPatch<RCTX> for VElement<RCTX> {
                 let old_el = old
                     .node
                     .expect("The old node is expected to be attached to the DOM");
-                self.attributes.patch(
-                    Some(old.attributes),
-                    &old_el,
-                    None,
-                    render_ctx.clone(),
-                )?;
+                self.attributes
+                    .patch(Some(old.attributes), &old_el, None, render_ctx.clone())?;
                 self.event_listeners.patch(
                     Some(old.event_listeners),
                     &old_el,
@@ -227,7 +222,12 @@ impl<RCTX: Render> DOMPatch<RCTX> for VElement<RCTX> {
                     render_ctx.clone(),
                 )?;
                 if let Some(ref mut child) = self.child {
-                    child.patch(old.child.map(|bx| *bx), old_el.as_ref(), None, render_ctx.clone())?;
+                    child.patch(
+                        old.child.map(|bx| *bx),
+                        old_el.as_ref(),
+                        None,
+                        render_ctx.clone(),
+                    )?;
                 }
                 self.node = Some(old_el);
                 Ok(())
@@ -378,8 +378,11 @@ impl<RCTX: Render> DOMRemove for EventListeners<RCTX> {
 }
 
 trait EventManager<RCTX: Render> {
-    fn start_listening(&mut self, parent: &Element, render_ctx: Shared<RCTX>)
-        -> Result<(), JsValue>;
+    fn start_listening(
+        &mut self,
+        parent: &Element,
+        render_ctx: Shared<RCTX>,
+    ) -> Result<(), JsValue>;
 
     fn stop_listening(&mut self, parent: &Element) -> Result<(), JsValue>;
 }
