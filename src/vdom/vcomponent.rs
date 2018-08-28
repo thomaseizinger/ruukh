@@ -3,10 +3,8 @@
 use component::{Render, Status};
 use dom::{DOMInfo, DOMPatch, DOMRemove};
 use std::any::Any;
-use std::cell::RefCell;
 use std::fmt::{self, Display, Formatter};
 use std::marker::PhantomData;
-use std::rc::Rc;
 use vdom::{KeyedVNodes, Shared, VNode};
 use wasm_bindgen::prelude::JsValue;
 use web_api::*;
@@ -133,12 +131,12 @@ impl<COMP: Render, RCTX: Render> ComponentManager<RCTX> for ComponentWrapper<COM
             let instance = COMP::init(
                 props,
                 events,
-                Rc::new(RefCell::new(Status::new(COMP::State::default()))),
+                Shared::new(Status::new(COMP::State::default())),
                 render_ctx,
             );
             instance.created();
             let mut initial_render = instance.render();
-            let shared_instance = Rc::new(RefCell::new(instance));
+            let shared_instance = Shared::new(instance);
             initial_render.patch(None, parent, next, shared_instance.clone())?;
             self.component = Some(shared_instance);
             self.cached_render = Some(initial_render);

@@ -5,7 +5,7 @@ extern crate wasm_bindgen;
 #[cfg(test)]
 extern crate wasm_bindgen_test;
 
-use std::cell::RefCell;
+use std::cell::{Ref, RefCell, RefMut};
 use std::rc::Rc;
 #[cfg(test)]
 use wasm_bindgen_test::*;
@@ -30,4 +30,25 @@ pub mod prelude {
     };
 }
 
-type Shared<T> = Rc<RefCell<T>>;
+/// A Shared Value
+pub struct Shared<T>(Rc<RefCell<T>>);
+
+impl<T> Shared<T> {
+    fn new(val: T) -> Shared<T> {
+        Shared(Rc::new(RefCell::new(val)))
+    }
+
+    fn borrow(&self) -> Ref<T> {
+        self.0.borrow()
+    }
+
+    fn borrow_mut(&self) -> RefMut<T> {
+        self.0.borrow_mut()
+    }
+}
+
+impl<T> Clone for Shared<T> {
+    fn clone(&self) -> Self {
+        Shared(self.0.clone())
+    }
+}
