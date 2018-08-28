@@ -1,3 +1,4 @@
+#![allow(missing_docs)]
 //! Provides only the minimal Web API required to run a framework.
 //! Complete API will be provided by `js-sys` & `web-sys` crates by rustwasm
 //! and when those crates arrive, this module will be replaced.
