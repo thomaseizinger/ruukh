@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 use KeyedVNodes;
+use Shared;
 
 /// Trait to define a Component. You do not need to implement this trait.
 /// Use the auto derive provided as `#[derive(Component)]`.
@@ -15,15 +16,27 @@ use KeyedVNodes;
 pub trait Component: 'static {
     /// The prop type of a Component.
     type Props;
+    /// The event type of a Component.
+    type Events;
     /// The state type of a Component.
     type State: Default;
 
     /// Initializes a component with props as well as a meta-state called status
-    fn init(props: Self::Props, status: ComponentStatus<Self::State>) -> Self;
+    fn init<RCTX: Render>(
+        props: Self::Props,
+        events: Self::Events,
+        status: ComponentStatus<Self::State>,
+        render_ctx: Shared<RCTX>,
+    ) -> Self;
 
     /// Updated the component with newer props and return older props (if changed). Also, set
     /// the component as dirty (if props changed), so that the component is re-rendered.
-    fn update(&mut self, props: Self::Props) -> Option<Self::Props>;
+    fn update<RCTX: Render>(
+        &mut self,
+        props: Self::Props,
+        events: Self::Events,
+        render_ctx: Shared<RCTX>,
+    ) -> Option<Self::Props>;
 
     /// Update the read only state from the mutated status and return true if it has been updated.
     fn refresh_state(&mut self) -> bool;
@@ -46,7 +59,7 @@ struct Status<T> {
 
 /// Stores the state as well as the metadata to the state
 #[derive(Clone)]
-pub struct ComponentStatus<T>(Rc<RefCell<Status<T>>>);
+pub struct ComponentStatus<T>(Shared<Status<T>>);
 
 impl<T> ComponentStatus<T> {
     #[allow(missing_docs)]
