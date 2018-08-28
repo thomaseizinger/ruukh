@@ -405,7 +405,9 @@ impl<RCTX: Render> EventManager<RCTX> for EventListener<RCTX> {
         render_ctx: Shared<RCTX>,
     ) -> Result<(), JsValue> {
         let listener = self.listener.take().unwrap();
-        let js_closure = Closure::new(move |event| listener(&*render_ctx.borrow(), event));
+        let js_closure: Closure<Fn(Event)> = Closure::wrap(Box::new(move |event| {
+            listener(&*render_ctx.borrow(), event)
+        }));
         parent.add_event_listener(&self.type_, &js_closure)?;
         self.dom_listener = Some(js_closure);
         Ok(())
