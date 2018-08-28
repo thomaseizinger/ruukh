@@ -11,7 +11,7 @@ use Shared;
 /// The representation of an element in virtual DOM.
 pub struct VElement<RCTX: Render> {
     /// The tag of the element. Eg: h, p, div, ...
-    tag: String,
+    tag: &'static str,
     /// The attributes of the given element
     attributes: Attributes,
     /// Event listeners to the DOM events
@@ -44,14 +44,14 @@ pub struct EventListener<RCTX: Render> {
 
 impl<RCTX: Render> VElement<RCTX> {
     /// Constructor to create a VElement.
-    pub fn new<T: Into<String>>(
-        tag: T,
+    pub fn new(
+        tag: &'static str,
         attributes: Vec<Attribute>,
         event_listeners: Vec<EventListener<RCTX>>,
         child: KeyedVNodes<RCTX>,
     ) -> VElement<RCTX> {
         VElement {
-            tag: tag.into(),
+            tag,
             attributes: Attributes(attributes),
             event_listeners: EventListeners(
                 event_listeners
@@ -67,13 +67,13 @@ impl<RCTX: Render> VElement<RCTX> {
     }
 
     /// Constructor to create a VElement without a child.
-    pub fn childless<T: Into<String>>(
-        tag: T,
+    pub fn childless(
+        tag: &'static str,
         attributes: Vec<Attribute>,
         event_listeners: Vec<EventListener<RCTX>>,
     ) -> VElement<RCTX> {
         VElement {
-            tag: tag.into(),
+            tag,
             attributes: Attributes(attributes),
             event_listeners: EventListeners(
                 event_listeners
@@ -112,7 +112,7 @@ const VOID_TAGS: [&'static str; 14] = [
 
 impl<RCTX: Render> Display for VElement<RCTX> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        if VOID_TAGS.contains(&self.tag.as_str()) {
+        if VOID_TAGS.contains(&self.tag) {
             write!(f, "<{}{}>", self.tag, self.attributes)?;
             if self.child.is_some() {
                 panic!(
