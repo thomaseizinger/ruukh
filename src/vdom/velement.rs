@@ -3,10 +3,10 @@
 use component::Render;
 use dom::{DOMInfo, DOMPatch, DOMRemove};
 use std::fmt::{self, Display, Formatter};
+use vdom::{KeyedVNodes, VNode};
 use wasm_bindgen::prelude::*;
 use web_api::*;
 use Shared;
-use vdom::{KeyedVNodes, VNode};
 
 /// The representation of an element in virtual DOM.
 pub struct VElement<RCTX: Render> {
@@ -409,8 +409,8 @@ impl<RCTX: Render> EventManager<RCTX> for EventListener<RCTX> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use vtext::VText;
-    use KeyedVNodes;
+    use vdom::vtext::VText;
+    use vdom::KeyedVNodes;
 
     #[test]
     fn should_display_an_attribute() {
@@ -420,24 +420,30 @@ mod test {
 
     #[test]
     fn should_display_a_div() {
-        let div = VElement::childless("div", vec![]);
+        let div = VElement::<()>::childless("div", vec![], vec![]);
         assert_eq!(format!("{}", div), "<div></div>");
     }
 
     #[test]
     fn should_display_a_button_with_text() {
-        let button = VElement::new("button", vec![], KeyedVNodes::unkeyed(VText::text("Click")));
+        let button = VElement::<()>::new(
+            "button",
+            vec![],
+            vec![],
+            KeyedVNodes::unkeyed(VText::text("Click")),
+        );
         assert_eq!(format!("{}", button), "<button>Click</button>");
     }
 
     #[test]
     fn should_display_an_attributed_p() {
-        let p = VElement::childless(
+        let p = VElement::<()>::childless(
             "p",
             vec![
                 Attribute::new("class", "mt-3"),
                 Attribute::new("style", "background-color: grey;"),
             ],
+            vec![],
         );
         assert_eq!(
             format!("{}", p),
@@ -449,6 +455,7 @@ mod test {
 #[cfg(test)]
 
 pub mod wasm_test {
+    use component::root_render_ctx;
     use dom::*;
     use prelude::*;
     use wasm_bindgen_test::*;
@@ -460,10 +467,10 @@ pub mod wasm_test {
 
     #[wasm_bindgen_test]
     fn should_patch_container_with_button_element() {
-        let mut button_el = VElement::childless("button", vec![]);
+        let mut button_el = VElement::childless("button", vec![], vec![]);
         let div = container();
         button_el
-            .patch(None, div.clone().into(), None)
+            .patch(None, div.clone().into(), None, root_render_ctx())
             .expect("To patch div");
 
         assert_eq!(div.inner_html(), "<button></button>");
@@ -477,10 +484,11 @@ pub mod wasm_test {
                 Attribute::new("disabled", "true"),
                 Attribute::new("class", "bg-white txt-black"),
             ],
+            vec![],
         );
         let div = container();
         button_el
-            .patch(None, div.clone().into(), None)
+            .patch(None, div.clone().into(), None, root_render_ctx())
             .expect("To patch div");
 
         assert_eq!(
@@ -494,14 +502,16 @@ pub mod wasm_test {
         let mut div_el = VElement::new(
             "div",
             vec![],
+            vec![],
             KeyedVNodes::unkeyed(VElement::childless(
                 "a",
                 vec![Attribute::new("href", "http://www.rust-lang.org/")],
+                vec![],
             )),
         );
         let div = container();
         div_el
-            .patch(None, div.clone().into(), None)
+            .patch(None, div.clone().into(), None, root_render_ctx())
             .expect("To patch div");
 
         assert_eq!(
@@ -512,17 +522,17 @@ pub mod wasm_test {
 
     #[wasm_bindgen_test]
     fn should_patch_container_with_button_on_div() {
-        let mut div_el = VElement::childless("div", vec![]);
+        let mut div_el = VElement::childless("div", vec![], vec![]);
         let div = container();
         div_el
-            .patch(None, div.clone().into(), None)
+            .patch(None, div.clone().into(), None, root_render_ctx())
             .expect("To patch div");
 
         assert_eq!(div.inner_html(), "<div></div>");
 
-        let mut button_el = VElement::childless("button", vec![]);
+        let mut button_el = VElement::childless("button", vec![], vec![]);
         button_el
-            .patch(Some(div_el), div.clone().into(), None)
+            .patch(Some(div_el), div.clone().into(), None, root_render_ctx())
             .expect("To patch div");
 
         assert_eq!(div.inner_html(), "<button></button>");
@@ -530,10 +540,11 @@ pub mod wasm_test {
 
     #[wasm_bindgen_test]
     fn should_patch_container_with_div_of_diff_attributes() {
-        let mut div_el = VElement::childless("div", vec![Attribute::new("class", "bg-white")]);
+        let mut div_el =
+            VElement::childless("div", vec![Attribute::new("class", "bg-white")], vec![]);
         let div = container();
         div_el
-            .patch(None, div.clone().into(), None)
+            .patch(None, div.clone().into(), None, root_render_ctx())
             .expect("To patch div");
 
         assert_eq!(div.inner_html(), r#"<div class="bg-white"></div>"#);
@@ -544,9 +555,10 @@ pub mod wasm_test {
                 Attribute::new("class", "bg-white txt-black"),
                 Attribute::new("id", "main"),
             ],
+            vec![],
         );
         div_diff
-            .patch(Some(div_el), div.clone().into(), None)
+            .patch(Some(div_el), div.clone().into(), None, root_render_ctx())
             .expect("To patch div");
 
         assert_eq!(

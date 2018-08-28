@@ -151,13 +151,14 @@ pub mod wasm_test {
     use prelude::*;
     use wasm_bindgen_test::*;
     use web_api::*;
+    use component::root_render_ctx;
 
     #[wasm_bindgen_test]
     fn should_patch_container_with_new_text() {
         let mut vtext = VText::text("Hello World! It is nice to render.");
         let div = html_document.create_element("div").unwrap();
         vtext
-            .patch(None, div.clone().into(), None)
+            .patch(None, div.clone().into(), None, root_render_ctx())
             .expect("To patch the div");
 
         assert_eq!(div.inner_html(), "Hello World! It is nice to render.");
@@ -168,14 +169,14 @@ pub mod wasm_test {
         let mut vtext = VText::text("Hello World! It is nice to render.");
         let div = html_document.create_element("div").unwrap();
         vtext
-            .patch(None, div.clone().into(), None)
+            .patch(None, div.clone().into(), None, root_render_ctx())
             .expect("To patch div");
 
         assert_eq!(div.inner_html(), "Hello World! It is nice to render.");
 
         let mut updated = VText::text("How you doing?");
         updated
-            .patch(Some(vtext), div.clone().into(), None)
+            .patch(Some(vtext), div.clone().into(), None, root_render_ctx())
             .expect("To patch div");
 
         assert_eq!(div.inner_html(), "How you doing?");
@@ -186,7 +187,7 @@ pub mod wasm_test {
         let mut comment = VText::comment("This is a comment");
         let div = html_document.create_element("div").unwrap();
         comment
-            .patch(None, div.clone().into(), None)
+            .patch(None, div.clone().into(), None, root_render_ctx())
             .expect("To patch div");
 
         assert_eq!(div.inner_html(), "<!--This is a comment-->");
@@ -197,13 +198,13 @@ pub mod wasm_test {
         let mut comment = VText::comment("This is a comment");
         let div = html_document.create_element("div").unwrap();
         comment
-            .patch(None, div.clone().into(), None)
+            .patch(None, div.clone().into(), None, root_render_ctx())
             .expect("To patch div");
 
         assert_eq!(div.inner_html(), "<!--This is a comment-->");
 
         let mut text = VText::text("This is a text");
-        text.patch(Some(comment), div.clone().into(), None)
+        text.patch(Some(comment), div.clone().into(), None, root_render_ctx())
             .expect("To patch div");
 
         assert_eq!(div.inner_html(), "This is a text");

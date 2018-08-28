@@ -100,15 +100,15 @@ impl<RCTX: Render> DOMInfo for VList<RCTX> {
 #[cfg(test)]
 mod test {
     use super::VList;
-    use velement::VElement;
-    use vtext::VText;
-    use KeyedVNodes;
+    use vdom::velement::VElement;
+    use vdom::vtext::VText;
+    use vdom::KeyedVNodes;
 
     #[test]
     fn should_display_a_list_of_vnodes() {
-        let list = VList::new(vec![
+        let list = VList::<()>::new(vec![
             KeyedVNodes::unkeyed(VText::text("First of the node")),
-            KeyedVNodes::unkeyed(VElement::childless("input", vec![])),
+            KeyedVNodes::unkeyed(VElement::childless("input", vec![], vec![])),
         ]);
         assert_eq!(format!("{}", list), "First of the node<input>");
     }
@@ -120,6 +120,7 @@ pub mod wasm_test {
     use prelude::*;
     use wasm_bindgen_test::*;
     use web_api::*;
+    use component::root_render_ctx;
 
     fn container() -> Element {
         html_document.create_element("div").unwrap()
@@ -129,10 +130,10 @@ pub mod wasm_test {
     fn should_patch_container_with_list_of_vnodes() {
         let mut list = VList::new(vec![
             KeyedVNodes::unkeyed(VText::text("Hello World!")),
-            KeyedVNodes::unkeyed(VElement::childless("div", vec![])),
+            KeyedVNodes::unkeyed(VElement::childless("div", vec![], vec![])),
         ]);
         let div = container();
-        list.patch(None, div.clone().into(), None)
+        list.patch(None, div.clone().into(), None, root_render_ctx())
             .expect("To patch div");
 
         assert_eq!(div.inner_html(), "Hello World!<div></div>");
@@ -142,21 +143,21 @@ pub mod wasm_test {
     fn should_patch_container_with_updated_list() {
         let mut list = VList::new(vec![
             KeyedVNodes::unkeyed(VText::text("Hello World!")),
-            KeyedVNodes::unkeyed(VElement::childless("div", vec![])),
+            KeyedVNodes::unkeyed(VElement::childless("div", vec![], vec![])),
         ]);
         let div = container();
-        list.patch(None, div.clone().into(), None)
+        list.patch(None, div.clone().into(), None, root_render_ctx())
             .expect("To patch div");
 
         assert_eq!(div.inner_html(), "Hello World!<div></div>");
 
         let mut new_list = VList::new(vec![
-            KeyedVNodes::unkeyed(VElement::childless("div", vec![])),
+            KeyedVNodes::unkeyed(VElement::childless("div", vec![], vec![])),
             KeyedVNodes::unkeyed(VText::text("Hello World!")),
             KeyedVNodes::unkeyed(VText::text("How are you?")),
         ]);
         new_list
-            .patch(Some(list), div.clone().into(), None)
+            .patch(Some(list), div.clone().into(), None, root_render_ctx())
             .expect("To patch div");
 
         assert_eq!(div.inner_html(), "<div></div>Hello World!How are you?");

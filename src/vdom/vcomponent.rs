@@ -7,9 +7,9 @@ use std::cell::RefCell;
 use std::fmt::{self, Display, Formatter};
 use std::marker::PhantomData;
 use std::rc::Rc;
+use vdom::{KeyedVNodes, Shared, VNode};
 use wasm_bindgen::prelude::JsValue;
 use web_api::*;
-use vdom::{KeyedVNodes, Shared, VNode};
 
 /// The representation of a component in a Virtual DOM.
 pub struct VComponent<RCTX: Render>(Box<ComponentManager<RCTX>>);
@@ -246,15 +246,16 @@ impl<COMP: Render, RCTX: Render> Display for ComponentWrapper<COMP, RCTX> {
 
 #[cfg(test)]
 pub mod wasm_test {
+    use component::root_render_ctx;
     use dom::*;
     use prelude::*;
     use wasm_bindgen_test::*;
     use web_api::*;
+    use Shared;
 
     #[derive(Debug)]
     struct Button {
         disabled: bool,
-        __status: ComponentStatus<()>,
     }
 
     struct ButtonProps {
@@ -265,39 +266,54 @@ pub mod wasm_test {
 
     impl Component for Button {
         type Props = ButtonProps;
+        type Events = ();
         type State = ();
 
-        fn init(props: Self::Props, status: ComponentStatus<Self::State>) -> Self {
+        fn init<RCTX: Render>(
+            props: Self::Props,
+            _: Self::Events,
+            _: Shared<Status<Self::State>>,
+            _: Shared<RCTX>,
+        ) -> Self {
             Button {
                 disabled: props.disabled,
-                __status: status,
+            }
+        }
+        fn update<RCTX: Render>(
+            &mut self,
+            props: Self::Props,
+            _: Self::Events,
+            _: Shared<RCTX>,
+        ) -> Option<Self::Props> {
+            if self.disabled != props.disabled {
+                self.disabled = props.disabled;
+                Some(ButtonProps {
+                    disabled: !self.disabled,
+                })
+            } else {
+                None
             }
         }
 
-        fn props(self) -> Self::Props {
-            ButtonProps {
-                disabled: self.disabled,
-            }
+        fn refresh_state(&mut self) -> bool {
+            unreachable!()
         }
 
-        fn status(&self) -> ComponentStatus<Self::State> {
-            self.__status.clone()
+        fn is_state_dirty(&mut self) -> bool {
+            unreachable!()
         }
 
-        fn refresh_state(&mut self) {}
-
-        fn is_dirty(&self) -> bool {
-            false
+        fn is_props_dirty(&mut self) -> bool {
+            unreachable!()
         }
-
-        fn mark_clean(&mut self) {}
     }
 
     impl Render for Button {
-        fn render(&self) -> KeyedVNodes {
+        fn render(&self) -> KeyedVNodes<Self> {
             KeyedVNodes::unkeyed(VElement::new(
                 "button",
                 vec![Attribute::new("disabled", self.disabled.to_string())],
+                vec![],
                 KeyedVNodes::unkeyed(VText::text("Click")),
             ))
         }
@@ -309,10 +325,10 @@ pub mod wasm_test {
 
     #[wasm_bindgen_test]
     fn should_patch_container_with_component() {
-        let mut vcomp = VComponent::new::<Button>(ButtonProps { disabled: false });
+        let mut vcomp = VComponent::new::<Button>(ButtonProps { disabled: false }, ());
         let div = container();
         vcomp
-            .patch(None, div.clone().into(), None)
+            .patch(None, div.clone().into(), None, root_render_ctx())
             .expect("To patch div");
 
         assert_eq!(
@@ -323,10 +339,10 @@ pub mod wasm_test {
 
     #[wasm_bindgen_test]
     fn should_patch_container_with_component_update() {
-        let mut vcomp = VComponent::new::<Button>(ButtonProps { disabled: false });
+        let mut vcomp = VComponent::new::<Button>(ButtonProps { disabled: false }, ());
         let div = container();
         vcomp
-            .patch(None, div.clone().into(), None)
+            .patch(None, div.clone().into(), None, root_render_ctx())
             .expect("To patch div");
 
         assert_eq!(
@@ -334,9 +350,9 @@ pub mod wasm_test {
             r#"<button disabled="false">Click</button>"#
         );
 
-        let mut patched = VComponent::new::<Button>(ButtonProps { disabled: true });
+        let mut patched = VComponent::new::<Button>(ButtonProps { disabled: true }, ());
         patched
-            .patch(Some(vcomp), div.clone().into(), None)
+            .patch(Some(vcomp), div.clone().into(), None, root_render_ctx())
             .expect("To patch div");
 
         assert_eq!(

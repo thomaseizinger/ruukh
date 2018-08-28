@@ -249,11 +249,11 @@ impl From<String> for Key {
 #[cfg(test)]
 mod test {
     use super::KeyedVNodes;
-    use vtext::VText;
+    use vdom::vtext::VText;
 
     #[test]
     fn should_display_vnode() {
-        let node = KeyedVNodes::unkeyed(VText::text("Hello World!"));
+        let node = KeyedVNodes::<()>::unkeyed(VText::text("Hello World!"));
         assert_eq!(format!("{}", node), "Hello World!");
     }
 }
