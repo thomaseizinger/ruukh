@@ -76,7 +76,7 @@ pub enum VNode<RCTX: Render> {
     /// A list vnode
     List(VList<RCTX>),
     /// A component vnode
-    Component(VComponent),
+    Component(VComponent<RCTX>),
 }
 
 type Shared<T> = Rc<RefCell<T>>;
