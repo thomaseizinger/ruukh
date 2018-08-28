@@ -5,43 +5,48 @@ use dom::{DOMInfo, DOMPatch, DOMRemove};
 use std::any::Any;
 use std::cell::RefCell;
 use std::fmt::{self, Display, Formatter};
+use std::marker::PhantomData;
 use std::rc::Rc;
 use wasm_bindgen::prelude::JsValue;
 use web_api::*;
 use {KeyedVNodes, Shared, VNode};
 
 /// The representation of a component in a Virtual DOM.
-pub struct VComponent(Box<ComponentManager>);
+pub struct VComponent<RCTX: Render>(Box<ComponentManager<RCTX>>);
 
-impl VComponent {
+impl<RCTX: Render> VComponent<RCTX> {
     #[allow(missing_docs)]
-    pub fn new<COMP: Render>(props: COMP::Props) -> VComponent {
-        VComponent(Box::new(ComponentWrapper::<COMP>::new(props)))
+    pub fn new<COMP: Render>(props: COMP::Props, events: COMP::Events) -> VComponent<RCTX> {
+        VComponent(Box::new(ComponentWrapper::<COMP, RCTX>::new(props, events)))
     }
 }
 
-struct ComponentWrapper<COMP: Render> {
+struct ComponentWrapper<COMP: Render, RCTX: Render> {
     component: Option<Shared<COMP>>,
     props: Option<COMP::Props>,
+    events: Option<COMP::Events>,
     cached_render: Option<KeyedVNodes<COMP>>,
+    _phantom: PhantomData<RCTX>,
 }
 
-impl<COMP: Render> ComponentWrapper<COMP> {
-    fn new(props: COMP::Props) -> ComponentWrapper<COMP> {
+impl<COMP: Render, RCTX: Render> ComponentWrapper<COMP, RCTX> {
+    fn new(props: COMP::Props, events: COMP::Events) -> ComponentWrapper<COMP, RCTX> {
         ComponentWrapper {
             component: None,
             props: Some(props),
+            events: Some(events),
             cached_render: None,
+            _phantom: PhantomData,
         }
     }
 
     fn try_cast(
-        other: Box<ComponentManager>,
-    ) -> Result<ComponentWrapper<COMP>, Box<ComponentManager>> {
+        other: Box<ComponentManager<RCTX>>,
+    ) -> Result<ComponentWrapper<COMP, RCTX>, Box<ComponentManager<RCTX>>> {
         let mut same_type = false;
         {
             let any = &other as &Any;
-            if any.is::<ComponentWrapper<COMP>>() {
+            if any.is::<ComponentWrapper<COMP, RCTX>>() {
                 same_type = true;
             }
         }
@@ -49,7 +54,7 @@ impl<COMP: Render> ComponentWrapper<COMP> {
         if same_type {
             let boxed = other.into_any();
             Ok(*boxed
-                .downcast::<ComponentWrapper<COMP>>()
+                .downcast::<ComponentWrapper<COMP, RCTX>>()
                 .expect("Impossible! The type cannot be different."))
         } else {
             Err(other)
@@ -57,16 +62,16 @@ impl<COMP: Render> ComponentWrapper<COMP> {
     }
 }
 
-impl<RCTX: Render> DOMPatch<RCTX> for VComponent {
+impl<RCTX: Render> DOMPatch<RCTX> for VComponent<RCTX> {
     type Node = Node;
 
     fn render_walk(
         &mut self,
         parent: Self::Node,
         next: Option<Self::Node>,
-        _: Shared<RCTX>,
+        render_ctx: Shared<RCTX>,
     ) -> Result<(), JsValue> {
-        self.0.render_walk(parent, next)
+        self.0.render_walk(parent, next, render_ctx)
     }
 
     fn patch(
@@ -74,13 +79,13 @@ impl<RCTX: Render> DOMPatch<RCTX> for VComponent {
         old: Option<Self>,
         parent: Self::Node,
         next: Option<Self::Node>,
-        _: Shared<RCTX>,
+        render_ctx: Shared<RCTX>,
     ) -> Result<(), JsValue> {
-        self.0.patch(old.map(|old| old.0), parent, next)
+        self.0.patch(old.map(|old| old.0), parent, next, render_ctx)
     }
 }
 
-impl DOMRemove for VComponent {
+impl<RCTX: Render> DOMRemove for VComponent<RCTX> {
     type Node = Node;
 
     fn remove(mut self, parent: Self::Node) -> Result<(), JsValue> {
@@ -88,20 +93,26 @@ impl DOMRemove for VComponent {
     }
 }
 
-impl DOMInfo for VComponent {
+impl<RCTX: Render> DOMInfo for VComponent<RCTX> {
     fn node(&self) -> Option<Node> {
         self.0.node()
     }
 }
 
-trait ComponentManager: Downcast + Display {
-    fn render_walk(&mut self, parent: Node, next: Option<Node>) -> Result<(), JsValue>;
+trait ComponentManager<RCTX: Render>: Downcast + Display {
+    fn render_walk(
+        &mut self,
+        parent: Node,
+        next: Option<Node>,
+        render_ctx: Shared<RCTX>,
+    ) -> Result<(), JsValue>;
 
     fn patch(
         &mut self,
-        old: Option<Box<ComponentManager>>,
+        old: Option<Box<ComponentManager<RCTX>>>,
         parent: Node,
         next: Option<Node>,
+        render_ctx: Shared<RCTX>,
     ) -> Result<(), JsValue>;
 
     fn remove(&mut self, parent: Node) -> Result<(), JsValue>;
@@ -109,11 +120,22 @@ trait ComponentManager: Downcast + Display {
     fn node(&self) -> Option<Node>;
 }
 
-impl<COMP: Render> ComponentManager for ComponentWrapper<COMP> {
-    fn render_walk(&mut self, parent: Node, next: Option<Node>) -> Result<(), JsValue> {
+impl<COMP: Render, RCTX: Render> ComponentManager<RCTX> for ComponentWrapper<COMP, RCTX> {
+    fn render_walk(
+        &mut self,
+        parent: Node,
+        next: Option<Node>,
+        render_ctx: Shared<RCTX>,
+    ) -> Result<(), JsValue> {
         if self.component.is_none() {
             let props = self.props.take().unwrap();
-            let instance = COMP::init(props, ComponentStatus::new(COMP::State::default()));
+            let events = self.events.take().unwrap();
+            let instance = COMP::init(
+                props,
+                events,
+                ComponentStatus::new(COMP::State::default()),
+                render_ctx,
+            );
             instance.created();
             let mut initial_render = instance.render();
             let shared_instance = Rc::new(RefCell::new(instance));
@@ -144,17 +166,20 @@ impl<COMP: Render> ComponentManager for ComponentWrapper<COMP> {
 
     fn patch(
         &mut self,
-        old: Option<Box<ComponentManager>>,
+        old: Option<Box<ComponentManager<RCTX>>>,
         parent: Node,
         _: Option<Node>,
+        render_ctx: Shared<RCTX>,
     ) -> Result<(), JsValue> {
         if let Some(old) = old {
             match Self::try_cast(old) {
                 Ok(same) => {
                     let comp = same.component.unwrap();
+                    let props = self.props.take().unwrap();
+                    let events = self.events.take().unwrap();
 
                     // Reuse the older component by passing in the newer props.
-                    if let Some(old_props) = comp.borrow_mut().update(self.props.take().unwrap()) {
+                    if let Some(old_props) = comp.borrow_mut().update(props, events, render_ctx) {
                         comp.borrow().updated(old_props);
                     }
                     self.component = Some(comp);
@@ -185,8 +210,8 @@ impl<COMP: Render> ComponentManager for ComponentWrapper<COMP> {
     }
 }
 
-impl<RCTX: Render> From<VComponent> for VNode<RCTX> {
-    fn from(comp: VComponent) -> VNode<RCTX> {
+impl<RCTX: Render> From<VComponent<RCTX>> for VNode<RCTX> {
+    fn from(comp: VComponent<RCTX>) -> VNode<RCTX> {
         VNode::Component(comp)
     }
 }
@@ -201,13 +226,13 @@ impl<T: Any> Downcast for T {
     }
 }
 
-impl Display for VComponent {
+impl<RCTX: Render> Display for VComponent<RCTX> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "{}", self.0)
     }
 }
 
-impl<COMP: Render> Display for ComponentWrapper<COMP> {
+impl<COMP: Render, RCTX: Render> Display for ComponentWrapper<COMP, RCTX> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(
             f,
