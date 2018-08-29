@@ -23,7 +23,7 @@ pub mod prelude {
     pub use component::{Component, Lifecycle, Render, Status};
     pub use vdom::{
         vcomponent::VComponent,
-        velement::{Attribute, VElement},
+        velement::{Attribute, EventListener, VElement},
         vlist::VList,
         vtext::VText,
         {Key, KeyedVNodes, VNode},
