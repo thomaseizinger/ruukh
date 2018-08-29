@@ -65,6 +65,11 @@ impl<T> Status<T> {
         }
     }
 
+    /// Mark state as dirty
+    pub fn mark_state_dirty(&mut self) {
+        self.state_dirty = true;
+    }
+
     /// Get and reset `state_dirty` flag.
     pub fn is_state_dirty(&mut self) -> bool {
         if self.state_dirty {
@@ -73,6 +78,11 @@ impl<T> Status<T> {
         } else {
             false
         }
+    }
+
+    /// Mark props as dirty
+    pub fn mark_props_dirty(&mut self) {
+        self.props_dirty = true;
     }
 
     /// Get and reset `props_dirty` flag.
@@ -222,6 +232,6 @@ impl Render for RootParent {
 pub fn root_render_ctx() -> Shared<()> {
     use std::cell::RefCell;
     use std::rc::Rc;
-    
+
     Rc::new(RefCell::new(()))
 }
