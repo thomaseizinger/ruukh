@@ -38,11 +38,13 @@ impl<T> Shared<T> {
         Shared(Rc::new(RefCell::new(val)))
     }
 
-    fn borrow(&self) -> Ref<T> {
+    /// Borrow the inner value.
+    pub fn borrow(&self) -> Ref<T> {
         self.0.borrow()
     }
 
-    fn borrow_mut(&self) -> RefMut<T> {
+    /// Borrow the inner value mutably.
+    pub fn borrow_mut(&self) -> RefMut<T> {
         self.0.borrow_mut()
     }
 }
