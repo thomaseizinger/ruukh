@@ -230,8 +230,5 @@ impl Render for RootParent {
 
 #[cfg(test)]
 pub fn root_render_ctx() -> Shared<()> {
-    use std::cell::RefCell;
-    use std::rc::Rc;
-
-    Rc::new(RefCell::new(()))
+    Shared::new(())
 }
