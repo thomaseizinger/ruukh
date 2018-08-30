@@ -222,7 +222,8 @@ where
                     let events = self.events.take().unwrap();
 
                     // Reuse the older component by passing in the newer props.
-                    if let Some(old_props) = comp.borrow_mut().update(props, events, render_ctx) {
+                    let old_props = comp.borrow_mut().update(props, events, render_ctx);
+                    if let Some(old_props) = old_props {
                         comp.borrow().updated(old_props);
                     }
                     self.component = Some(comp);
