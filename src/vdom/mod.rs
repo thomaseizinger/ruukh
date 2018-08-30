@@ -1,7 +1,7 @@
 //! The Virtual DOM library which backs the `ruukh` frontend framework.
 
 use component::Render;
-use dom::{DOMInfo, DOMPatch, DOMRemove};
+use dom::{DOMInfo, DOMPatch, DOMRemove, DOMReorder};
 use std::borrow::Cow;
 use std::fmt::{self, Display, Formatter};
 use vdom::vcomponent::VComponent;
@@ -18,32 +18,6 @@ pub mod velement;
 pub mod vlist;
 pub mod vtext;
 
-/// A keyed virtual node in a virtual DOM tree.
-pub struct KeyedVNodes<RCTX: Render> {
-    /// A uniquely identifying key in the list of vnodes.
-    key: Option<Key>,
-    /// A virtual node
-    vnode: VNode<RCTX>,
-}
-
-impl<RCTX: Render> KeyedVNodes<RCTX> {
-    /// Constructor for a keyed VNode
-    pub fn keyed<K: Into<Key>, T: Into<VNode<RCTX>>>(key: K, vnode: T) -> KeyedVNodes<RCTX> {
-        KeyedVNodes {
-            key: Some(key.into()),
-            vnode: vnode.into(),
-        }
-    }
-
-    /// Constructor for an unkeyed VNode
-    pub fn unkeyed<T: Into<VNode<RCTX>>>(vnode: T) -> KeyedVNodes<RCTX> {
-        KeyedVNodes {
-            key: None,
-            vnode: vnode.into(),
-        }
-    }
-}
-
 /// A virtual node in a virtual DOM tree.
 pub enum VNode<RCTX: Render> {
     /// A text vnode
@@ -56,9 +30,10 @@ pub enum VNode<RCTX: Render> {
     Component(VComponent<RCTX>),
 }
 
-impl<RCTX: Render> Display for KeyedVNodes<RCTX> {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "{}", self.vnode)
+impl<RCTX: Render> VNode<RCTX> {
+    /// Construct a new VNode from one of its constituent Node types.
+    pub fn new<T: Into<VNode<RCTX>>>(node: T) -> VNode<RCTX> {
+        node.into()
     }
 }
 
@@ -70,55 +45,6 @@ impl<RCTX: Render> Display for VNode<RCTX> {
             VNode::List(inner) => write!(f, "{}", inner),
             VNode::Component(inner) => write!(f, "{}", inner),
         }
-    }
-}
-
-impl<RCTX: Render> DOMPatch<RCTX> for KeyedVNodes<RCTX> {
-    type Node = Node;
-
-    fn render_walk(
-        &mut self,
-        parent: &Self::Node,
-        next: Option<&Self::Node>,
-        render_ctx: Shared<RCTX>,
-        rx_sender: MessageSender,
-    ) -> Result<(), JsValue> {
-        self.vnode.render_walk(parent, next, render_ctx, rx_sender)
-    }
-
-    fn patch(
-        &mut self,
-        old: Option<Self>,
-        parent: &Self::Node,
-        next: Option<&Self::Node>,
-        render_ctx: Shared<RCTX>,
-        rx_sender: MessageSender,
-    ) -> Result<(), JsValue> {
-        if let Some(old) = old {
-            if self.key == old.key {
-                self.vnode
-                    .patch(Some(old.vnode), parent, next, render_ctx, rx_sender)
-            } else {
-                old.vnode.remove(parent)?;
-                self.vnode.patch(None, parent, next, render_ctx, rx_sender)
-            }
-        } else {
-            self.vnode.patch(None, parent, next, render_ctx, rx_sender)
-        }
-    }
-}
-
-impl<RCTX: Render> DOMRemove for KeyedVNodes<RCTX> {
-    type Node = Node;
-
-    fn remove(self, parent: &Self::Node) -> Result<(), JsValue> {
-        self.vnode.remove(parent)
-    }
-}
-
-impl<RCTX: Render> DOMInfo for KeyedVNodes<RCTX> {
-    fn node(&self) -> Option<&Node> {
-        self.vnode.node()
     }
 }
 
@@ -187,6 +113,17 @@ impl<RCTX: Render> DOMPatch<RCTX> for VNode<RCTX> {
     }
 }
 
+impl<RCTX: Render> DOMReorder for VNode<RCTX> {
+    fn reorder(&self, parent: &Node, next: Option<&Node>) -> Result<(), JsValue> {
+        match self {
+            VNode::Text(txt) => txt.reorder(parent, next),
+            VNode::Element(el) => el.reorder(parent, next),
+            VNode::List(li) => li.reorder(parent, next),
+            VNode::Component(comp) => comp.reorder(parent, next),
+        }
+    }
+}
+
 impl<RCTX: Render> DOMRemove for VNode<RCTX> {
     type Node = Node;
 
@@ -213,7 +150,7 @@ impl<RCTX: Render> DOMInfo for VNode<RCTX> {
 
 /// Keys to identify a VNode in VDOM.
 /// Only the basic types are supported.
-#[derive(Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq, Hash)]
 pub enum Key {
     /// An `i64` key
     I64(i64),

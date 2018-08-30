@@ -1,11 +1,11 @@
 //! Component representation in a VDOM.
 
 use component::{EventsPair, Render, Status};
-use dom::{DOMInfo, DOMPatch, DOMRemove};
+use dom::{DOMInfo, DOMPatch, DOMRemove, DOMReorder};
 use std::any::Any;
 use std::fmt::{self, Display, Formatter};
 use std::marker::PhantomData;
-use vdom::{KeyedVNodes, Shared, VNode};
+use vdom::{Shared, VNode};
 use wasm_bindgen::prelude::JsValue;
 use web_api::*;
 use MessageSender;
@@ -33,7 +33,7 @@ where
     component: Option<Shared<COMP>>,
     props: Option<COMP::Props>,
     events: Option<<COMP::Events as EventsPair<RCTX>>::Other>,
-    cached_render: Option<KeyedVNodes<COMP>>,
+    cached_render: Option<VNode<COMP>>,
     _phantom: PhantomData<RCTX>,
 }
 
@@ -101,6 +101,12 @@ impl<RCTX: Render> DOMPatch<RCTX> for VComponent<RCTX> {
     }
 }
 
+impl<RCTX: Render> DOMReorder for VComponent<RCTX> {
+    fn reorder(&self, parent: &Node, next: Option<&Node>) -> Result<(), JsValue> {
+        self.0.reorder(parent, next)
+    }
+}
+
 impl<RCTX: Render> DOMRemove for VComponent<RCTX> {
     type Node = Node;
 
@@ -131,6 +137,8 @@ pub(crate) trait ComponentManager<RCTX: Render>: Downcast + Display {
         next: Option<&Node>,
         render_ctx: Shared<RCTX>,
     ) -> Result<(), JsValue>;
+
+    fn reorder(&self, parent: &Node, next: Option<&Node>) -> Result<(), JsValue>;
 
     fn remove(&mut self, parent: &Node) -> Result<(), JsValue>;
 
@@ -225,6 +233,13 @@ where
                     not_same.remove(parent)?;
                 }
             }
+        }
+        Ok(())
+    }
+
+    fn reorder(&self, parent: &Node, next: Option<&Node>) -> Result<(), JsValue> {
+        if let Some(ref cached_render) = self.cached_render {
+            cached_render.reorder(parent, next)?;
         }
         Ok(())
     }

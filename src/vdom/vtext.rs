@@ -1,7 +1,7 @@
 //! Representation of text/comment in virtual dom tree.
 
 use component::Render;
-use dom::{DOMInfo, DOMPatch, DOMRemove};
+use dom::{DOMInfo, DOMPatch, DOMRemove, DOMReorder};
 use std::fmt::{self, Display, Formatter};
 use std::marker::PhantomData;
 use vdom::VNode;
@@ -116,6 +116,18 @@ impl<RCTX: Render> DOMPatch<RCTX> for VText<RCTX> {
         } else {
             self.patch_new(parent, next)
         }
+    }
+}
+
+impl<RCTX: Render> DOMReorder for VText<RCTX> {
+    fn reorder(&self, parent: &Node, next: Option<&Node>) -> Result<(), JsValue> {
+        let node = self.node.as_ref().unwrap();
+        if let Some(next) = next {
+            parent.insert_before(node, next)?;
+        } else {
+            parent.append_child(node)?;
+        }
+        Ok(())
     }
 }
 
