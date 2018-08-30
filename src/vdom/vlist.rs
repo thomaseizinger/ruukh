@@ -3,25 +3,44 @@
 use component::Render;
 use dom::{DOMInfo, DOMPatch, DOMRemove};
 use std::fmt::{self, Display, Formatter};
-use vdom::{KeyedVNodes, VNode};
+use vdom::Key;
+use vdom::VNode;
 use wasm_bindgen::prelude::JsValue;
 use web_api::*;
 use MessageSender;
 use Shared;
 
 /// The representation of a list of vnodes in the vtree.
-pub struct VList<RCTX: Render>(Vec<KeyedVNodes<RCTX>>);
+pub struct VList<RCTX: Render>(IndexMap<Key, VNode<RCTX>>);
 
 impl<RCTX: Render> VList<RCTX> {
     /// Constructor to create a list of VNodes.
-    pub fn new(list: Vec<KeyedVNodes<RCTX>>) -> VList<RCTX> {
-        VList(list)
+    pub fn new<T: Into<VList<RCTX>>>(list: T) -> VList<RCTX> {
+        list.into()
     }
 }
 
 impl<RCTX: Render> From<VList<RCTX>> for VNode<RCTX> {
     fn from(list: VList<RCTX>) -> VNode<RCTX> {
         VNode::List(list)
+    }
+}
+
+impl<RCTX: Render> From<Vec<VNode<RCTX>>> for VList<RCTX> {
+    fn from(children: Vec<VNode<RCTX>>) -> Self {
+        VList(
+            children
+                .into_iter()
+                .enumerate()
+                .map(|(k, v)| (Key::U64(k as u64), v))
+                .collect(),
+        )
+    }
+}
+
+impl<RCTX: Render> From<IndexMap<Key, VNode<RCTX>>> for VList<RCTX> {
+    fn from(map: IndexMap<Key, VNode<RCTX>>) -> Self {
+        VList(map)
     }
 }
 
