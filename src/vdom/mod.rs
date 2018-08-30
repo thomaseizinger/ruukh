@@ -1,7 +1,7 @@
 //! The Virtual DOM library which backs the `ruukh` frontend framework.
 
 use component::Render;
-use dom::{DOMInfo, DOMPatch, DOMRemove};
+use dom::{DOMInfo, DOMPatch, DOMRemove, DOMReorder};
 use std::borrow::Cow;
 use std::fmt::{self, Display, Formatter};
 use vdom::vcomponent::VComponent;
@@ -113,6 +113,17 @@ impl<RCTX: Render> DOMPatch<RCTX> for VNode<RCTX> {
     }
 }
 
+impl<RCTX: Render> DOMReorder for VNode<RCTX> {
+    fn reorder(&self, parent: &Node, next: Option<&Node>) -> Result<(), JsValue> {
+        match self {
+            VNode::Text(txt) => txt.reorder(parent, next),
+            VNode::Element(el) => el.reorder(parent, next),
+            VNode::List(li) => li.reorder(parent, next),
+            VNode::Component(comp) => comp.reorder(parent, next),
+        }
+    }
+}
+
 impl<RCTX: Render> DOMRemove for VNode<RCTX> {
     type Node = Node;
 
@@ -139,7 +150,7 @@ impl<RCTX: Render> DOMInfo for VNode<RCTX> {
 
 /// Keys to identify a VNode in VDOM.
 /// Only the basic types are supported.
-#[derive(Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq, Hash)]
 pub enum Key {
     /// An `i64` key
     I64(i64),

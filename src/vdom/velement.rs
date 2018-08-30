@@ -1,11 +1,11 @@
 //! Element representation in a VDOM.
 
 use component::Render;
-use dom::{DOMInfo, DOMPatch, DOMRemove};
+use dom::{DOMInfo, DOMPatch, DOMRemove, DOMReorder};
 use indexmap::IndexMap;
 use std::borrow::Cow;
 use std::fmt::{self, Display, Formatter};
-use vdom::{KeyedVNodes, VNode};
+use vdom::VNode;
 use wasm_bindgen::prelude::*;
 use web_api::*;
 use MessageSender;
@@ -20,7 +20,7 @@ pub struct VElement<RCTX: Render> {
     /// Event listeners to the DOM events
     event_listeners: EventListeners<RCTX>,
     /// The child node of the given element
-    child: Option<Box<KeyedVNodes<RCTX>>>,
+    child: Option<Box<VNode<RCTX>>>,
     /// Element reference to the DOM
     node: Option<Element>,
 }
@@ -59,7 +59,7 @@ impl<RCTX: Render> VElement<RCTX> {
         tag: &'static str,
         attributes: Vec<Attribute>,
         event_listeners: Vec<EventListener<RCTX>>,
-        child: KeyedVNodes<RCTX>,
+        child: VNode<RCTX>,
     ) -> VElement<RCTX> {
         VElement {
             tag,
@@ -272,6 +272,18 @@ impl<RCTX: Render> DOMPatch<RCTX> for VElement<RCTX> {
         } else {
             self.patch_new(parent, next, render_ctx, rx_sender)
         }
+    }
+}
+
+impl<RCTX: Render> DOMReorder for VElement<RCTX> {
+    fn reorder(&self, parent: &Node, next: Option<&Node>) -> Result<(), JsValue> {
+        let el = self.node.as_ref().unwrap();
+        if let Some(next) = next {
+            parent.insert_before(el.as_ref(), next)?;
+        } else {
+            parent.append_child(el.as_ref())?;
+        }
+        Ok(())
     }
 }
 
