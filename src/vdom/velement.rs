@@ -333,9 +333,11 @@ impl<RCTX: Render> DOMPatch<RCTX> for Attributes {
         debug_assert!(next.is_none());
         for (k, v) in self.0.iter() {
             // Remove the key from old as it exists in the newer.
-            if let Some(ref mut old) = old {
-                old.0.swap_remove(k);
-            }
+            let existed = if let Some(ref mut old) = old {
+                old.0.swap_remove(k).is_some()
+            } else {
+                false
+            };
             match v {
                 AttributeValue::String(val) => {
                     parent.set_attribute(&k, &val)?;
@@ -343,6 +345,8 @@ impl<RCTX: Render> DOMPatch<RCTX> for Attributes {
                 AttributeValue::Bool(truthy) => {
                     if *truthy {
                         parent.set_attribute(&k, "")?;
+                    } else if existed {
+                        parent.remove_attribute(&k)?;
                     }
                 }
             }
