@@ -95,6 +95,27 @@ extern "C" {
 
     #[wasm_bindgen(constructor)]
     pub fn new(type_: &str) -> Event;
+
+    #[derive(Debug)]
+    pub type MessageChannel;
+
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> MessageChannel;
+
+    #[wasm_bindgen(method, getter)]
+    pub fn port1(this: &MessageChannel) -> MessagePort;
+
+    #[wasm_bindgen(method, getter)]
+    pub fn port2(this: &MessageChannel) -> MessagePort;
+
+    #[derive(Debug, Clone)]
+    pub type MessagePort;
+
+    #[wasm_bindgen(method, catch, js_name = postMessage)]
+    pub fn post_message(this: &MessagePort, any: &JsValue) -> Result<(), JsValue>;
+
+    #[wasm_bindgen(method, setter = onmessage)]
+    pub fn on_message(this: &MessagePort, handler: &Closure<FnMut(JsValue)>);
 }
 
 #[cfg(test)]
