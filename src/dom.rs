@@ -32,6 +32,13 @@ where
     ) -> Result<(), JsValue>;
 }
 
+/// Trait to reorder the VNode in the DOM.
+pub(crate) trait DOMReorder {
+    /// Reappend already existing Node in its correct place to reflect
+    /// the current VDOM.
+    fn reorder(&self, parent: &Node, next: Option<&Node>) -> Result<(), JsValue>;
+}
+
 /// Trait to remove the VNode from the DOM.
 pub(crate) trait DOMRemove {
     type Node;
