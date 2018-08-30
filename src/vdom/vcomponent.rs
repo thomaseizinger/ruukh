@@ -167,6 +167,7 @@ where
                 shared_instance.clone(),
                 rx_sender.clone(),
             )?;
+            shared_instance.borrow().mounted();
             self.component = Some(shared_instance);
             self.cached_render = Some(initial_render);
         } else {
