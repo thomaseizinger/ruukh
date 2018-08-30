@@ -116,6 +116,9 @@ extern "C" {
 
     #[wasm_bindgen(method, setter = onmessage)]
     pub fn on_message(this: &MessagePort, handler: &Closure<FnMut(JsValue)>);
+
+    #[wasm_bindgen(js_namespace = console, js_name = log)]
+    pub fn console_log(s: &str);
 }
 
 #[cfg(test)]
