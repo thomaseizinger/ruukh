@@ -23,19 +23,23 @@ pub trait Component: 'static {
     /// Initializes a component with props as well as a meta-state called status
     fn init<RCTX: Render>(
         props: Self::Props,
-        events: Self::Events,
+        events: <Self::Events as EventsPair<RCTX>>::Other,
         status: Shared<Status<Self::State>>,
         render_ctx: Shared<RCTX>,
-    ) -> Self;
+    ) -> Self
+    where
+        Self::Events: EventsPair<RCTX>;
 
     /// Updated the component with newer props and return older props (if changed). Also, set
     /// the component as dirty (if props changed), so that the component is re-rendered.
     fn update<RCTX: Render>(
         &mut self,
         props: Self::Props,
-        events: Self::Events,
+        events: <Self::Events as EventsPair<RCTX>>::Other,
         render_ctx: Shared<RCTX>,
-    ) -> Option<Self::Props>;
+    ) -> Option<Self::Props>
+    where
+        Self::Events: EventsPair<RCTX>;
 
     /// Update the read only state from the mutated status and return true if it has been updated.
     fn refresh_state(&mut self) -> bool;
@@ -156,6 +160,37 @@ where
     fn render(&self) -> KeyedVNodes<Self>;
 }
 
+/// Since the events passed on to the component need to run in the context
+/// of their parent, the events type needs to be generic over the Render
+/// Context. But, Rust does not allowed generics associated type to be
+/// specified in a trait which prohibits us to use a generic events type
+/// in `Component` trait.
+///
+/// So, this is a workaround to get the Generics Events type from the
+/// normal event type associated to the Component.
+///
+/// # Example
+/// ```
+/// struct ButtonEvents<RCTX: Render> {
+///     ...
+/// }
+///
+/// struct __ButtonEvents {
+///     ...
+/// }
+///
+/// impl<RCTX: Render> EventsPair<RCTX> for __ButtonEvents {
+///     type Other = ButtonEvents<RCTX>;
+/// }
+/// ```
+/// 
+/// The example is only for those who want to understand how the events work,
+/// not the users of this framework.
+pub trait EventsPair<T> {
+    /// The generics pair of the `Self`
+    type Other;
+}
+
 /// A void component to be used as a render context for a root component.
 /// Simply the parent of the root.
 pub type RootParent = ();
@@ -167,10 +202,13 @@ impl Component for RootParent {
 
     fn init<RCTX: Render>(
         _: Self::Props,
-        _: Self::Events,
+        _: <Self::Events as EventsPair<RCTX>>::Other,
         _: Shared<Status<()>>,
         _: Shared<RCTX>,
-    ) -> RootParent {
+    ) -> RootParent
+    where
+        Self::Events: EventsPair<RCTX>,
+    {
         unreachable!(
             "It is a void component to be used as a render context for a root \
              component. Not to be used as a component itself."
@@ -180,9 +218,12 @@ impl Component for RootParent {
     fn update<RCTX: Render>(
         &mut self,
         _: Self::Props,
-        _: Self::Events,
+        _: <Self::Events as EventsPair<RCTX>>::Other,
         _: Shared<RCTX>,
-    ) -> Option<Self::Props> {
+    ) -> Option<Self::Props>
+    where
+        Self::Events: EventsPair<RCTX>,
+    {
         unreachable!(
             "It is a void component to be used as a render context for a root \
              component. Not to be used as a component itself."
@@ -255,6 +296,10 @@ impl Render for RootParent {
              component. Not to be used as a component itself."
         )
     }
+}
+
+impl<RCTX: Render> EventsPair<RCTX> for () {
+    type Other = ();
 }
 
 #[cfg(test)]

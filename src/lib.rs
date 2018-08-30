@@ -24,7 +24,7 @@ pub mod web_api;
 
 #[allow(missing_docs)]
 pub mod prelude {
-    pub use component::{Component, Lifecycle, Render, Status};
+    pub use component::{Component, EventsPair, Lifecycle, Render, Status};
     pub use vdom::{
         vcomponent::VComponent,
         velement::{Attribute, EventListener, VElement},

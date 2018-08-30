@@ -1,6 +1,6 @@
 //! Component representation in a VDOM.
 
-use component::{Render, Status};
+use component::{EventsPair, Render, Status};
 use dom::{DOMInfo, DOMPatch, DOMRemove};
 use std::any::Any;
 use std::fmt::{self, Display, Formatter};
@@ -15,21 +15,36 @@ pub struct VComponent<RCTX: Render>(Box<ComponentManager<RCTX>>);
 
 impl<RCTX: Render> VComponent<RCTX> {
     #[allow(missing_docs)]
-    pub fn new<COMP: Render>(props: COMP::Props, events: COMP::Events) -> VComponent<RCTX> {
+    pub fn new<COMP: Render>(
+        props: COMP::Props,
+        events: <COMP::Events as EventsPair<RCTX>>::Other,
+    ) -> VComponent<RCTX>
+    where
+        COMP::Events: EventsPair<RCTX>,
+    {
         VComponent(Box::new(ComponentWrapper::<COMP, RCTX>::new(props, events)))
     }
 }
 
-pub(crate) struct ComponentWrapper<COMP: Render, RCTX: Render> {
+pub(crate) struct ComponentWrapper<COMP: Render, RCTX: Render>
+where
+    COMP::Events: EventsPair<RCTX>,
+{
     component: Option<Shared<COMP>>,
     props: Option<COMP::Props>,
-    events: Option<COMP::Events>,
+    events: Option<<COMP::Events as EventsPair<RCTX>>::Other>,
     cached_render: Option<KeyedVNodes<COMP>>,
     _phantom: PhantomData<RCTX>,
 }
 
-impl<COMP: Render, RCTX: Render> ComponentWrapper<COMP, RCTX> {
-    pub(crate) fn new(props: COMP::Props, events: COMP::Events) -> ComponentWrapper<COMP, RCTX> {
+impl<COMP: Render, RCTX: Render> ComponentWrapper<COMP, RCTX>
+where
+    COMP::Events: EventsPair<RCTX>,
+{
+    pub(crate) fn new(
+        props: COMP::Props,
+        events: <COMP::Events as EventsPair<RCTX>>::Other,
+    ) -> ComponentWrapper<COMP, RCTX> {
         ComponentWrapper {
             component: None,
             props: Some(props),
@@ -82,8 +97,7 @@ impl<RCTX: Render> DOMPatch<RCTX> for VComponent<RCTX> {
         render_ctx: Shared<RCTX>,
         _: MessageSender,
     ) -> Result<(), JsValue> {
-        self.0
-            .patch(old.map(|old| old.0), parent, next, render_ctx)
+        self.0.patch(old.map(|old| old.0), parent, next, render_ctx)
     }
 }
 
@@ -123,7 +137,10 @@ pub(crate) trait ComponentManager<RCTX: Render>: Downcast + Display {
     fn node(&self) -> Option<&Node>;
 }
 
-impl<COMP: Render, RCTX: Render> ComponentManager<RCTX> for ComponentWrapper<COMP, RCTX> {
+impl<COMP: Render, RCTX: Render> ComponentManager<RCTX> for ComponentWrapper<COMP, RCTX>
+where
+    COMP::Events: EventsPair<RCTX>,
+{
     fn render_walk(
         &mut self,
         parent: &Node,
@@ -247,7 +264,10 @@ impl<RCTX: Render> Display for VComponent<RCTX> {
     }
 }
 
-impl<COMP: Render, RCTX: Render> Display for ComponentWrapper<COMP, RCTX> {
+impl<COMP: Render, RCTX: Render> Display for ComponentWrapper<COMP, RCTX>
+where
+    COMP::Events: EventsPair<RCTX>,
+{
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(
             f,
