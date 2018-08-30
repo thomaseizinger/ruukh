@@ -31,7 +31,7 @@ pub mod prelude {
         velement::{Attribute, EventListener, VElement},
         vlist::VList,
         vtext::VText,
-        {Key, KeyedVNodes, VNode},
+        {Key, VNode},
     };
 }
 
