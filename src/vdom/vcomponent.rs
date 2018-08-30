@@ -8,6 +8,7 @@ use std::marker::PhantomData;
 use vdom::{KeyedVNodes, Shared, VNode};
 use wasm_bindgen::prelude::JsValue;
 use web_api::*;
+use MessageSender;
 
 /// The representation of a component in a Virtual DOM.
 pub struct VComponent<RCTX: Render>(Box<ComponentManager<RCTX>>);
@@ -19,7 +20,7 @@ impl<RCTX: Render> VComponent<RCTX> {
     }
 }
 
-struct ComponentWrapper<COMP: Render, RCTX: Render> {
+pub(crate) struct ComponentWrapper<COMP: Render, RCTX: Render> {
     component: Option<Shared<COMP>>,
     props: Option<COMP::Props>,
     events: Option<COMP::Events>,
@@ -28,7 +29,7 @@ struct ComponentWrapper<COMP: Render, RCTX: Render> {
 }
 
 impl<COMP: Render, RCTX: Render> ComponentWrapper<COMP, RCTX> {
-    fn new(props: COMP::Props, events: COMP::Events) -> ComponentWrapper<COMP, RCTX> {
+    pub(crate) fn new(props: COMP::Props, events: COMP::Events) -> ComponentWrapper<COMP, RCTX> {
         ComponentWrapper {
             component: None,
             props: Some(props),
@@ -68,8 +69,9 @@ impl<RCTX: Render> DOMPatch<RCTX> for VComponent<RCTX> {
         parent: &Self::Node,
         next: Option<&Self::Node>,
         render_ctx: Shared<RCTX>,
+        rx_sender: MessageSender,
     ) -> Result<(), JsValue> {
-        self.0.render_walk(parent, next, render_ctx)
+        self.0.render_walk(parent, next, render_ctx, rx_sender)
     }
 
     fn patch(
@@ -78,8 +80,10 @@ impl<RCTX: Render> DOMPatch<RCTX> for VComponent<RCTX> {
         parent: &Self::Node,
         next: Option<&Self::Node>,
         render_ctx: Shared<RCTX>,
+        _: MessageSender,
     ) -> Result<(), JsValue> {
-        self.0.patch(old.map(|old| old.0), parent, next, render_ctx)
+        self.0
+            .patch(old.map(|old| old.0), parent, next, render_ctx)
     }
 }
 
@@ -97,12 +101,13 @@ impl<RCTX: Render> DOMInfo for VComponent<RCTX> {
     }
 }
 
-trait ComponentManager<RCTX: Render>: Downcast + Display {
+pub(crate) trait ComponentManager<RCTX: Render>: Downcast + Display {
     fn render_walk(
         &mut self,
         parent: &Node,
         next: Option<&Node>,
         render_ctx: Shared<RCTX>,
+        rx_sender: MessageSender,
     ) -> Result<(), JsValue>;
 
     fn patch(
@@ -124,6 +129,7 @@ impl<COMP: Render, RCTX: Render> ComponentManager<RCTX> for ComponentWrapper<COM
         parent: &Node,
         next: Option<&Node>,
         render_ctx: Shared<RCTX>,
+        rx_sender: MessageSender,
     ) -> Result<(), JsValue> {
         if self.component.is_none() {
             let props = self.props.take().unwrap();
@@ -131,13 +137,19 @@ impl<COMP: Render, RCTX: Render> ComponentManager<RCTX> for ComponentWrapper<COM
             let instance = COMP::init(
                 props,
                 events,
-                Shared::new(Status::new(COMP::State::default())),
+                Shared::new(Status::new(COMP::State::default(), rx_sender.clone())),
                 render_ctx,
             );
             instance.created();
             let mut initial_render = instance.render();
             let shared_instance = Shared::new(instance);
-            initial_render.patch(None, parent, next, shared_instance.clone())?;
+            initial_render.patch(
+                None,
+                parent,
+                next,
+                shared_instance.clone(),
+                rx_sender.clone(),
+            )?;
             self.component = Some(shared_instance);
             self.cached_render = Some(initial_render);
         } else {
@@ -152,12 +164,17 @@ impl<COMP: Render, RCTX: Render> ComponentManager<RCTX> for ComponentWrapper<COM
             if state_changed || comp.borrow_mut().is_props_dirty() {
                 let mut rerender = comp.borrow().render();
                 let cached_render = self.cached_render.take();
-                rerender.patch(cached_render, parent, next, comp.clone())?;
+                rerender.patch(cached_render, parent, next, comp.clone(), rx_sender.clone())?;
                 self.cached_render = Some(rerender);
             }
         }
         if let Some(ref mut cached) = self.cached_render {
-            cached.render_walk(parent, next, self.component.as_ref().unwrap().clone())?;
+            cached.render_walk(
+                parent,
+                next,
+                self.component.as_ref().unwrap().clone(),
+                rx_sender,
+            )?;
         }
         Ok(())
     }
@@ -214,7 +231,7 @@ impl<RCTX: Render> From<VComponent<RCTX>> for VNode<RCTX> {
     }
 }
 
-trait Downcast: Any {
+pub(crate) trait Downcast: Any {
     fn into_any(self: Box<Self>) -> Box<Any>;
 }
 

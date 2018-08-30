@@ -6,6 +6,7 @@ use std::fmt::{self, Display, Formatter};
 use vdom::{KeyedVNodes, VNode};
 use wasm_bindgen::prelude::*;
 use web_api::*;
+use MessageSender;
 use Shared;
 
 /// The representation of an element in virtual DOM.
@@ -175,13 +176,15 @@ impl<RCTX: Render> VElement<RCTX> {
         parent: &Node,
         next: Option<&Node>,
         render_ctx: Shared<RCTX>,
+        rx_sender: MessageSender,
     ) -> Result<(), JsValue> {
         let el = html_document.create_element(&self.tag)?;
-        self.attributes.patch(None, &el, None, render_ctx.clone())?;
+        self.attributes
+            .patch(None, &el, None, render_ctx.clone(), rx_sender.clone())?;
         self.event_listeners
-            .patch(None, &el, None, render_ctx.clone())?;
+            .patch(None, &el, None, render_ctx.clone(), rx_sender.clone())?;
         if let Some(ref mut child) = self.child {
-            child.patch(None, el.as_ref(), None, render_ctx)?;
+            child.patch(None, el.as_ref(), None, render_ctx, rx_sender)?;
         }
         if let Some(next) = next {
             parent.insert_before(el.as_ref(), next)?;
@@ -201,13 +204,14 @@ impl<RCTX: Render> DOMPatch<RCTX> for VElement<RCTX> {
         _: &Node,
         _: Option<&Node>,
         render_ctx: Shared<RCTX>,
+        rx_sender: MessageSender,
     ) -> Result<(), JsValue> {
         if let Some(ref mut child) = self.child {
             let node = self
                 .node
                 .as_ref()
                 .expect("The element itself must be patched before rendering the child");
-            child.render_walk(node.as_ref(), None, render_ctx)?;
+            child.render_walk(node.as_ref(), None, render_ctx, rx_sender)?;
         }
         Ok(())
     }
@@ -218,19 +222,26 @@ impl<RCTX: Render> DOMPatch<RCTX> for VElement<RCTX> {
         parent: &Node,
         next: Option<&Node>,
         render_ctx: Shared<RCTX>,
+        rx_sender: MessageSender,
     ) -> Result<(), JsValue> {
         if let Some(old) = old {
             if self.tag == old.tag {
                 let old_el = old
                     .node
                     .expect("The old node is expected to be attached to the DOM");
-                self.attributes
-                    .patch(Some(old.attributes), &old_el, None, render_ctx.clone())?;
+                self.attributes.patch(
+                    Some(old.attributes),
+                    &old_el,
+                    None,
+                    render_ctx.clone(),
+                    rx_sender.clone(),
+                )?;
                 self.event_listeners.patch(
                     Some(old.event_listeners),
                     &old_el,
                     None,
                     render_ctx.clone(),
+                    rx_sender.clone(),
                 )?;
                 if let Some(ref mut child) = self.child {
                     child.patch(
@@ -238,16 +249,17 @@ impl<RCTX: Render> DOMPatch<RCTX> for VElement<RCTX> {
                         old_el.as_ref(),
                         None,
                         render_ctx.clone(),
+                        rx_sender,
                     )?;
                 }
                 self.node = Some(old_el);
                 Ok(())
             } else {
                 old.remove(parent)?;
-                self.patch_new(parent, next, render_ctx)
+                self.patch_new(parent, next, render_ctx, rx_sender)
             }
         } else {
-            self.patch_new(parent, next, render_ctx)
+            self.patch_new(parent, next, render_ctx, rx_sender)
         }
     }
 }
@@ -282,6 +294,7 @@ impl<RCTX: Render> DOMPatch<RCTX> for Attributes {
         _: &Element,
         _: Option<&Element>,
         _: Shared<RCTX>,
+        _: MessageSender,
     ) -> Result<(), JsValue> {
         unreachable!("Attributes do not have nested Components");
     }
@@ -292,13 +305,14 @@ impl<RCTX: Render> DOMPatch<RCTX> for Attributes {
         parent: &Element,
         next: Option<&Element>,
         render_ctx: Shared<RCTX>,
+        rx_sender: MessageSender,
     ) -> Result<(), JsValue> {
         debug_assert!(next.is_none());
         if let Some(old) = old {
             old.remove(parent)?;
         }
         for attr in self.0.iter_mut() {
-            attr.patch(None, parent, None, render_ctx.clone())?;
+            attr.patch(None, parent, None, render_ctx.clone(), rx_sender.clone())?;
         }
         Ok(())
     }
@@ -323,6 +337,7 @@ impl<RCTX: Render> DOMPatch<RCTX> for Attribute {
         _: &Element,
         _: Option<&Element>,
         _: Shared<RCTX>,
+        _: MessageSender,
     ) -> Result<(), JsValue> {
         unreachable!("Attribute does not have nested Components");
     }
@@ -333,6 +348,7 @@ impl<RCTX: Render> DOMPatch<RCTX> for Attribute {
         parent: &Element,
         next: Option<&Element>,
         _: Shared<RCTX>,
+        _: MessageSender,
     ) -> Result<(), JsValue> {
         debug_assert!(old.is_none());
         debug_assert!(next.is_none());
@@ -356,6 +372,7 @@ impl<RCTX: Render> DOMPatch<RCTX> for EventListeners<RCTX> {
         _: &Element,
         _: Option<&Element>,
         _: Shared<RCTX>,
+        _: MessageSender,
     ) -> Result<(), JsValue> {
         unreachable!("EventListeners does not have nested Components");
     }
@@ -366,6 +383,7 @@ impl<RCTX: Render> DOMPatch<RCTX> for EventListeners<RCTX> {
         parent: &Element,
         _: Option<&Element>,
         render_ctx: Shared<RCTX>,
+        _: MessageSender,
     ) -> Result<(), JsValue> {
         if let Some(old) = old {
             old.remove(parent)?;

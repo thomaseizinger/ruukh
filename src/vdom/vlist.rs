@@ -3,10 +3,11 @@
 use component::Render;
 use dom::{DOMInfo, DOMPatch, DOMRemove};
 use std::fmt::{self, Display, Formatter};
+use vdom::{KeyedVNodes, VNode};
 use wasm_bindgen::prelude::JsValue;
 use web_api::*;
+use MessageSender;
 use Shared;
-use vdom::{KeyedVNodes, VNode};
 
 /// The representation of a list of vnodes in the vtree.
 pub struct VList<RCTX: Render>(Vec<KeyedVNodes<RCTX>>);
@@ -41,10 +42,11 @@ impl<RCTX: Render> DOMPatch<RCTX> for VList<RCTX> {
         parent: &Self::Node,
         next: Option<&Self::Node>,
         render_ctx: Shared<RCTX>,
+        rx_sender: MessageSender,
     ) -> Result<(), JsValue> {
         let mut next = next;
         for vnode in self.0.iter_mut().rev() {
-            vnode.render_walk(parent, next, render_ctx.clone())?;
+            vnode.render_walk(parent, next, render_ctx.clone(), rx_sender.clone())?;
             next = vnode.node();
         }
         Ok(())
@@ -56,6 +58,7 @@ impl<RCTX: Render> DOMPatch<RCTX> for VList<RCTX> {
         parent: &Self::Node,
         next: Option<&Self::Node>,
         render_ctx: Shared<RCTX>,
+        rx_sender: MessageSender,
     ) -> Result<(), JsValue> {
         let mut next = next;
         if let Some(mut old) = old {
@@ -66,13 +69,13 @@ impl<RCTX: Render> DOMPatch<RCTX> for VList<RCTX> {
                 } else {
                     None
                 };
-                vnode.patch(old, parent, next, render_ctx.clone())?;
+                vnode.patch(old, parent, next, render_ctx.clone(), rx_sender.clone())?;
                 next = vnode.node();
             }
             old.remove(parent)?;
         } else {
             for vnode in self.0.iter_mut().rev() {
-                vnode.patch(None, parent, next, render_ctx.clone())?;
+                vnode.patch(None, parent, next, render_ctx.clone(), rx_sender.clone())?;
                 next = vnode.node();
             }
         }
@@ -116,11 +119,11 @@ mod test {
 
 #[cfg(test)]
 pub mod wasm_test {
+    use component::root_render_ctx;
     use dom::*;
     use prelude::*;
     use wasm_bindgen_test::*;
     use web_api::*;
-    use component::root_render_ctx;
 
     fn container() -> Element {
         html_document.create_element("div").unwrap()

@@ -1,4 +1,5 @@
 use vdom::KeyedVNodes;
+use MessageSender;
 use Shared;
 
 /// Trait to define a Component. You do not need to implement this trait.
@@ -46,6 +47,20 @@ pub trait Component: 'static {
     /// To find whether the component has been updated with newer props. If a newer
     /// props, reset it to undirtied state.
     fn is_props_dirty(&mut self) -> bool;
+
+    /// Mutate the state of the component by passing in a closure which accepts the
+    /// state.
+    ///
+    /// # Example
+    /// ```
+    /// self.set_state(|state| {
+    ///     state.disabled = !state.disabled;
+    ///     state.count += 1;
+    /// })
+    /// ```
+    fn set_state<F>(&self, mutator: F)
+    where
+        F: FnMut(&mut Self::State);
 }
 
 /// Stores the metadata related to the state along with the state.
@@ -53,15 +68,17 @@ pub struct Status<T> {
     state: T,
     state_dirty: bool,
     props_dirty: bool,
+    rx_sender: MessageSender,
 }
 
 impl<T> Status<T> {
     /// Initialize the status with a given state.
-    pub fn new(state: T) -> Status<T> {
+    pub(crate) fn new(state: T, rx_sender: MessageSender) -> Status<T> {
         Status {
             state,
             state_dirty: false,
             props_dirty: false,
+            rx_sender,
         }
     }
 
@@ -103,6 +120,11 @@ impl<T> Status<T> {
     /// Get the state mutably.
     pub fn state_as_mut(&mut self) -> &mut T {
         &mut self.state
+    }
+
+    /// Send a request to the App to react to the state changes
+    pub fn do_react(&self) {
+        self.rx_sender.do_react();
     }
 }
 
@@ -182,6 +204,13 @@ impl Component for RootParent {
     }
 
     fn is_props_dirty(&mut self) -> bool {
+        unreachable!(
+            "It is a void component to be used as a render context for a root \
+             component. Not to be used as a component itself."
+        )
+    }
+
+    fn set_state<F>(&self, _: F) {
         unreachable!(
             "It is a void component to be used as a render context for a root \
              component. Not to be used as a component itself."

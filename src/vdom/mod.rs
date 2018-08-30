@@ -10,6 +10,7 @@ use vdom::vlist::VList;
 use vdom::vtext::VText;
 use wasm_bindgen::prelude::JsValue;
 use web_api::*;
+use MessageSender;
 use Shared;
 
 pub mod vcomponent;
@@ -80,8 +81,9 @@ impl<RCTX: Render> DOMPatch<RCTX> for KeyedVNodes<RCTX> {
         parent: &Self::Node,
         next: Option<&Self::Node>,
         render_ctx: Shared<RCTX>,
+        rx_sender: MessageSender,
     ) -> Result<(), JsValue> {
-        self.vnode.render_walk(parent, next, render_ctx)
+        self.vnode.render_walk(parent, next, render_ctx, rx_sender)
     }
 
     fn patch(
@@ -90,16 +92,18 @@ impl<RCTX: Render> DOMPatch<RCTX> for KeyedVNodes<RCTX> {
         parent: &Self::Node,
         next: Option<&Self::Node>,
         render_ctx: Shared<RCTX>,
+        rx_sender: MessageSender,
     ) -> Result<(), JsValue> {
         if let Some(old) = old {
             if self.key == old.key {
-                self.vnode.patch(Some(old.vnode), parent, next, render_ctx)
+                self.vnode
+                    .patch(Some(old.vnode), parent, next, render_ctx, rx_sender)
             } else {
                 old.vnode.remove(parent)?;
-                self.vnode.patch(None, parent, next, render_ctx)
+                self.vnode.patch(None, parent, next, render_ctx, rx_sender)
             }
         } else {
-            self.vnode.patch(None, parent, next, render_ctx)
+            self.vnode.patch(None, parent, next, render_ctx, rx_sender)
         }
     }
 }
@@ -119,14 +123,23 @@ impl<RCTX: Render> DOMInfo for KeyedVNodes<RCTX> {
 }
 
 macro_rules! patch {
-    ($variant:ident => $this:ident, $old:ident, $parent:ident, $next:ident, $render_ctx:ident) => {
+    (
+        $variant:ident => $this:ident, 
+        $old:ident, 
+        $parent:ident, 
+        $next:ident, 
+        $render_ctx:ident, 
+        $rx_sender:ident
+    ) => {
         match $old {
-            Some(VNode::$variant(old)) => $this.patch(Some(old), $parent, $next, $render_ctx),
+            Some(VNode::$variant(old)) => {
+                $this.patch(Some(old), $parent, $next, $render_ctx, $rx_sender)
+            }
             Some(old) => {
                 old.remove($parent)?;
-                $this.patch(None, $parent, $next, $render_ctx)
+                $this.patch(None, $parent, $next, $render_ctx, $rx_sender)
             }
-            None => $this.patch(None, $parent, $next, $render_ctx),
+            None => $this.patch(None, $parent, $next, $render_ctx, $rx_sender),
         }
     };
 }
@@ -139,11 +152,12 @@ impl<RCTX: Render> DOMPatch<RCTX> for VNode<RCTX> {
         parent: &Self::Node,
         next: Option<&Self::Node>,
         render_ctx: Shared<RCTX>,
+        rx_sender: MessageSender,
     ) -> Result<(), JsValue> {
         match self {
-            VNode::Element(ref mut el) => el.render_walk(parent, next, render_ctx),
-            VNode::List(ref mut list) => list.render_walk(parent, next, render_ctx),
-            VNode::Component(ref mut comp) => comp.render_walk(parent, next, render_ctx),
+            VNode::Element(ref mut el) => el.render_walk(parent, next, render_ctx, rx_sender),
+            VNode::List(ref mut list) => list.render_walk(parent, next, render_ctx, rx_sender),
+            VNode::Component(ref mut comp) => comp.render_walk(parent, next, render_ctx, rx_sender),
             VNode::Text(_) => Ok(()),
         }
     }
@@ -154,15 +168,20 @@ impl<RCTX: Render> DOMPatch<RCTX> for VNode<RCTX> {
         parent: &Self::Node,
         next: Option<&Self::Node>,
         render_ctx: Shared<RCTX>,
+        rx_sender: MessageSender,
     ) -> Result<(), JsValue> {
         match self {
             VNode::Element(ref mut new_el) => {
-                patch!(Element => new_el, old, parent, next, render_ctx)
+                patch!(Element => new_el, old, parent, next, render_ctx, rx_sender)
             }
-            VNode::Text(ref mut new_txt) => patch!(Text => new_txt, old, parent, next, render_ctx),
-            VNode::List(ref mut new_li) => patch!(List => new_li, old, parent, next, render_ctx),
+            VNode::Text(ref mut new_txt) => {
+                patch!(Text => new_txt, old, parent, next, render_ctx, rx_sender)
+            }
+            VNode::List(ref mut new_li) => {
+                patch!(List => new_li, old, parent, next, render_ctx, rx_sender)
+            }
             VNode::Component(ref mut new_comp) => {
-                patch!(Component => new_comp, old, parent, next, render_ctx)
+                patch!(Component => new_comp, old, parent, next, render_ctx, rx_sender)
             }
         }
     }

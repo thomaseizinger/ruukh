@@ -1,10 +1,11 @@
 use component::Render;
 use wasm_bindgen::prelude::JsValue;
 use web_api::Node;
+use MessageSender;
 use Shared;
 
 /// Trait to patch the DOM to reflect the VDOM structure.
-pub trait DOMPatch<RCTX: Render>
+pub(crate) trait DOMPatch<RCTX: Render>
 where
     Self: Sized,
 {
@@ -17,6 +18,7 @@ where
         parent: &Self::Node,
         next: Option<&Self::Node>,
         render_ctx: Shared<RCTX>,
+        rx_sender: MessageSender,
     ) -> Result<(), JsValue>;
 
     /// Patch the DOM by diffing the VDOM `Self` with Older VDOM.
@@ -26,6 +28,7 @@ where
         parent: &Self::Node,
         next: Option<&Self::Node>,
         render_ctx: Shared<RCTX>,
+        rx_sender: MessageSender,
     ) -> Result<(), JsValue>;
 }
 

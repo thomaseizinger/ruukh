@@ -7,6 +7,7 @@ use std::marker::PhantomData;
 use vdom::VNode;
 use wasm_bindgen::prelude::JsValue;
 use web_api::*;
+use MessageSender;
 use Shared;
 
 /// The representation of text/comment in virtual dom tree.
@@ -80,7 +81,13 @@ impl<RCTX: Render> VText<RCTX> {
 impl<RCTX: Render> DOMPatch<RCTX> for VText<RCTX> {
     type Node = Node;
 
-    fn render_walk(&mut self, _: &Node, _: Option<&Node>, _: Shared<RCTX>) -> Result<(), JsValue> {
+    fn render_walk(
+        &mut self,
+        _: &Node,
+        _: Option<&Node>,
+        _: Shared<RCTX>,
+        _: MessageSender,
+    ) -> Result<(), JsValue> {
         unreachable!("There is nothing to render in a VText");
     }
 
@@ -90,6 +97,7 @@ impl<RCTX: Render> DOMPatch<RCTX> for VText<RCTX> {
         parent: &Node,
         next: Option<&Node>,
         _: Shared<RCTX>,
+        _: MessageSender,
     ) -> Result<(), JsValue> {
         if let Some(old) = old {
             if self.is_comment == old.is_comment {
