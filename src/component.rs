@@ -1,6 +1,6 @@
-use vdom::KeyedVNodes;
 use MessageSender;
 use Shared;
+use vdom::VNode;
 
 /// Trait to define a Component. You do not need to implement this trait.
 /// Use the auto derive provided as `#[derive(Component)]`.
@@ -157,7 +157,7 @@ where
     Self: Sized,
 {
     #[allow(missing_docs)]
-    fn render(&self) -> KeyedVNodes<Self>;
+    fn render(&self) -> VNode<Self>;
 }
 
 /// Since the events passed on to the component need to run in the context
@@ -290,7 +290,7 @@ impl Lifecycle for RootParent {
 }
 
 impl Render for RootParent {
-    fn render(&self) -> KeyedVNodes<Self> {
+    fn render(&self) -> VNode<Self> {
         unreachable!(
             "It is a void component to be used as a render context for a root \
              component. Not to be used as a component itself."
