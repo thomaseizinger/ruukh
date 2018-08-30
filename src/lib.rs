@@ -4,6 +4,7 @@
 extern crate wasm_bindgen;
 #[cfg(test)]
 extern crate wasm_bindgen_test;
+extern crate indexmap;
 
 use component::{Render, RootParent};
 use std::cell::{Ref, RefCell, RefMut};

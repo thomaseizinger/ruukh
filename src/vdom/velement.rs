@@ -2,6 +2,7 @@
 
 use component::Render;
 use dom::{DOMInfo, DOMPatch, DOMRemove};
+use indexmap::IndexMap;
 use std::borrow::Cow;
 use std::fmt::{self, Display, Formatter};
 use vdom::{KeyedVNodes, VNode};
@@ -25,7 +26,7 @@ pub struct VElement<RCTX: Render> {
 }
 
 /// A list of attributes.
-struct Attributes(Vec<Attribute>);
+struct Attributes(IndexMap<&'static str, AttributeValue>);
 
 /// The key, value pair of the attributes on an element.
 pub struct Attribute {
@@ -62,7 +63,7 @@ impl<RCTX: Render> VElement<RCTX> {
     ) -> VElement<RCTX> {
         VElement {
             tag,
-            attributes: Attributes(attributes),
+            attributes: Attributes::from(attributes),
             event_listeners: EventListeners(
                 event_listeners
                     .into_iter()
@@ -84,7 +85,7 @@ impl<RCTX: Render> VElement<RCTX> {
     ) -> VElement<RCTX> {
         VElement {
             tag,
-            attributes: Attributes(attributes),
+            attributes: Attributes::from(attributes),
             event_listeners: EventListeners(
                 event_listeners
                     .into_iter()
@@ -166,23 +167,17 @@ impl<RCTX: Render> Display for VElement<RCTX> {
 
 impl Display for Attributes {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        for attr in self.0.iter() {
-            write!(f, " {}", attr)?;
+        for (k, v) in self.0.iter() {
+            match v {
+                AttributeValue::String(ref v) => {
+                    write!(f, " {}=\"{}\"", k, v);
+                }
+                AttributeValue::Bool(truthy) => if *truthy {
+                    write!(f, " {}=\"\"", k)?;
+                },
+            }
         }
         Ok(())
-    }
-}
-
-impl Display for Attribute {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        match self.value {
-            AttributeValue::String(ref value) => write!(f, "{}=\"{}\"", self.key, value),
-            AttributeValue::Bool(truthy) => if truthy {
-                write!(f, "{}=\"\"", self.key)
-            } else {
-                Ok(())
-            },
-        }
     }
 }
 
@@ -317,18 +312,32 @@ impl<RCTX: Render> DOMPatch<RCTX> for Attributes {
 
     fn patch(
         &mut self,
-        old: Option<Self>,
+        mut old: Option<Self>,
         parent: &Element,
         next: Option<&Element>,
-        render_ctx: Shared<RCTX>,
-        rx_sender: MessageSender,
+        _: Shared<RCTX>,
+        _: MessageSender,
     ) -> Result<(), JsValue> {
         debug_assert!(next.is_none());
+        for (k, v) in self.0.iter() {
+            // Remove the key from old as it exists in the newer.
+            if let Some(ref mut old) = old {
+                old.0.swap_remove(k);
+            }
+            match v {
+                AttributeValue::String(val) => {
+                    parent.set_attribute(&k, &val)?;
+                }
+                AttributeValue::Bool(truthy) => {
+                    if *truthy {
+                        parent.set_attribute(&k, "")?;
+                    }
+                }
+            }
+        }
+        // Remove the remaining keys.
         if let Some(old) = old {
             old.remove(parent)?;
-        }
-        for attr in self.0.iter_mut() {
-            attr.patch(None, parent, None, render_ctx.clone(), rx_sender.clone())?;
         }
         Ok(())
     }
@@ -338,52 +347,10 @@ impl DOMRemove for Attributes {
     type Node = Element;
 
     fn remove(self, parent: &Element) -> Result<(), JsValue> {
-        for attr in self.0 {
-            attr.remove(parent)?;
+        for (k, _) in self.0 {
+            parent.remove_attribute(&k)?;
         }
         Ok(())
-    }
-}
-
-impl<RCTX: Render> DOMPatch<RCTX> for Attribute {
-    type Node = Element;
-
-    fn render_walk(
-        &mut self,
-        _: &Element,
-        _: Option<&Element>,
-        _: Shared<RCTX>,
-        _: MessageSender,
-    ) -> Result<(), JsValue> {
-        unreachable!("Attribute does not have nested Components");
-    }
-
-    fn patch(
-        &mut self,
-        old: Option<Self>,
-        parent: &Element,
-        next: Option<&Element>,
-        _: Shared<RCTX>,
-        _: MessageSender,
-    ) -> Result<(), JsValue> {
-        debug_assert!(old.is_none());
-        debug_assert!(next.is_none());
-        match self.value {
-            AttributeValue::String(ref value) => parent.set_attribute(&self.key, value),
-            AttributeValue::Bool(truthy) => if truthy {
-                parent.set_attribute(&self.key, "")
-            } else {
-                Ok(())
-            },
-        }
-    }
-}
-
-impl DOMRemove for Attribute {
-    type Node = Element;
-
-    fn remove(self, parent: &Element) -> Result<(), JsValue> {
-        parent.remove_attribute(&self.key)
     }
 }
 
@@ -481,6 +448,13 @@ impl From<String> for AttributeValue {
 impl<'a> From<Cow<'a, str>> for AttributeValue {
     fn from(val: Cow<'a, str>) -> AttributeValue {
         AttributeValue::String(val.into())
+    }
+}
+
+impl From<Vec<Attribute>> for Attributes {
+    fn from(val: Vec<Attribute>) -> Attributes {
+        let attrs = val.into_iter().map(|attr| (attr.key, attr.value)).collect();
+        Attributes(attrs)
     }
 }
 
