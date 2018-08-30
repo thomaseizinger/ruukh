@@ -2,6 +2,7 @@
 
 use component::Render;
 use dom::{DOMInfo, DOMPatch, DOMRemove};
+use std::borrow::Cow;
 use std::fmt::{self, Display, Formatter};
 use vdom::{KeyedVNodes, VNode};
 use wasm_bindgen::prelude::*;
@@ -31,7 +32,15 @@ pub struct Attribute {
     /// The key of the attribute
     key: &'static str,
     /// The value pair of the attribute key
-    value: String,
+    value: AttributeValue,
+}
+
+/// Either a string or a bool
+pub enum AttributeValue {
+    /// A string attribute value
+    String(String),
+    /// A boolean attribute value
+    Bool(bool),
 }
 
 struct EventListeners<RCTX: Render>(Vec<Box<EventManager<RCTX>>>);
@@ -92,7 +101,7 @@ impl<RCTX: Render> VElement<RCTX> {
 
 impl Attribute {
     /// Constructor to create an Attribute for a VElement.
-    pub fn new<V: Into<String>>(key: &'static str, value: V) -> Attribute {
+    pub fn new<V: Into<AttributeValue>>(key: &'static str, value: V) -> Attribute {
         Attribute {
             key,
             value: value.into(),
@@ -166,7 +175,14 @@ impl Display for Attributes {
 
 impl Display for Attribute {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "{}=\"{}\"", self.key, self.value)
+        match self.value {
+            AttributeValue::String(ref value) => write!(f, "{}=\"{}\"", self.key, value),
+            AttributeValue::Bool(truthy) => if truthy {
+                write!(f, "{}=\"\"", self.key)
+            } else {
+                Ok(())
+            },
+        }
     }
 }
 
@@ -352,7 +368,14 @@ impl<RCTX: Render> DOMPatch<RCTX> for Attribute {
     ) -> Result<(), JsValue> {
         debug_assert!(old.is_none());
         debug_assert!(next.is_none());
-        parent.set_attribute(&self.key, &self.value)
+        match self.value {
+            AttributeValue::String(ref value) => parent.set_attribute(&self.key, value),
+            AttributeValue::Bool(truthy) => if truthy {
+                parent.set_attribute(&self.key, "")
+            } else {
+                Ok(())
+            },
+        }
     }
 }
 
@@ -434,6 +457,30 @@ impl<RCTX: Render> EventManager<RCTX> for EventListener<RCTX> {
     fn stop_listening(&mut self, parent: &Element) -> Result<(), JsValue> {
         let js_closure = self.dom_listener.take().unwrap();
         parent.remove_event_listener(&self.type_, &js_closure)
+    }
+}
+
+impl From<bool> for AttributeValue {
+    fn from(val: bool) -> AttributeValue {
+        AttributeValue::Bool(val)
+    }
+}
+
+impl<'a> From<&'a str> for AttributeValue {
+    fn from(val: &'a str) -> AttributeValue {
+        AttributeValue::String(val.to_string())
+    }
+}
+
+impl From<String> for AttributeValue {
+    fn from(val: String) -> AttributeValue {
+        AttributeValue::String(val)
+    }
+}
+
+impl<'a> From<Cow<'a, str>> for AttributeValue {
+    fn from(val: Cow<'a, str>) -> AttributeValue {
+        AttributeValue::String(val.into())
     }
 }
 
