@@ -59,7 +59,7 @@ where
     ) -> Result<ComponentWrapper<COMP, RCTX>, Box<ComponentManager<RCTX>>> {
         let mut same_type = false;
         {
-            let any = &other as &Any;
+            let any = other.as_any();
             if any.is::<ComponentWrapper<COMP, RCTX>>() {
                 same_type = true;
             }
@@ -143,6 +143,8 @@ pub(crate) trait ComponentManager<RCTX: Render>: Downcast + Display {
     fn remove(&mut self, parent: &Node) -> Result<(), JsValue>;
 
     fn node(&self) -> Option<&Node>;
+
+    fn as_any(&self) -> &Any;
 }
 
 impl<COMP: Render, RCTX: Render> ComponentManager<RCTX> for ComponentWrapper<COMP, RCTX>
@@ -255,6 +257,10 @@ where
 
     fn node(&self) -> Option<&Node> {
         self.cached_render.as_ref().and_then(|inner| inner.node())
+    }
+
+    fn as_any(&self) -> &Any {
+        self
     }
 }
 
