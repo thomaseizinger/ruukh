@@ -478,13 +478,6 @@ impl From<Vec<Attribute>> for Attributes {
 mod test {
     use super::*;
     use vdom::vtext::VText;
-    use vdom::KeyedVNodes;
-
-    #[test]
-    fn should_display_an_attribute() {
-        let attribute = Attribute::new("class", "font-large bg-white");
-        assert_eq!(format!("{}", attribute), "class=\"font-large bg-white\"");
-    }
 
     #[test]
     fn should_display_a_div() {
@@ -498,7 +491,7 @@ mod test {
             "button",
             vec![],
             vec![],
-            KeyedVNodes::unkeyed(VText::text("Click")),
+            VNode::new(VText::text("Click")),
         );
         assert_eq!(format!("{}", button), "<button>Click</button>");
     }
@@ -538,8 +531,13 @@ pub mod wasm_test {
         let mut button_el = VElement::childless("button", vec![], vec![]);
         let div = container();
         button_el
-            .patch(None, div.as_ref(), None, root_render_ctx())
-            .expect("To patch div");
+            .patch(
+                None,
+                div.as_ref(),
+                None,
+                root_render_ctx(),
+                ::message_sender(),
+            ).expect("To patch div");
 
         assert_eq!(div.inner_html(), "<button></button>");
     }
@@ -556,8 +554,13 @@ pub mod wasm_test {
         );
         let div = container();
         button_el
-            .patch(None, div.as_ref(), None, root_render_ctx())
-            .expect("To patch div");
+            .patch(
+                None,
+                div.as_ref(),
+                None,
+                root_render_ctx(),
+                ::message_sender(),
+            ).expect("To patch div");
 
         assert_eq!(
             div.inner_html(),
@@ -571,7 +574,7 @@ pub mod wasm_test {
             "div",
             vec![],
             vec![],
-            KeyedVNodes::unkeyed(VElement::childless(
+            VNode::new(VElement::childless(
                 "a",
                 vec![Attribute::new("href", "http://www.rust-lang.org/")],
                 vec![],
@@ -579,8 +582,13 @@ pub mod wasm_test {
         );
         let div = container();
         div_el
-            .patch(None, div.as_ref(), None, root_render_ctx())
-            .expect("To patch div");
+            .patch(
+                None,
+                div.as_ref(),
+                None,
+                root_render_ctx(),
+                ::message_sender(),
+            ).expect("To patch div");
 
         assert_eq!(
             div.inner_html(),
@@ -593,15 +601,25 @@ pub mod wasm_test {
         let mut div_el = VElement::childless("div", vec![], vec![]);
         let div = container();
         div_el
-            .patch(None, div.as_ref(), None, root_render_ctx())
-            .expect("To patch div");
+            .patch(
+                None,
+                div.as_ref(),
+                None,
+                root_render_ctx(),
+                ::message_sender(),
+            ).expect("To patch div");
 
         assert_eq!(div.inner_html(), "<div></div>");
 
         let mut button_el = VElement::childless("button", vec![], vec![]);
         button_el
-            .patch(Some(div_el), div.as_ref(), None, root_render_ctx())
-            .expect("To patch div");
+            .patch(
+                Some(div_el),
+                div.as_ref(),
+                None,
+                root_render_ctx(),
+                ::message_sender(),
+            ).expect("To patch div");
 
         assert_eq!(div.inner_html(), "<button></button>");
     }
@@ -612,8 +630,13 @@ pub mod wasm_test {
             VElement::childless("div", vec![Attribute::new("class", "bg-white")], vec![]);
         let div = container();
         div_el
-            .patch(None, div.as_ref(), None, root_render_ctx())
-            .expect("To patch div");
+            .patch(
+                None,
+                div.as_ref(),
+                None,
+                root_render_ctx(),
+                ::message_sender(),
+            ).expect("To patch div");
 
         assert_eq!(div.inner_html(), r#"<div class="bg-white"></div>"#);
 
@@ -626,8 +649,13 @@ pub mod wasm_test {
             vec![],
         );
         div_diff
-            .patch(Some(div_el), div.as_ref(), None, root_render_ctx())
-            .expect("To patch div");
+            .patch(
+                Some(div_el),
+                div.as_ref(),
+                None,
+                root_render_ctx(),
+                ::message_sender(),
+            ).expect("To patch div");
 
         assert_eq!(
             div.inner_html(),

@@ -150,13 +150,13 @@ mod test {
     use super::VList;
     use vdom::velement::VElement;
     use vdom::vtext::VText;
-    use vdom::KeyedVNodes;
+    use vdom::VNode;
 
     #[test]
     fn should_display_a_list_of_vnodes() {
         let list = VList::<()>::new(vec![
-            KeyedVNodes::unkeyed(VText::text("First of the node")),
-            KeyedVNodes::unkeyed(VElement::childless("input", vec![], vec![])),
+            VNode::new(VText::text("First of the node")),
+            VNode::new(VElement::childless("input", vec![], vec![])),
         ]);
         assert_eq!(format!("{}", list), "First of the node<input>");
     }
@@ -177,12 +177,17 @@ pub mod wasm_test {
     #[wasm_bindgen_test]
     fn should_patch_container_with_list_of_vnodes() {
         let mut list = VList::new(vec![
-            KeyedVNodes::unkeyed(VText::text("Hello World!")),
-            KeyedVNodes::unkeyed(VElement::childless("div", vec![], vec![])),
+            VNode::new(VText::text("Hello World!")),
+            VNode::new(VElement::childless("div", vec![], vec![])),
         ]);
         let div = container();
-        list.patch(None, div.as_ref(), None, root_render_ctx())
-            .expect("To patch div");
+        list.patch(
+            None,
+            div.as_ref(),
+            None,
+            root_render_ctx(),
+            ::message_sender(),
+        ).expect("To patch div");
 
         assert_eq!(div.inner_html(), "Hello World!<div></div>");
     }
@@ -190,23 +195,33 @@ pub mod wasm_test {
     #[wasm_bindgen_test]
     fn should_patch_container_with_updated_list() {
         let mut list = VList::new(vec![
-            KeyedVNodes::unkeyed(VText::text("Hello World!")),
-            KeyedVNodes::unkeyed(VElement::childless("div", vec![], vec![])),
+            VNode::new(VText::text("Hello World!")),
+            VNode::new(VElement::childless("div", vec![], vec![])),
         ]);
         let div = container();
-        list.patch(None, div.as_ref(), None, root_render_ctx())
-            .expect("To patch div");
+        list.patch(
+            None,
+            div.as_ref(),
+            None,
+            root_render_ctx(),
+            ::message_sender(),
+        ).expect("To patch div");
 
         assert_eq!(div.inner_html(), "Hello World!<div></div>");
 
         let mut new_list = VList::new(vec![
-            KeyedVNodes::unkeyed(VElement::childless("div", vec![], vec![])),
-            KeyedVNodes::unkeyed(VText::text("Hello World!")),
-            KeyedVNodes::unkeyed(VText::text("How are you?")),
+            VNode::new(VElement::childless("div", vec![], vec![])),
+            VNode::new(VText::text("Hello World!")),
+            VNode::new(VText::text("How are you?")),
         ]);
         new_list
-            .patch(Some(list), div.as_ref(), None, root_render_ctx())
-            .expect("To patch div");
+            .patch(
+                Some(list),
+                div.as_ref(),
+                None,
+                root_render_ctx(),
+                ::message_sender(),
+            ).expect("To patch div");
 
         assert_eq!(div.inner_html(), "<div></div>Hello World!How are you?");
     }

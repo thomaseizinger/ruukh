@@ -53,7 +53,7 @@ where
     /// The App constructor.
     ///
     /// # Example
-    /// ```
+    /// ```ignore
     /// let my_app = App::<MyApp>::new();
     /// ```
     pub fn new() -> App<COMP> {
@@ -67,7 +67,7 @@ where
     /// app to live for 'static lifetimes (i.e. As long as the browser/tab runs).
     ///
     /// # Example
-    /// ```
+    /// ```ignore
     /// #[wasm_bindgen]
     /// fn run() -> ReactiveApp {
     ///     App::<MyApp>::new().mount("app")
@@ -196,4 +196,9 @@ impl AppMount for String {
     fn app_mount(self) -> Element {
         self.as_str().app_mount()
     }
+}
+
+#[cfg(test)]
+fn message_sender() -> MessageSender {
+    ReactiveApp::new().1
 }

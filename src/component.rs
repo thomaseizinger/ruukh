@@ -56,7 +56,7 @@ pub trait Component: 'static {
     /// state.
     ///
     /// # Example
-    /// ```
+    /// ```ignore
     /// self.set_state(|state| {
     ///     state.disabled = !state.disabled;
     ///     state.count += 1;
@@ -170,7 +170,7 @@ where
 /// normal event type associated to the Component.
 ///
 /// # Example
-/// ```
+/// ```ignore
 /// struct ButtonEvents<RCTX: Render> {
 ///     ...
 /// }

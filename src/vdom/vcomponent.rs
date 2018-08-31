@@ -311,9 +311,9 @@ pub mod wasm_test {
     use web_api::*;
     use Shared;
 
-    #[derive(Debug)]
     struct Button {
         disabled: bool,
+        __status: Shared<Status<()>>,
     }
 
     struct ButtonProps {
@@ -329,22 +329,24 @@ pub mod wasm_test {
 
         fn init<RCTX: Render>(
             props: Self::Props,
-            _: Self::Events,
-            _: Shared<Status<Self::State>>,
+            _: <Self::Events as EventsPair<RCTX>>::Other,
+            status: Shared<Status<Self::State>>,
             _: Shared<RCTX>,
         ) -> Self {
             Button {
                 disabled: props.disabled,
+                __status: status
             }
         }
         fn update<RCTX: Render>(
             &mut self,
             props: Self::Props,
-            _: Self::Events,
+            _: <Self::Events as EventsPair<RCTX>>::Other,
             _: Shared<RCTX>,
         ) -> Option<Self::Props> {
             if self.disabled != props.disabled {
                 self.disabled = props.disabled;
+                self.__status.borrow_mut().mark_props_dirty();
                 Some(ButtonProps {
                     disabled: !self.disabled,
                 })
@@ -358,21 +360,25 @@ pub mod wasm_test {
         }
 
         fn is_state_dirty(&mut self) -> bool {
-            unreachable!()
+            false
         }
 
         fn is_props_dirty(&mut self) -> bool {
+            self.__status.borrow_mut().is_props_dirty()
+        }
+
+        fn set_state<F>(&self, _: F) {
             unreachable!()
         }
     }
 
     impl Render for Button {
-        fn render(&self) -> KeyedVNodes<Self> {
-            KeyedVNodes::unkeyed(VElement::new(
+        fn render(&self) -> VNode<Self> {
+            VNode::new(VElement::new(
                 "button",
                 vec![Attribute::new("disabled", self.disabled.to_string())],
                 vec![],
-                KeyedVNodes::unkeyed(VText::text("Click")),
+                VNode::new(VText::text("Click")),
             ))
         }
     }
@@ -386,7 +392,7 @@ pub mod wasm_test {
         let mut vcomp = VComponent::new::<Button>(ButtonProps { disabled: false }, ());
         let div = container();
         vcomp
-            .render_walk(div.as_ref(), None, root_render_ctx())
+            .render_walk(div.as_ref(), None, root_render_ctx(), ::message_sender())
             .expect("To patch div");
 
         assert_eq!(
@@ -400,7 +406,7 @@ pub mod wasm_test {
         let mut vcomp = VComponent::new::<Button>(ButtonProps { disabled: false }, ());
         let div = container();
         vcomp
-            .render_walk(div.as_ref(), None, root_render_ctx())
+            .render_walk(div.as_ref(), None, root_render_ctx(), ::message_sender())
             .expect("To patch div");
 
         assert_eq!(
@@ -410,10 +416,15 @@ pub mod wasm_test {
 
         let mut patched = VComponent::new::<Button>(ButtonProps { disabled: true }, ());
         patched
-            .patch(Some(vcomp), div.as_ref(), None, root_render_ctx())
-            .unwrap();
+            .patch(
+                Some(vcomp),
+                div.as_ref(),
+                None,
+                root_render_ctx(),
+                ::message_sender(),
+            ).unwrap();
         patched
-            .render_walk(div.as_ref(), None, root_render_ctx())
+            .render_walk(div.as_ref(), None, root_render_ctx(), ::message_sender())
             .expect("To patch div");
 
         assert_eq!(
