@@ -1,10 +1,11 @@
 #![deny(missing_docs)]
 //! The Ruukh framework
 
+extern crate indexmap;
+extern crate ruukh_codegen;
 extern crate wasm_bindgen;
 #[cfg(test)]
 extern crate wasm_bindgen_test;
-extern crate indexmap;
 
 use component::{Render, RootParent};
 use std::cell::{Ref, RefCell, RefMut};
@@ -18,14 +19,16 @@ use web_api::*;
 #[cfg(test)]
 wasm_bindgen_test_configure!(run_in_browser);
 
-mod component;
+#[allow(missing_docs)]
+pub mod component;
 mod dom;
 pub mod vdom;
 pub mod web_api;
 
 #[allow(missing_docs)]
 pub mod prelude {
-    pub use component::{Component, EventsPair, Lifecycle, Render, Status};
+    pub use component::{Component, Lifecycle, Render};
+    pub use ruukh_codegen::*;
     pub use vdom::{
         vcomponent::VComponent,
         velement::{Attribute, EventListener, VElement},
