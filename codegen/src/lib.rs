@@ -22,9 +22,10 @@ pub fn derive_lifecycle(input: proc_macro::TokenStream) -> proc_macro::TokenStre
     let input: DeriveInput = syn::parse(input).unwrap();
 
     let ident = input.ident;
+    let (impl_gen, ty_gen, where_clause) = input.generics.split_for_impl();
 
     let expanded = quote! {
-        impl Lifecycle for #ident {}
+        impl #impl_gen Lifecycle for #ident #ty_gen #where_clause {}
     };
 
     expanded.into()

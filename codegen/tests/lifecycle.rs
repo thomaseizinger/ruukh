@@ -4,7 +4,6 @@ extern crate ruukh_codegen;
 use ruukh::component::{EventsPair, Status};
 use ruukh::prelude::*;
 use ruukh::Shared;
-use ruukh_codegen::*;
 
 #[test]
 fn should_impl_lifecycle() {
