@@ -303,7 +303,7 @@ where
 
 #[cfg(test)]
 pub mod wasm_test {
-    use component::root_render_ctx;
+    use component::*;
     use dom::*;
     use prelude::*;
     use wasm_bindgen_test::*;
