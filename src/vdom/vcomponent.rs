@@ -183,11 +183,10 @@ where
         } else {
             let comp = self.component.as_ref().unwrap();
 
-            let state_changed = if comp.borrow_mut().is_state_dirty() {
-                comp.borrow_mut().refresh_state()
-            } else {
-                false
-            };
+            let state_changed = comp.borrow_mut().is_state_dirty();
+            if state_changed {
+                comp.borrow_mut().refresh_state();
+            }
 
             if state_changed || comp.borrow_mut().is_props_dirty() {
                 let mut rerender = comp.borrow().render();
@@ -355,7 +354,7 @@ pub mod wasm_test {
             }
         }
 
-        fn refresh_state(&mut self) -> bool {
+        fn refresh_state(&mut self) {
             unreachable!()
         }
 

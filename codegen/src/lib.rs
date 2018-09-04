@@ -674,9 +674,7 @@ impl Component {
     fn refresh_state_impl(&self) -> TokenStream {
         if self.state.is_empty() {
             quote! {
-                fn refresh_state(&mut self) -> bool {
-                    false
-                }
+                fn refresh_state(&mut self) { }
             }
         } else {
             let state_field_idents: &Vec<_> =
@@ -686,7 +684,7 @@ impl Component {
             let state_field_idents4 = state_field_idents;
 
             quote! {
-                fn refresh_state(&mut self) -> bool {
+                fn refresh_state(&mut self) {
                     let status = self.__status.borrow();
                     let state = status.state_as_ref();
                     #(
@@ -694,11 +692,6 @@ impl Component {
                             self.#state_field_idents3 = state.#state_field_idents4.clone();
                         }
                     )*
-                    // always going to be true. cuz, set_state only makes state dirty
-                    // when it is dirty.
-                    //
-                    // TODO: FIX THIS
-                    true
                 }
             }
         }
@@ -818,7 +811,7 @@ impl Component {
                     None
                 }
 
-                fn refresh_state(&mut self) -> bool { false }
+                fn refresh_state(&mut self) { }
 
                 fn is_state_dirty(&mut self) -> bool { false }
 

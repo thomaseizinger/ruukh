@@ -36,7 +36,7 @@ fn should_impl_lifecycle() {
             unimplemented!()
         }
 
-        fn refresh_state(&mut self) -> bool {
+        fn refresh_state(&mut self) {
             unimplemented!()
         }
 

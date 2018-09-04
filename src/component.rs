@@ -41,8 +41,8 @@ pub trait Component: 'static {
     where
         Self::Events: EventsPair<RCTX>;
 
-    /// Update the read only state from the mutated status and return true if it has been updated.
-    fn refresh_state(&mut self) -> bool;
+    /// Update the read only state from the mutated status.
+    fn refresh_state(&mut self);
 
     /// To find whether the component status has been altered. If altered, reset
     /// it to undirtied state.
@@ -230,7 +230,7 @@ impl Component for RootParent {
         )
     }
 
-    fn refresh_state(&mut self) -> bool {
+    fn refresh_state(&mut self) {
         unreachable!(
             "It is a void component to be used as a render context for a root \
              component. Not to be used as a component itself."
