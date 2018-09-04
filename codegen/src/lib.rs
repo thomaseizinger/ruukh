@@ -9,10 +9,11 @@ extern crate syn;
 extern crate quote;
 
 use proc_macro2::{Span, TokenStream};
+use syn::punctuated::Punctuated;
 use syn::synom::Synom;
 use syn::{
-    Attribute, DeriveInput, Expr, Field, Fields, Generics, Ident, Item, ItemStruct, Type,
-    Visibility,
+    Attribute, DeriveInput, Expr, Field, Fields, FnArg, Generics, Ident, Item, ItemStruct,
+    ReturnType, Type, Visibility,
 };
 
 /// A convenient auto derive for `Lifecycle` trait. It could be simply written
@@ -63,6 +64,7 @@ struct Component {
     generics: Generics,
     props: Vec<ComponentField>,
     state: Vec<ComponentField>,
+    events: Vec<EventField>,
 }
 
 /// There are two kinds of component fields: Prop and State. This struct
@@ -102,11 +104,29 @@ struct ComponentField {
     args: FieldAttributeArgs,
 }
 
+/// Parses `fn fn_name(&self, arg0: ty, arg1: ty, ...) -> ty;`
+struct EventField {
+    ident: Ident,
+    args: Vec<FnArg>,
+    return_type: ReturnType,
+}
+
 /// Parses ``|`()`|`(default = expr)`
 enum FieldAttributeArgs {
     None,
     Empty,
     Some { default: Expr },
+}
+
+impl Synom for EventField {
+    named!(parse -> Self, do_parse!(
+        keyword!(fn) >>
+        ident: syn!(Ident) >>
+        args: parens!(call!(Punctuated::<FnArg, Token!(,)>::parse_terminated)) >>
+        return_type: syn!(ReturnType) >>
+        syn!(Token!(;)) >>
+        (EventField { ident, args: args.1.into_iter().collect(), return_type })
+    ));
 }
 
 impl Synom for FieldAttributeArgs {
@@ -136,6 +156,7 @@ fn parse_struct(struct_: ItemStruct) -> Component {
         Fields::Unit => (vec![], vec![]),
     };
     let remaining_attrs = remaining_struct_attrs(struct_.attrs);
+    let (events, remaining_attrs) = take_events(remaining_attrs);
     Component {
         attrs: remaining_attrs,
         vis: struct_.vis,
@@ -143,6 +164,7 @@ fn parse_struct(struct_: ItemStruct) -> Component {
         generics: struct_.generics,
         props,
         state,
+        events,
     }
 }
 
@@ -241,12 +263,66 @@ fn remaining_struct_attrs(attrs: Vec<Attribute>) -> Vec<Attribute> {
     remaining_attrs
 }
 
+fn take_events(attrs: Vec<Attribute>) -> (Vec<EventField>, Vec<Attribute>) {
+    let mut remaining = vec![];
+    let mut events = vec![];
+    let ident = Ident::new("events", Span::call_site()).into();
+
+    for attr in attrs {
+        if attr.path == ident {
+            events.append(&mut parse_event(attr.tts));
+        } else {
+            remaining.push(attr);
+        }
+    }
+
+    (events, remaining)
+}
+
+struct EventList(Vec<EventField>);
+
+impl Synom for EventList {
+    named!(parse -> Self, do_parse!(
+        list: parens!(many0!(syn!(EventField))) >>
+        (EventList(list.1))
+    ));
+}
+
+fn parse_event(tts: TokenStream) -> Vec<EventField> {
+    let events: EventList = syn::parse2(tts).expect(
+        r#"The event list is written as: 
+        `#[events(
+            fn event_name(&self, args: type) -> type;
+
+            fn other_event_name(&self);
+        )]`"#,
+    );
+
+    events.0.iter().for_each(|event| {
+        if event.args.is_empty() {
+            panic!(
+                "The event `{}` does not have any argument. \
+                 Any event must have atleast one argument `&self`.",
+                event.ident
+            );
+        } else {
+            if let FnArg::SelfRef(_) = event.args[0] {
+                // Is fine
+            } else {
+                panic!(
+                    "The first argument of event `{}` must be `&self`.",
+                    event.ident
+                );
+            }
+        }
+    });
+
+    events.0
+}
+
 impl Component {
     fn expand(&self) -> TokenStream {
-        let props_empty = self.props.is_empty();
-        let state_empty = self.state.is_empty();
-
-        if props_empty && state_empty {
+        if self.props.is_empty() && self.state.is_empty() && self.events.is_empty() {
             self.expand_with_none()
         } else {
             self.expand_with_some()
@@ -319,11 +395,95 @@ impl Component {
             (quote!(()), quote!())
         };
 
+        let (events_ty, events_structs) = if !self.events.is_empty() {
+            let events_ty = Ident::new(&format!("{}Events", comp_ident), Span::call_site());
+            let rctx_events_ty = Ident::new(&format!("{}Gen", events_ty), Span::call_site());
+            let event_list: &Vec<_> = &self.events.iter().map(|event| event.as_field()).collect();
+            let rctx_event_list: &Vec<_> = &self
+                .events
+                .iter()
+                .map(|event| event.as_gen_field())
+                .collect();
+            let event_idents: &Vec<_> = &self.events.iter().map(|event| &event.ident).collect();
+            let event_idents2 = event_idents;
+            let event_list_args: &Vec<Vec<_>> = &self
+                .events
+                .iter()
+                .map(|event| event.as_args_idents())
+                .collect();
+            let event_list_args2 = event_list_args;
+            let event_list_typed_args: &Vec<Vec<_>> = &self
+                .events
+                .iter()
+                .map(|event| event.as_typed_args())
+                .collect();
+            let event_list_ret_types: &Vec<_> =
+                &self.events.iter().map(|event| &event.return_type).collect();
+
+            (
+                quote!(#events_ty),
+                quote! {
+                    struct #events_ty {
+                        #(#event_list),*
+                    }
+
+                    impl #events_ty {
+                        fn build<RCTX: Render>(
+                            rctx_events: <Self as ruukh::component::EventsPair<RCTX>>::Other,
+                            render_ctx: ruukh::Shared<RCTX>
+                        ) -> Self
+                        {
+                            #(
+                                let #event_idents = rctx_events.#event_idents2;
+                            )*
+                            #events_ty {
+                                #(
+                                    #event_idents: {
+                                        let rctx = render_ctx.clone();
+                                        Box::new(move |#(#event_list_args),*| {
+                                            (#event_idents2)(&*rctx.borrow(), #(#event_list_args2),*)
+                                        })
+                                    }
+                                ),*
+                            }
+                        }
+                    }
+
+                    struct #rctx_events_ty <RCTX: Render> {
+                        #(#rctx_event_list),*
+                    }
+
+
+                    impl #impl_gen #comp_ident #ty_gen #where_clause {
+                        #(
+                            fn #event_idents (&self, #(#event_list_typed_args),*) #event_list_ret_types {
+                                (self.__events.#event_idents2)(#(#event_list_args),*)
+                            }
+                        )*
+                    }
+
+                    impl<RCTX: Render> ruukh::component::EventsPair<RCTX> for #events_ty {
+                        type Other = #rctx_events_ty<RCTX>;
+                    }
+                },
+            )
+        } else {
+            (quote!(()), quote!())
+        };
+
         let status_field = if self.props.is_empty() && self.state.is_empty() {
             quote!()
         } else {
             quote! {
-                __status: ruukh::Shared<ruukh::component::Status<#state_ty>>
+                __status: ruukh::Shared<ruukh::component::Status<#state_ty>>,
+            }
+        };
+
+        let events_field = if self.events.is_empty() {
+            quote!()
+        } else {
+            quote! {
+                __events: #events_ty,
             }
         };
 
@@ -340,12 +500,13 @@ impl Component {
                 #(#props_typed_fields ,)*
                 #(#state_typed_fields ,)*
                 #status_field
+                #events_field
             }
 
             impl #impl_gen Component for #comp_ident #ty_gen #where_clause {
                 type Props = #props_ty;
                 type State = #state_ty;
-                type Events = ();
+                type Events = #events_ty;
 
                 #init_impl
 
@@ -367,6 +528,8 @@ impl Component {
             #state_struct
 
             #props_struct
+
+            #events_structs
         }
     }
 
@@ -379,26 +542,59 @@ impl Component {
 
         let comp_ident = &self.ident;
 
-        quote! {
-            fn init<RCTX: Render>(
-                props: Self::Props,
-                _: <Self::Events as ruukh::component::EventsPair<RCTX>>::Other,
-                status: ruukh::Shared<ruukh::component::Status<Self::State>>,
-                _: ruukh::Shared<RCTX>,
-            ) -> Self
-            where
-                Self::Events: ruukh::component::EventsPair<RCTX>
-            {
+        let events_field = if self.events.is_empty() {
+            quote!()
+        } else {
+            let events_ident = Ident::new(&format!("{}Events", comp_ident), Span::call_site());
+            quote! {
+                __events: #events_ident::build(events, render_ctx)
+            }
+        };
+
+        let state_assignment = if self.state.is_empty() {
+            quote!()
+        } else if self.state.len() == 1 {
+            quote! {
+                let #(#state_field_idents)* = {
+                    let status = status.borrow();
+                    let state = status.state_as_ref();
+                    #(state.#state_field_idents.clone())*
+                };
+            }
+        } else {
+            quote! {
                 let (#(#state_field_idents),*) = {
                     let status = status.borrow();
                     let state = status.state_as_ref();
                     (#(state.#state_field_idents.clone()),*)
                 };
+            }
+        };
+
+        let status_field = if self.props.is_empty() && self.state.is_empty() {
+            quote!()
+        } else {
+            quote!( __status: status, )
+        };
+
+        quote! {
+            #[allow(unused_variables)]
+            fn init<RCTX: Render>(
+                props: Self::Props,
+                events: <Self::Events as ruukh::component::EventsPair<RCTX>>::Other,
+                status: ruukh::Shared<ruukh::component::Status<Self::State>>,
+                render_ctx: ruukh::Shared<RCTX>,
+            ) -> Self
+            where
+                Self::Events: ruukh::component::EventsPair<RCTX>
+            {
+                #state_assignment
 
                 #comp_ident {
                     #(#props_field_idents: props.#props_field_idents2 ,)*
                     #(#state_field_idents: #state_field_idents2 ,)*
-                    __status: status
+                    #status_field
+                    #events_field
                 }
             }
         }
@@ -410,33 +606,66 @@ impl Component {
         let props_field_idents3 = props_field_idents;
         let props_field_idents4 = props_field_idents;
 
-        quote! {
-            fn update<RCTX: Render>(
-                &mut self,
-                mut props: Self::Props,
-                _: <Self::Events as ruukh::component::EventsPair<RCTX>>::Other,
-                _: ruukh::Shared<RCTX>,
-            ) -> Option<Self::Props>
-            where
-                Self::Events: ruukh::component::EventsPair<RCTX>
-            {
-                use std::mem;
+        let events_assignment = if self.events.is_empty() {
+            quote!()
+        } else {
+            let events_ident = Ident::new(&format!("{}Events", &self.ident), Span::call_site());
+            quote! {
+                // The events need to be updated regardless, there is no checking them.
+                self.__events = #events_ident::build(events, render_ctx);
+            }
+        };
 
-                let mut updated = false;
-                #(
-                    if self.#props_field_idents != props.#props_field_idents2 {
-                        mem::swap(&mut self.#props_field_idents3, &mut props.#props_field_idents4);
+        if self.props.is_empty() {
+            quote! {
+                #[allow(unused_variables)]
+                fn update<RCTX: Render>(
+                    &mut self,
+                    _: Self::Props,
+                    events: <Self::Events as ruukh::component::EventsPair<RCTX>>::Other,
+                    render_ctx: ruukh::Shared<RCTX>,
+                ) -> Option<Self::Props>
+                where
+                    Self::Events: ruukh::component::EventsPair<RCTX>
+                {
+                    #events_assignment
 
-                        if !updated {
-                            updated = true;
-                        }
-                    }
-                )*
-                if updated {
-                    self.__status.borrow_mut().mark_props_dirty();
-                    Some(props)
-                } else {
                     None
+                }
+            }
+        } else {
+            quote! {
+                #[allow(unused_variables)]
+                fn update<RCTX: Render>(
+                    &mut self,
+                    mut props: Self::Props,
+                    events: <Self::Events as ruukh::component::EventsPair<RCTX>>::Other,
+                    render_ctx: ruukh::Shared<RCTX>,
+                ) -> Option<Self::Props>
+                where
+                    Self::Events: ruukh::component::EventsPair<RCTX>
+                {
+                    use std::mem;
+
+                    let mut updated = false;
+                    #(
+                        if self.#props_field_idents != props.#props_field_idents2 {
+                            mem::swap(&mut self.#props_field_idents3, &mut props.#props_field_idents4);
+
+                            if !updated {
+                                updated = true;
+                            }
+                        }
+                    )*
+
+                    #events_assignment
+
+                    if updated {
+                        self.__status.borrow_mut().mark_props_dirty();
+                        Some(props)
+                    } else {
+                        None
+                    }
                 }
             }
         }
@@ -633,5 +862,83 @@ impl ComponentField {
             FieldAttributeArgs::Empty | FieldAttributeArgs::None => quote! { Default::default() },
             FieldAttributeArgs::Some { ref default } => quote! { #default },
         }
+    }
+}
+
+impl EventField {
+    fn types_only(&self) -> Vec<TokenStream> {
+        let mut types = vec![];
+        for (index, arg) in self.args.iter().enumerate() {
+            match arg {
+                FnArg::SelfRef(_) if index == 0 => {}
+                FnArg::Captured(ref captured) if index > 0 => {
+                    let ty = &captured.ty;
+                    types.push(quote!( #ty ));
+                }
+                _ => unreachable!("The argument can only be in the format of `pattern: type`"),
+            }
+        }
+        types
+    }
+
+    fn as_field(&self) -> TokenStream {
+        let ident = &self.ident;
+        let types = self.types_only();
+        let ret_type = &self.return_type;
+
+        match ret_type {
+            ReturnType::Default => quote! {
+                #ident: Box<Fn(#(#types),*)>
+            },
+            ReturnType::Type(_, ty) => quote! {
+                #ident: Box<Fn(#(#types),*) -> #ty>
+            },
+        }
+    }
+
+    fn as_gen_field(&self) -> TokenStream {
+        let ident = &self.ident;
+        let types = self.types_only();
+        let ret_type = &self.return_type;
+
+        match ret_type {
+            ReturnType::Default => quote! {
+                #ident: Box<Fn(&RCTX, #(#types),*)>
+            },
+            ReturnType::Type(_, ty) => quote! {
+                #ident: Box<Fn(&RCTX, #(#types),*) -> #ty>
+            },
+        }
+    }
+
+    fn as_args_idents(&self) -> Vec<TokenStream> {
+        let mut args_idents = vec![];
+        for (index, arg) in self.args.iter().enumerate() {
+            match arg {
+                FnArg::SelfRef(_) if index == 0 => {}
+                FnArg::Captured(ref captured) if index > 0 => {
+                    let pat = &captured.pat;
+                    args_idents.push(quote!( #pat ));
+                }
+                _ => unreachable!("The argument can only be in the format of `pattern: type`"),
+            }
+        }
+        args_idents
+    }
+
+    fn as_typed_args(&self) -> Vec<TokenStream> {
+        let mut typed_args = vec![];
+        for (index, arg) in self.args.iter().enumerate() {
+            match arg {
+                FnArg::SelfRef(_) if index == 0 => {}
+                FnArg::Captured(ref captured) if index > 0 => {
+                    let pat = &captured.pat;
+                    let ty = &captured.ty;
+                    typed_args.push(quote!( #pat: #ty ));
+                }
+                _ => unreachable!("The argument can only be in the format of `pattern: type`"),
+            }
+        }
+        typed_args
     }
 }
