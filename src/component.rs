@@ -30,8 +30,9 @@ pub trait Component: 'static {
     where
         Self::Events: EventsPair<RCTX>;
 
-    /// Updated the component with newer props and return older props (if changed). Also, set
-    /// the component as dirty (if props changed), so that the component is re-rendered.
+    /// Updates the component with newer props and returns older props (if changed). 
+    /// Also, sets the component as dirty (if props changed), so that the component
+    /// is re-rendered.
     fn update<RCTX: Render>(
         &mut self,
         props: Self::Props,
@@ -41,19 +42,19 @@ pub trait Component: 'static {
     where
         Self::Events: EventsPair<RCTX>;
 
-    /// Update the read only state from the mutated status.
+    /// Updates the read only state from the mutated status.
     fn refresh_state(&mut self);
 
-    /// To find whether the component status has been altered. If altered, reset
-    /// it to undirtied state.
+    /// Finds whether the component status has been altered. If altered, resets it to
+    /// an undirtied state.
     fn is_state_dirty(&self) -> bool;
 
-    /// To find whether the component has been updated with newer props. If a newer
-    /// props, reset it to undirtied state.
+    /// Finds whether the component has been updated with newer props. If updated,
+    /// resets it to undirtied state.
     fn is_props_dirty(&self) -> bool;
 
-    /// Mutate the state of the component by passing in a closure which accepts the
-    /// state.
+    /// Mutates the state of the component by executing the closure which accepts the
+    /// current state. If the state is mutated, it marks the state as dirty.
     ///
     /// # Example
     /// ```ignore
@@ -76,7 +77,7 @@ pub struct Status<T> {
 }
 
 impl<T> Status<T> {
-    /// Initialize the status with a given state.
+    /// Initializes the status with a given state.
     pub(crate) fn new(state: T, rx_sender: MessageSender) -> Status<T> {
         Status {
             state,
@@ -86,12 +87,12 @@ impl<T> Status<T> {
         }
     }
 
-    /// Mark state as dirty
+    /// Marks state as dirty.
     pub fn mark_state_dirty(&mut self) {
         self.state_dirty = true;
     }
 
-    /// Get and reset `state_dirty` flag.
+    /// Gets and resets `state_dirty` flag.
     pub fn is_state_dirty(&mut self) -> bool {
         if self.state_dirty {
             self.state_dirty = false;
@@ -101,12 +102,12 @@ impl<T> Status<T> {
         }
     }
 
-    /// Mark props as dirty
+    /// Marks props as dirty.
     pub fn mark_props_dirty(&mut self) {
         self.props_dirty = true;
     }
 
-    /// Get and reset `props_dirty` flag.
+    /// Gets and resets `props_dirty` flag.
     pub fn is_props_dirty(&mut self) -> bool {
         if self.props_dirty {
             self.props_dirty = false;
@@ -116,17 +117,17 @@ impl<T> Status<T> {
         }
     }
 
-    /// Get the state immutably.
+    /// Gets the state immutably.
     pub fn state_as_ref(&self) -> &T {
         &self.state
     }
 
-    /// Get the state mutably.
+    /// Gets the state mutably.
     pub fn state_as_mut(&mut self) -> &mut T {
         &mut self.state
     }
 
-    /// Send a request to the App to react to the state changes
+    /// Sends a request to the App to react to the state changes.
     pub fn do_react(&self) {
         self.rx_sender.do_react();
     }
@@ -137,17 +138,17 @@ impl<T> Status<T> {
 ///
 /// For stateless component, mark the component with `#[stateless]`.
 pub trait Lifecycle: Component {
-    /// Invoked when the component is first created
+    /// Invoked when the component is first created.
     fn created(&self) {}
 
-    /// Invoked when the component props are updated
+    /// Invoked when the component props are updated.
     #[allow(unused_variables)]
     fn updated(&self, old_props: Self::Props) {}
 
-    /// Invoked when the component is mounted onto the DOM tree
+    /// Invoked when the component is mounted onto the DOM tree.
     fn mounted(&self) {}
 
-    /// Invoked when the component is removed from the DOM tree
+    /// Invoked when the component is removed from the DOM tree.
     fn destroyed(&self) {}
 }
 
@@ -187,7 +188,7 @@ where
 /// The example is only for those who want to understand how the events work,
 /// not the users of this framework.
 pub trait EventsPair<T> {
-    /// The generics pair of the `Self`
+    /// The generics pair of the `Self`.
     type Other;
 }
 

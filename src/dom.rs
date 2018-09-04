@@ -21,7 +21,7 @@ where
         rx_sender: MessageSender,
     ) -> Result<(), JsValue>;
 
-    /// Patch the DOM by diffing the VDOM `Self` with Older VDOM.
+    /// Patches the DOM by diffing the VDOM `Self` with Older VDOM.
     fn patch(
         &mut self,
         old: Option<Self>,
@@ -34,7 +34,7 @@ where
 
 /// Trait to reorder the VNode in the DOM.
 pub(crate) trait DOMReorder {
-    /// Reappend already existing Node in its correct place to reflect
+    /// Reappends already existing Node in its correct place to reflect
     /// the current VDOM.
     fn reorder(&self, parent: &Node, next: Option<&Node>) -> Result<(), JsValue>;
 }
@@ -43,12 +43,12 @@ pub(crate) trait DOMReorder {
 pub(crate) trait DOMRemove {
     type Node;
 
-    /// Remove the VDOM from the actual DOM.
+    /// Removes the VDOM from the actual DOM.
     fn remove(self, parent: &Self::Node) -> Result<(), JsValue>;
 }
 
 /// Glean out the info from the DOM attached VDOM.
 pub(crate) trait DOMInfo {
-    /// The node value of the DOM attached VDOM.
+    /// Gets the node value of the DOM attached VDOM.
     fn node(&self) -> Option<&Node>;
 }

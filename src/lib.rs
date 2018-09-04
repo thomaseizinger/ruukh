@@ -65,7 +65,8 @@ where
         }
     }
 
-    /// Mount the app on the given element in the DOM.
+    /// Mounts the app on the given element in the DOM.
+    /// 
     /// Be careful to return the `ReactiveApp` to the JS side because we want our
     /// app to live for 'static lifetimes (i.e. As long as the browser/tab runs).
     ///
@@ -124,7 +125,7 @@ impl ReactiveApp {
         )
     }
 
-    /// When it receives a message, invoke the handler.
+    /// Invokes the handler, when it receives a message.
     fn on_message<F: FnMut() + 'static>(&mut self, mut handler: F) {
         let closure: Closure<FnMut(JsValue)> = Closure::wrap(Box::new(move |_| handler()));
         self.rx.on_message(&closure);
@@ -157,12 +158,12 @@ impl<T> Shared<T> {
         Shared(Rc::new(RefCell::new(val)))
     }
 
-    /// Borrow the inner value.
+    /// Borrows the inner value.
     pub fn borrow(&self) -> Ref<T> {
         self.0.borrow()
     }
 
-    /// Borrow the inner value mutably.
+    /// Borrows the inner value mutably.
     pub fn borrow_mut(&self) -> RefMut<T> {
         self.0.borrow_mut()
     }
@@ -176,7 +177,7 @@ impl<T> Clone for Shared<T> {
 
 /// Trait to get an element on which the App is going to mount.
 pub trait AppMount {
-    /// Consume `self` and get an element from the DOM.
+    /// Consumes `self` and gets an element from the DOM.
     fn app_mount(self) -> Element;
 }
 
