@@ -86,3 +86,35 @@ fn should_build_a_component_with_state_and_props() {
     let _ = ButtonProps { prop_a: false };
     let _ = ButtonState::default();
 }
+
+#[test]
+fn should_build_a_component_with_event() {
+    #[component]
+    #[events(
+        fn save (&self, num: i32);
+    )]
+    struct Button;
+}
+
+#[test]
+fn should_build_a_component_with_events() {
+    #[component]
+    #[events(
+        fn save (&self, num: i32);
+
+        fn click (&self) -> i32;
+    )]
+    struct Button;
+}
+
+#[test]
+fn should_build_a_component_with_events_in_separate_attrs() {
+    #[component]
+    #[events(
+        fn save (&self, num: i32);
+    )]
+    #[events(
+        fn click (&self) -> i32;
+    )]
+    struct Button;
+}
