@@ -358,11 +358,11 @@ pub mod wasm_test {
             unreachable!()
         }
 
-        fn is_state_dirty(&mut self) -> bool {
+        fn is_state_dirty(&self) -> bool {
             false
         }
 
-        fn is_props_dirty(&mut self) -> bool {
+        fn is_props_dirty(&self) -> bool {
             self.__status.borrow_mut().is_props_dirty()
         }
 

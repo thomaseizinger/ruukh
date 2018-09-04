@@ -46,11 +46,11 @@ pub trait Component: 'static {
 
     /// To find whether the component status has been altered. If altered, reset
     /// it to undirtied state.
-    fn is_state_dirty(&mut self) -> bool;
+    fn is_state_dirty(&self) -> bool;
 
     /// To find whether the component has been updated with newer props. If a newer
     /// props, reset it to undirtied state.
-    fn is_props_dirty(&mut self) -> bool;
+    fn is_props_dirty(&self) -> bool;
 
     /// Mutate the state of the component by passing in a closure which accepts the
     /// state.
@@ -237,14 +237,14 @@ impl Component for RootParent {
         )
     }
 
-    fn is_state_dirty(&mut self) -> bool {
+    fn is_state_dirty(&self) -> bool {
         unreachable!(
             "It is a void component to be used as a render context for a root \
              component. Not to be used as a component itself."
         )
     }
 
-    fn is_props_dirty(&mut self) -> bool {
+    fn is_props_dirty(&self) -> bool {
         unreachable!(
             "It is a void component to be used as a render context for a root \
              component. Not to be used as a component itself."

@@ -700,13 +700,13 @@ impl Component {
     fn is_state_dirty_impl(&self) -> TokenStream {
         if self.state.is_empty() {
             quote! {
-                fn is_state_dirty(&mut self) -> bool {
+                fn is_state_dirty(&self) -> bool {
                    false
                 }
             }
         } else {
             quote! {
-                fn is_state_dirty(&mut self) -> bool {
+                fn is_state_dirty(&self) -> bool {
                     self.__status.borrow_mut().is_state_dirty()
                 }
             }
@@ -716,13 +716,13 @@ impl Component {
     fn expand_is_props_dirty_impl(&self) -> TokenStream {
         if self.props.is_empty() {
             quote! {
-                fn is_props_dirty(&mut self) -> bool {
+                fn is_props_dirty(&self) -> bool {
                     false
                 }
             }
         } else {
             quote! {
-                fn is_props_dirty(&mut self) -> bool {
+                fn is_props_dirty(&self) -> bool {
                     self.__status.borrow_mut().is_props_dirty()
                 }
             }
@@ -813,9 +813,9 @@ impl Component {
 
                 fn refresh_state(&mut self) { }
 
-                fn is_state_dirty(&mut self) -> bool { false }
+                fn is_state_dirty(&self) -> bool { false }
 
-                fn is_props_dirty(&mut self) -> bool { false }
+                fn is_props_dirty(&self) -> bool { false }
 
                 fn set_state<F>(&self, mut mutator: F)
                 where
