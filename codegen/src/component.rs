@@ -411,7 +411,7 @@ impl ComponentMeta {
         if let Some(ref events_meta) = self.events_meta {
             let ident = &events_meta.ident;
             quote! {
-                __events__: #ident::build(__events__, __render_ctx__)
+                __events__: #ident::build(__events__, __render_ctx__),
             }
         } else {
             quote!()

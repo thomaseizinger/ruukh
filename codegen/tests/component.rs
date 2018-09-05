@@ -128,3 +128,17 @@ fn should_build_a_component_with_optional_event() {
     )]
     struct Button;
 }
+
+#[test]
+fn should_build_a_component_with_everything() {
+    #[component]
+    #[events(
+        #[optional]
+        fn save(&self, num: i32);
+    )]
+    struct Button {
+        prop_a: bool,
+        #[state]
+        state_b: bool
+    }
+}
