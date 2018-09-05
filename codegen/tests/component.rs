@@ -118,3 +118,13 @@ fn should_build_a_component_with_events_in_separate_attrs() {
     )]
     struct Button;
 }
+
+#[test]
+fn should_build_a_component_with_optional_event() {
+    #[component]
+    #[events(
+        #[optional]
+        fn save(&self, num: i32);
+    )]
+    struct Button;
+}

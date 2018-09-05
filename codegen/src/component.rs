@@ -699,7 +699,8 @@ impl ComponentField {
 
 /// The syntax for the `#[events]` attribute TokenStream.
 ///
-/// i.e. Parses ```#[events(
+/// i.e. Parses ```ignore,compile_fail
+/// #[events(
 ///     fn event_name(&self, arg: type, ...) -> type;
 ///     fn event_name(&self, arg: type, ...) -> type;
 ///     fn event_name(&self, arg: type, ...) -> type;
@@ -717,8 +718,12 @@ impl Synom for EventsSyntax {
 
 /// The syntax of a single event.
 ///
-/// `fn event_name(&self, arg: type, ...) -> type;`
+/// ```ignore,compile_fail
+/// #[optional]
+/// fn event_name(&self, arg: type, ...) -> type;
+/// ```
 struct EventSyntax {
+    attrs: Vec<Attribute>,
     ident: Ident,
     args: Vec<FnArg>,
     return_type: ReturnType,
@@ -726,12 +731,13 @@ struct EventSyntax {
 
 impl Synom for EventSyntax {
     named!(parse -> Self, do_parse!(
+        attrs: many0!(call!(Attribute::parse_outer)) >>
         keyword!(fn) >>
         ident: syn!(Ident) >>
         args: parens!(call!(Punctuated::<FnArg, Token!(,)>::parse_terminated)) >>
         return_type: syn!(ReturnType) >>
         syn!(Token!(;)) >>
-        (EventSyntax { ident, args: args.1.into_iter().collect(), return_type })
+        (EventSyntax { attrs, ident, args: args.1.into_iter().collect(), return_type })
     ));
 }
 
@@ -796,10 +802,24 @@ impl EventsMeta {
                         }
                     }
 
+                    if event.attrs.len() > 1 {
+                        panic!("The event declaration `{}` does not support multiple attributes.", &event.ident);
+                    }
+
+                    let is_optional = if let Some(ref attr) = event.attrs.get(0) {
+                        if attr.path != Ident::new("optional", Span::call_site()).into() {
+                            panic!("Did you want to annotate the event `{}` with `#[optional]`.", &event.ident);
+                        };
+                        true
+                    } else {
+                        false
+                    };
+
                     let meta = EventMeta {
                         ident: event.ident,
                         arguments,
                         return_type: event.return_type,
+                        is_optional
                     };
                     event_metas.push(meta);
                 }
@@ -837,22 +857,22 @@ impl EventsMeta {
         self.events.iter().map(|event| &event.ident).collect()
     }
 
-    fn expand_as_events_arg_fields(&self) -> Vec<Vec<TokenStream>> {
+    fn expand_event_conversions(&self) -> Vec<TokenStream> {
         self.events
             .iter()
-            .map(EventMeta::expand_as_arg_fields)
+            .map(EventMeta::expand_event_conversion)
             .collect()
     }
 
-    fn expand_as_events_arg_idents(&self) -> Vec<Vec<TokenStream>> {
+    fn expand_event_wrappers(
+        &self,
+        component_ident: &Ident,
+        generics: &Generics,
+    ) -> Vec<TokenStream> {
         self.events
             .iter()
-            .map(EventMeta::expand_as_arg_idents)
+            .map(|e| e.expand_event_wrapper(component_ident, generics))
             .collect()
-    }
-
-    fn expand_as_events_ret_type(&self) -> Vec<&ReturnType> {
-        self.events.iter().map(|event| &event.return_type).collect()
     }
 
     fn expand_structs(&self, component_ident: &Ident, generics: &Generics) -> TokenStream {
@@ -861,13 +881,8 @@ impl EventsMeta {
         let fields = self.expand_as_struct_fields();
         let gen_fields = self.expand_as_gen_struct_fields();
         let event_names = &self.expand_as_event_names();
-        let event_names2 = event_names;
-        let events_arg_fields = self.expand_as_events_arg_fields();
-        let events_arg_idents = &self.expand_as_events_arg_idents();
-        let events_arg_idents2 = events_arg_idents;
-        let events_ret_type = self.expand_as_events_ret_type();
-
-        let (impl_gen, ty_gen, where_clause) = generics.split_for_impl();
+        let event_conversion = self.expand_event_conversions();
+        let event_wrappers = self.expand_event_wrappers(component_ident, generics);
 
         quote! {
             struct #ident {
@@ -880,19 +895,10 @@ impl EventsMeta {
                     __render_ctx__: ruukh::Shared<RCTX>,
                 ) -> Self
                 {
-                    #(
-                        let #event_names = __rctx_events__.#event_names2;
-                    )*
+                    #(#event_conversion)*
 
                     #ident {
-                        #(
-                            #event_names: {
-                                let __rctx__ = __render_ctx__.clone();
-                                Box::new(move |#(#events_arg_idents),*| {
-                                    (#event_names2)(&*__rctx__.borrow(), #(#events_arg_idents2),*)
-                                })
-                            }
-                        ),*
+                        #(#event_names),*
                     }
                 }
             }
@@ -905,13 +911,7 @@ impl EventsMeta {
                 type Other = #gen_ident<RCTX>;
             }
 
-            impl #impl_gen #component_ident #ty_gen #where_clause {
-                #(
-                    fn #event_names (&self, #(#events_arg_fields),*) #events_ret_type {
-                        (self.__events__.#event_names2)(#(#events_arg_idents),*)
-                    }
-                )*
-            }
+            #(#event_wrappers)*
         }
     }
 }
@@ -924,6 +924,8 @@ struct EventMeta {
     arguments: Vec<(Pat, Type)>,
     /// Return type of the event.
     return_type: ReturnType,
+    /// Whether the event is optional.
+    is_optional: bool,
 }
 
 impl EventMeta {
@@ -932,11 +934,23 @@ impl EventMeta {
         let arg_types: Vec<_> = self.arguments.iter().map(|arg| &arg.1).collect();
 
         match self.return_type {
-            ReturnType::Default => quote! {
-                #ident: Box<Fn(#(#arg_types),*)>
+            ReturnType::Default => if self.is_optional {
+                quote! {
+                    #ident: Box<Fn(#(#arg_types),*) -> Option<()>>
+                }
+            } else {
+                quote! {
+                    #ident: Box<Fn(#(#arg_types),*)>
+                }
             },
-            ReturnType::Type(_, ref ty) => quote! {
-                #ident: Box<Fn(#(#arg_types),*) -> #ty>
+            ReturnType::Type(_, ref ty) => if self.is_optional {
+                quote! {
+                    #ident: Box<Fn(#(#arg_types),*) -> Option<#ty>>
+                }
+            } else {
+                quote! {
+                    #ident: Box<Fn(#(#arg_types),*) -> #ty>
+                }
             },
         }
     }
@@ -946,11 +960,23 @@ impl EventMeta {
         let arg_types: Vec<_> = self.arguments.iter().map(|arg| &arg.1).collect();
 
         match self.return_type {
-            ReturnType::Default => quote! {
-                #ident: Box<Fn(&RCTX, #(#arg_types),*)>
+            ReturnType::Default => if self.is_optional {
+                quote! {
+                    #ident: Option<Box<Fn(&RCTX, #(#arg_types),*)>>
+                }
+            } else {
+                quote! {
+                    #ident: Box<Fn(&RCTX, #(#arg_types),*)>
+                }
             },
-            ReturnType::Type(_, ref ty) => quote! {
-                #ident: Box<Fn(&RCTX, #(#arg_types),*) -> #ty>
+            ReturnType::Type(_, ref ty) => if self.is_optional {
+                quote! {
+                    #ident: Option<Box<Fn(&RCTX, #(#arg_types),*) -> #ty>>
+                }
+            } else {
+                quote! {
+                    #ident: Box<Fn(&RCTX, #(#arg_types),*) -> #ty>
+                }
             },
         }
     }
@@ -967,6 +993,72 @@ impl EventMeta {
             .iter()
             .map(|(pat, _)| quote!( #pat ))
             .collect()
+    }
+
+    fn expand_event_conversion(&self) -> TokenStream {
+        let ident = &self.ident;
+        let event_arg_idents = &self.expand_as_arg_idents();
+
+        let converter = if self.is_optional {
+            quote! {
+                if let Some(ref #ident) = #ident {
+                    Some((#ident)(&*__rctx__.borrow(), #(#event_arg_idents),*))
+                } else {
+                    None
+                }
+            }
+        } else {
+            quote! {
+                (#ident)(&*__rctx__.borrow(), #(#event_arg_idents),*)
+            }
+        };
+
+        quote! {
+            let #ident = {
+                let __rctx__ = __render_ctx__.clone();
+                let #ident = __rctx_events__.#ident;
+                Box::new(move |#(#event_arg_idents),*| {
+                    #converter
+                })
+            };
+        }
+    }
+
+    fn expand_as_return_type(&self) -> TokenStream {
+        match self.return_type {
+            ReturnType::Default => if self.is_optional {
+                quote! {
+                    -> Option<()>
+                }
+            } else {
+                quote!()
+            },
+            ReturnType::Type(_, ref ty) => if self.is_optional {
+                quote! {
+                    -> Option<#ty>
+                }
+            } else {
+                quote! {
+                    -> #ty
+                }
+            },
+        }
+    }
+
+    fn expand_event_wrapper(&self, component_ident: &Ident, generics: &Generics) -> TokenStream {
+        let ident = &self.ident;
+        let (impl_gen, ty_gen, where_clause) = generics.split_for_impl();
+        let arg_fields = self.expand_as_arg_fields();
+        let arg_idents = self.expand_as_arg_idents();
+        let ret_type = self.expand_as_return_type();
+
+        quote! {
+            impl #impl_gen #component_ident #ty_gen #where_clause {
+                fn #ident (&self, #(#arg_fields),*) #ret_type {
+                    (self.__events__.#ident)(#(#arg_idents),*)
+                }
+            }
+        }
     }
 }
 
