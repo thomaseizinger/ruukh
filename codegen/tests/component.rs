@@ -30,7 +30,7 @@ fn should_build_a_component_with_props_only() {
         #[prop]
         prop_b: i32,
 
-        #[prop()]
+        #[prop]
         prop_c: i32,
 
         #[prop(default = 4)]
@@ -53,7 +53,7 @@ fn should_build_a_component_with_state_only() {
     struct Button {
         #[state]
         state_a: i32,
-        #[state()]
+        #[state]
         state_b: bool,
         #[state(default = 5)]
         state_c: i32
