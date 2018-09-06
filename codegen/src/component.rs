@@ -4,7 +4,7 @@ use syn::punctuated::Punctuated;
 use syn::synom::Synom;
 use syn::{
     Attribute, Expr, Field, Fields, FnArg, Generics, Ident, ItemStruct, Pat, ReturnType, Type,
-    Visibility,
+    TypePath, Visibility,
 };
 
 /// All the necessary metadata taken from the struct declaration to construct
@@ -450,6 +450,8 @@ impl ComponentMeta {
 struct PropsMeta {
     /// Ident of props struct.
     ident: Ident,
+    /// Ident of props builder struct.
+    builder_ident: Ident,
     /// List of prop fields.
     fields: Vec<ComponentField>,
 }
@@ -466,6 +468,10 @@ impl PropsMeta {
         } else {
             let meta = PropsMeta {
                 ident: Ident::new(&format!("{}Props", component_ident), Span::call_site()),
+                builder_ident: Ident::new(
+                    &format!("{}PropsBuilder", component_ident),
+                    Span::call_site(),
+                ),
                 fields: prop_fields,
             };
             (Some(meta), rest)
@@ -479,10 +485,10 @@ impl PropsMeta {
             .collect()
     }
 
-    fn expand_as_arg_fields(&self) -> Vec<TokenStream> {
+    fn expand_as_builder_struct_fields(&self) -> Vec<TokenStream> {
         self.fields
             .iter()
-            .map(ComponentField::expand_as_arg_field)
+            .map(ComponentField::expand_as_builder_struct_field)
             .collect()
     }
 
@@ -490,12 +496,29 @@ impl PropsMeta {
         self.fields.iter().map(|field| &field.ident).collect()
     }
 
+    fn expand_builder_assignment(&self) -> Vec<TokenStream> {
+        self.fields
+            .iter()
+            .map(ComponentField::expand_builder_assignment)
+            .collect()
+    }
+
+    fn expand_builder_finish_assignment(&self) -> Vec<TokenStream> {
+        self.fields
+            .iter()
+            .map(ComponentField::expand_builder_finish_assignment)
+            .collect()
+    }
+
     fn expand_struct(&self, generics: &Generics) -> TokenStream {
         let ident = &self.ident;
         let fields = self.expand_as_struct_fields();
-        let arg_fields = self.expand_as_arg_fields();
-        let field_idents = self.expand_as_field_idents();
         let (impl_gen, ty_gen, where_clause) = generics.split_for_impl();
+
+        let builder_ident = &self.builder_ident;
+        let builder_fields = self.expand_as_builder_struct_fields();
+        let builder_assignment = self.expand_builder_assignment();
+        let builder_finish_assignment = self.expand_builder_finish_assignment();
 
         quote! {
             struct #ident #generics {
@@ -503,9 +526,23 @@ impl PropsMeta {
             }
 
             impl #impl_gen #ident #ty_gen #where_clause {
-                fn new(#(#arg_fields),*) -> #ident {
+                pub fn builder() -> #builder_ident #ty_gen {
+                    Default::default()
+                }
+            }
+
+            #[derive(Default)]
+            struct #builder_ident #generics {
+                #(#builder_fields),*
+            }
+
+            impl #impl_gen #builder_ident #ty_gen #where_clause {
+                #(#builder_assignment)*
+
+                // Underscored, so it is unlikely to colide with field names.
+                pub fn __finish__(self) -> #ident #ty_gen {
                     #ident {
-                        #(#field_idents),*
+                        #(#builder_finish_assignment),*
                     }
                 }
             }
@@ -604,6 +641,7 @@ impl Synom for AttrArg {
 struct ComponentField {
     attrs: Vec<Attribute>,
     default: Option<Expr>,
+    is_optional: bool,
     vis: Visibility,
     ident: Ident,
     ty: Type,
@@ -621,8 +659,24 @@ impl ComponentField {
         }
     }
 
+    fn is_optional(field: &Field) -> bool {
+        match field.ty {
+            Type::Path(TypePath { ref path, .. }) => {
+                let tokens = quote! { #path };
+                let tokens = tokens.to_string().replace(' ', "");
+                tokens.starts_with("Option<") && tokens.ends_with(">")
+            }
+            _ => panic!(
+                "Type `{:?}` of field `{}` not supported",
+                field.ty,
+                field.ident.as_ref().unwrap()
+            ),
+        }
+    }
+
     fn parse_prop(field: Field) -> ComponentField {
         let state_kind = Ident::new("state", Span::call_site()).into();
+        let is_optional = Self::is_optional(&field);
 
         let (mut prop_attr, rest): (Vec<_>, Vec<_>) = field
             .attrs
@@ -638,6 +692,7 @@ impl ComponentField {
         ComponentField {
             attrs: rest,
             default,
+            is_optional,
             vis: field.vis,
             ident: field.ident.unwrap(),
             ty: field.ty,
@@ -646,6 +701,7 @@ impl ComponentField {
 
     fn parse_state(field: Field) -> ComponentField {
         let state_kind = Ident::new("state", Span::call_site()).into();
+        let is_optional = Self::is_optional(&field);
 
         let (mut state_attr, rest): (Vec<_>, Vec<_>) = field
             .attrs
@@ -658,6 +714,7 @@ impl ComponentField {
         ComponentField {
             attrs: rest,
             default,
+            is_optional,
             vis: field.vis,
             ident: field.ident.unwrap(),
             ty: field.ty,
@@ -672,6 +729,20 @@ impl ComponentField {
         quote! {
             #(#attrs)*
             #vis #ident: #ty
+        }
+    }
+
+    fn expand_as_builder_struct_field(&self) -> TokenStream {
+        let ident = &self.ident;
+        let ty = &self.ty;
+        if self.is_optional {
+            quote! {
+                #ident: #ty
+            }
+        } else {
+            quote! {
+                #ident: Option<#ty>
+            }
         }
     }
 
@@ -693,6 +764,52 @@ impl ComponentField {
         let ty = &self.ty;
         quote! {
             #ident: #ty
+        }
+    }
+
+    fn expand_builder_assignment(&self) -> TokenStream {
+        let ident = &self.ident;
+        let arg_field = self.expand_as_arg_field();
+
+        if self.is_optional {
+            quote! {
+                pub fn #ident(mut self, #arg_field) -> Self {
+                    self.#ident = #ident;
+                    self
+                }
+            }
+        } else {
+            quote! {
+                pub fn #ident(mut self, #arg_field) -> Self {
+                    self.#ident = Some(#ident);
+                    self
+                }
+            }
+        }
+    }
+
+    fn expand_builder_finish_assignment(&self) -> TokenStream {
+        let ident = &self.ident;
+        if let Some(ref default) = self.default {
+            if self.is_optional {
+                quote! {
+                    #ident: self.#ident.or(#default)
+                }
+            } else {
+                quote! {
+                    #ident: self.#ident.unwrap_or(#default)
+                }
+            }
+        } else {
+            if self.is_optional {
+                quote! {
+                    #ident: self.#ident
+                }
+            } else {
+                quote! {
+                    #ident: self.#ident.expect(&format!("The field `{}` is required.", stringify!(#ident)))
+                }
+            }
         }
     }
 }
