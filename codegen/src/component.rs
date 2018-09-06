@@ -107,12 +107,12 @@ impl ComponentMeta {
             let state_fields = self
                 .state_meta
                 .as_ref()
-                .map(StateMeta::expand_as_struct_fields)
+                .map(|s| s.expand_fields_with(ComponentField::expand_as_struct_field))
                 .unwrap_or_default();
             let props_fields = self
                 .props_meta
                 .as_ref()
-                .map(PropsMeta::expand_as_struct_fields)
+                .map(|p| p.expand_fields_with(ComponentField::expand_as_struct_field))
                 .unwrap_or_default();
             let status_field = self.expand_status_field();
             let events_field = self.expand_events_field();
@@ -156,17 +156,17 @@ impl ComponentMeta {
         }
     }
 
-    fn expand_state_field_idents(&self) -> Vec<&Ident> {
+    fn expand_state_field_idents(&self) -> Vec<TokenStream> {
         self.state_meta
             .as_ref()
-            .map(StateMeta::expand_as_field_idents)
+            .map(|s| s.expand_fields_with(ComponentField::expand_as_ident))
             .unwrap_or_default()
     }
 
-    fn expand_props_field_idents(&self) -> Vec<&Ident> {
+    fn expand_props_field_idents(&self) -> Vec<TokenStream> {
         self.props_meta
             .as_ref()
-            .map(PropsMeta::expand_as_field_idents)
+            .map(|p| p.expand_fields_with(ComponentField::expand_as_ident))
             .unwrap_or_default()
     }
 
@@ -254,7 +254,7 @@ impl ComponentMeta {
         }
     }
 
-    fn expand_set_state_body(&self, idents: &Vec<&Ident>) -> TokenStream {
+    fn expand_set_state_body(&self, idents: &Vec<TokenStream>) -> TokenStream {
         let idents2 = idents;
         if self.state_meta.is_some() {
             quote! {
@@ -301,7 +301,7 @@ impl ComponentMeta {
         }
     }
 
-    fn expand_refresh_state_body(&self, idents: &Vec<&Ident>) -> TokenStream {
+    fn expand_refresh_state_body(&self, idents: &Vec<TokenStream>) -> TokenStream {
         let idents2 = idents;
         let idents3 = idents;
         let idents4 = idents;
@@ -321,7 +321,7 @@ impl ComponentMeta {
         }
     }
 
-    fn expand_props_updation(&self, idents: &Vec<&Ident>) -> TokenStream {
+    fn expand_props_updation(&self, idents: &Vec<TokenStream>) -> TokenStream {
         let idents2 = idents;
         let idents3 = idents;
         let idents4 = idents;
@@ -478,47 +478,24 @@ impl PropsMeta {
         }
     }
 
-    fn expand_as_struct_fields(&self) -> Vec<TokenStream> {
-        self.fields
-            .iter()
-            .map(ComponentField::expand_as_struct_field)
-            .collect()
-    }
-
-    fn expand_as_builder_struct_fields(&self) -> Vec<TokenStream> {
-        self.fields
-            .iter()
-            .map(ComponentField::expand_as_builder_struct_field)
-            .collect()
-    }
-
-    fn expand_as_field_idents(&self) -> Vec<&Ident> {
-        self.fields.iter().map(|field| &field.ident).collect()
-    }
-
-    fn expand_builder_assignment(&self) -> Vec<TokenStream> {
-        self.fields
-            .iter()
-            .map(ComponentField::expand_builder_assignment)
-            .collect()
-    }
-
-    fn expand_builder_finish_assignment(&self) -> Vec<TokenStream> {
-        self.fields
-            .iter()
-            .map(ComponentField::expand_builder_finish_assignment)
-            .collect()
+    fn expand_fields_with<F>(&self, map_fn: F) -> Vec<TokenStream>
+    where
+        F: Fn(&ComponentField) -> TokenStream,
+    {
+        self.fields.iter().map(map_fn).collect()
     }
 
     fn expand_struct(&self, vis: &Visibility, generics: &Generics) -> TokenStream {
         let ident = &self.ident;
-        let fields = self.expand_as_struct_fields();
+        let fields = self.expand_fields_with(ComponentField::expand_as_struct_field);
         let (impl_gen, ty_gen, where_clause) = generics.split_for_impl();
 
         let builder_ident = &self.builder_ident;
-        let builder_fields = self.expand_as_builder_struct_fields();
-        let builder_assignment = self.expand_builder_assignment();
-        let builder_finish_assignment = self.expand_builder_finish_assignment();
+        let builder_fields =
+            self.expand_fields_with(ComponentField::expand_as_builder_struct_field);
+        let builder_assignment = self.expand_fields_with(ComponentField::expand_builder_assignment);
+        let builder_finish_assignment =
+            self.expand_fields_with(ComponentField::expand_builder_finish_assignment);
 
         quote! {
             #vis struct #ident #generics {
@@ -576,28 +553,17 @@ impl StateMeta {
         }
     }
 
-    fn expand_as_struct_fields(&self) -> Vec<TokenStream> {
-        self.fields
-            .iter()
-            .map(ComponentField::expand_as_struct_field)
-            .collect()
-    }
-
-    fn expand_as_default_fields(&self) -> Vec<TokenStream> {
-        self.fields
-            .iter()
-            .map(ComponentField::expand_as_default_field)
-            .collect()
-    }
-
-    fn expand_as_field_idents(&self) -> Vec<&Ident> {
-        self.fields.iter().map(|field| &field.ident).collect()
+    fn expand_fields_with<F>(&self, map_fn: F) -> Vec<TokenStream>
+    where
+        F: Fn(&ComponentField) -> TokenStream,
+    {
+        self.fields.iter().map(map_fn).collect()
     }
 
     fn expand_struct(&self) -> TokenStream {
         let ident = &self.ident;
-        let fields = self.expand_as_struct_fields();
-        let def_fields = self.expand_as_default_fields();
+        let fields = self.expand_fields_with(ComponentField::expand_as_struct_field);
+        let def_fields = self.expand_fields_with(ComponentField::expand_as_default_field);
 
         quote! {
             struct #ident {
@@ -812,6 +778,13 @@ impl ComponentField {
             }
         }
     }
+
+    fn expand_as_ident(&self) -> TokenStream {
+        let ident = &self.ident;
+        quote! {
+            #ident
+        }
+    }
 }
 
 /// The syntax for the `#[events]` attribute TokenStream.
@@ -962,61 +935,11 @@ impl EventsMeta {
         }
     }
 
-    fn expand_as_struct_fields(&self) -> Vec<TokenStream> {
-        self.events
-            .iter()
-            .map(EventMeta::expand_as_struct_field)
-            .collect()
-    }
-
-    fn expand_as_gen_struct_fields(&self) -> Vec<TokenStream> {
-        self.events
-            .iter()
-            .map(EventMeta::expand_as_gen_struct_field)
-            .collect()
-    }
-
-    fn expand_as_builder_struct_fields(&self) -> Vec<TokenStream> {
-        self.events
-            .iter()
-            .map(EventMeta::expand_as_builder_struct_field)
-            .collect()
-    }
-
-    fn expand_as_event_names(&self) -> Vec<&Ident> {
-        self.events.iter().map(|event| &event.ident).collect()
-    }
-
-    fn expand_event_conversions(&self) -> Vec<TokenStream> {
-        self.events
-            .iter()
-            .map(EventMeta::expand_event_conversion)
-            .collect()
-    }
-
-    fn expand_event_wrappers(
-        &self,
-        component_ident: &Ident,
-        generics: &Generics,
-    ) -> Vec<TokenStream> {
-        self.events
-            .iter()
-            .map(|e| e.expand_event_wrapper(component_ident, generics))
-            .collect()
-    }
-
-    fn expand_builder_assignment(&self) -> Vec<TokenStream> {
-        self.events
-            .iter()
-            .map(EventMeta::expand_builder_assignment)
-            .collect()
-    }
-
-    fn expand_builder_finish_assignment(&self) -> Vec<TokenStream> {
-        self.events
-            .iter()
-            .map(EventMeta::expand_builder_finish_assignment)
-            .collect()
+    fn expand_events_with<F>(&self, map_fn: F) -> Vec<TokenStream>
+    where
+        F: Fn(&EventMeta) -> TokenStream,
+    {
+        self.events.iter().map(map_fn).collect()
     }
 
     fn expand_structs(
@@ -1027,16 +950,18 @@ impl EventsMeta {
     ) -> TokenStream {
         let ident = &self.ident;
         let gen_ident = &self.gen_ident;
-        let fields = self.expand_as_struct_fields();
-        let gen_fields = self.expand_as_gen_struct_fields();
-        let event_names = &self.expand_as_event_names();
-        let event_conversion = self.expand_event_conversions();
-        let event_wrappers = self.expand_event_wrappers(component_ident, generics);
+        let fields = self.expand_events_with(EventMeta::expand_as_struct_field);
+        let gen_fields = self.expand_events_with(EventMeta::expand_as_gen_struct_field);
+        let event_names = &self.expand_events_with(EventMeta::expand_as_ident);
+        let event_conversion = self.expand_events_with(EventMeta::expand_event_conversion);
+        let event_wrappers =
+            self.expand_events_with(|e| e.expand_event_wrapper(component_ident, generics));
 
         let builder_ident = &self.builder_ident;
-        let builder_fields = self.expand_as_builder_struct_fields();
-        let builder_assignment = self.expand_builder_assignment();
-        let builder_finish_assignment = self.expand_builder_finish_assignment();
+        let builder_fields = self.expand_events_with(EventMeta::expand_as_builder_struct_field);
+        let builder_assignment = self.expand_events_with(EventMeta::expand_builder_assignment);
+        let builder_finish_assignment =
+            self.expand_events_with(EventMeta::expand_builder_finish_assignment);
 
         quote! {
             #vis struct #ident {
@@ -1112,69 +1037,77 @@ struct EventMeta {
 }
 
 impl EventMeta {
+    fn arg_types(&self) -> Vec<TokenStream> {
+        self.arguments.iter().map(|(_, ty)| quote!(#ty)).collect()
+    }
+
+    fn fn_type(&self) -> TokenStream {
+        let arg_types = self.arg_types();
+        let ret_type = &self.return_type;
+        quote! {
+            Fn(#(#arg_types),*) #ret_type
+        }
+    }
+
+    fn fn_type_with_opt_ret(&self) -> TokenStream {
+        let arg_types = self.arg_types();
+        match self.return_type {
+            ReturnType::Default => quote! {
+                Fn(#(#arg_types),*) -> Option<()>
+            },
+            ReturnType::Type(_, ref ty) => quote! {
+                Fn(#(#arg_types),*) -> Option<#ty>
+            },
+        }
+    }
+
+    fn gen_fn_type(&self) -> TokenStream {
+        let arg_types = self.arg_types();
+        let ret_type = &self.return_type;
+        quote! {
+            Fn(&RCTX, #(#arg_types),*) #ret_type
+        }
+    }
+
+    fn expand_as_ident(&self) -> TokenStream {
+        let ident = &self.ident;
+        quote! {
+            #ident
+        }
+    }
+
     fn expand_as_struct_field(&self) -> TokenStream {
         let ident = &self.ident;
-        let arg_types: Vec<_> = self.arguments.iter().map(|arg| &arg.1).collect();
 
-        match self.return_type {
-            ReturnType::Default => if self.is_optional {
-                quote! {
-                    #ident: Box<Fn(#(#arg_types),*) -> Option<()>>
-                }
-            } else {
-                quote! {
-                    #ident: Box<Fn(#(#arg_types),*)>
-                }
-            },
-            ReturnType::Type(_, ref ty) => if self.is_optional {
-                quote! {
-                    #ident: Box<Fn(#(#arg_types),*) -> Option<#ty>>
-                }
-            } else {
-                quote! {
-                    #ident: Box<Fn(#(#arg_types),*) -> #ty>
-                }
-            },
+        let fn_type = if self.is_optional {
+            self.fn_type_with_opt_ret()
+        } else {
+            self.fn_type()
+        };
+        quote! {
+            #ident: Box<#fn_type>
         }
     }
 
     fn expand_as_gen_struct_field(&self) -> TokenStream {
         let ident = &self.ident;
-        let arg_types: Vec<_> = self.arguments.iter().map(|arg| &arg.1).collect();
-
-        match self.return_type {
-            ReturnType::Default => if self.is_optional {
-                quote! {
-                    #ident: Option<Box<Fn(&RCTX, #(#arg_types),*)>>
-                }
-            } else {
-                quote! {
-                    #ident: Box<Fn(&RCTX, #(#arg_types),*)>
-                }
-            },
-            ReturnType::Type(_, ref ty) => if self.is_optional {
-                quote! {
-                    #ident: Option<Box<Fn(&RCTX, #(#arg_types),*) -> #ty>>
-                }
-            } else {
-                quote! {
-                    #ident: Box<Fn(&RCTX, #(#arg_types),*) -> #ty>
-                }
-            },
+        let fn_type = self.gen_fn_type();
+        if self.is_optional {
+            quote! {
+                #ident: Option<Box<#fn_type>>
+            }
+        } else {
+            quote! {
+                #ident: Box<#fn_type>
+            }
         }
     }
 
     fn expand_as_builder_struct_field(&self) -> TokenStream {
         let ident = &self.ident;
-        let arg_types: Vec<_> = self.arguments.iter().map(|arg| &arg.1).collect();
-
-        match self.return_type {
-            ReturnType::Default => quote! {
-                #ident: Option<Box<Fn(&RCTX, #(#arg_types),*)>>
-            },
-            ReturnType::Type(_, ref ty) => quote! {
-                #ident: Option<Box<Fn(&RCTX, #(#arg_types),*) -> #ty>>
-            },
+        let fn_type = self.gen_fn_type();
+        quote! {
+            #ident: Option<Box<#fn_type>>
         }
     }
 
@@ -1255,14 +1188,6 @@ impl EventMeta {
                     (self.__events__.#ident)(#(#arg_idents),*)
                 }
             }
-        }
-    }
-
-    fn gen_fn_type(&self) -> TokenStream {
-        let arg_types: Vec<_> = self.arguments.iter().map(|arg| &arg.1).collect();
-        let ret_type = &self.return_type;
-        quote! {
-            Fn(&RCTX, #(#arg_types),*) #ret_type
         }
     }
 
