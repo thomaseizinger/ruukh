@@ -583,22 +583,26 @@ impl StateMeta {
 
 /// The argument passed with `#[prop]` or `#[state]` attributes.
 ///
-/// Can be `#[prop]` or `#[prop(default = expr)]`.
-enum AttrArg {
-    None,
-    Some { default: Expr },
+/// Can be `#[prop]`, `#[prop(default)]` or `#[prop(default = expr)]`.
+struct AttrArg {
+    use_default: bool,
+    default: Option<Expr>,
 }
 
 impl Synom for AttrArg {
     named!(parse -> Self, alt!(
-        input_end!() => {|_| AttrArg::None}
+        input_end!() => {|_| AttrArg { use_default: false, default: None }}
         |
-        parens!(do_parse!(
-            custom_keyword!(default) >>
-            syn!(Token!(=)) >>
-            expr: syn!(Expr) >>
-            ( expr )
-        )) => {|(_, expr)| AttrArg::Some { default: expr }}
+        parens!(alt!(
+            do_parse!(
+                custom_keyword!(default) >>
+                syn!(Token!(=)) >>
+                expr: syn!(Expr) >>
+                ( expr )
+            ) => {|expr| AttrArg { use_default: true, default: Some(expr) }}
+            |
+            custom_keyword!(default) => {|_| AttrArg { use_default: true, default: None } }
+        )) => {|(_, attr)| attr}
     ));
 }
 
@@ -606,7 +610,7 @@ impl Synom for AttrArg {
 /// default value expression.
 struct ComponentField {
     attrs: Vec<Attribute>,
-    default: Option<Expr>,
+    attr_arg: AttrArg,
     is_optional: bool,
     vis: Visibility,
     ident: Ident,
@@ -614,15 +618,11 @@ struct ComponentField {
 }
 
 impl ComponentField {
-    fn parse_default(tts: TokenStream, kind: &str) -> Option<Expr> {
-        let attr_arg: AttrArg = syn::parse2(tts).expect(&format!(
+    fn parse_attr_arg(tts: TokenStream, kind: &str) -> AttrArg {
+        syn::parse2(tts).expect(&format!(
             "The attribute can only be one of these: `#[{kind}]` or `#[{kind}(default = val)]`",
             kind = kind,
-        ));
-        match attr_arg {
-            AttrArg::None => None,
-            AttrArg::Some { default } => Some(default),
-        }
+        ))
     }
 
     fn is_optional(field: &Field) -> bool {
@@ -649,15 +649,11 @@ impl ComponentField {
             .into_iter()
             .partition(|attr| attr.path != state_kind);
 
-        let default = if !prop_attr.is_empty() {
-            Self::parse_default(prop_attr.swap_remove(0).tts, "prop")
-        } else {
-            None
-        };
+        let attr_arg = Self::parse_attr_arg(prop_attr.swap_remove(0).tts, "prop");
 
         ComponentField {
             attrs: rest,
-            default,
+            attr_arg,
             is_optional,
             vis: field.vis,
             ident: field.ident.unwrap(),
@@ -674,12 +670,11 @@ impl ComponentField {
             .into_iter()
             .partition(|attr| attr.path == state_kind);
 
-        // The `#[state]` check was already done, so its safe.
-        let default = Self::parse_default(state_attr.swap_remove(0).tts, "state");
+        let attr_arg = Self::parse_attr_arg(state_attr.swap_remove(0).tts, "state");
 
         ComponentField {
             attrs: rest,
-            default,
+            attr_arg,
             is_optional,
             vis: field.vis,
             ident: field.ident.unwrap(),
@@ -714,7 +709,11 @@ impl ComponentField {
 
     fn expand_as_default_field(&self) -> TokenStream {
         let ident = &self.ident;
-        if let Some(ref default) = self.default {
+        if let AttrArg {
+            default: Some(ref default),
+            ..
+        } = self.attr_arg
+        {
             quote! {
                 #ident: #default
             }
@@ -756,7 +755,11 @@ impl ComponentField {
 
     fn expand_builder_finish_assignment(&self) -> TokenStream {
         let ident = &self.ident;
-        if let Some(ref default) = self.default {
+        if let AttrArg {
+            default: Some(ref default),
+            ..
+        } = self.attr_arg
+        {
             if self.is_optional {
                 quote! {
                     #ident: self.#ident.or(#default)
