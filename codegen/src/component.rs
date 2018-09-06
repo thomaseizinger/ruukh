@@ -73,11 +73,11 @@ impl ComponentMeta {
         let prop_struct = self
             .props_meta
             .as_ref()
-            .map(|m| m.expand_struct(&self.generics));
+            .map(|m| m.expand_struct(&self.vis, &self.generics));
         let events_structs = self
             .events_meta
             .as_ref()
-            .map(|m| m.expand_structs(&self.ident, &self.generics));
+            .map(|m| m.expand_structs(&self.ident, &self.vis, &self.generics));
 
         quote! {
             #component_struct
@@ -510,7 +510,7 @@ impl PropsMeta {
             .collect()
     }
 
-    fn expand_struct(&self, generics: &Generics) -> TokenStream {
+    fn expand_struct(&self, vis: &Visibility, generics: &Generics) -> TokenStream {
         let ident = &self.ident;
         let fields = self.expand_as_struct_fields();
         let (impl_gen, ty_gen, where_clause) = generics.split_for_impl();
@@ -521,7 +521,7 @@ impl PropsMeta {
         let builder_finish_assignment = self.expand_builder_finish_assignment();
 
         quote! {
-            struct #ident #generics {
+            #vis struct #ident #generics {
                 #(#fields),*
             }
 
@@ -532,7 +532,7 @@ impl PropsMeta {
             }
 
             #[derive(Default)]
-            struct #builder_ident #generics {
+            #vis struct #builder_ident #generics {
                 #(#builder_fields),*
             }
 
@@ -992,7 +992,12 @@ impl EventsMeta {
             .collect()
     }
 
-    fn expand_structs(&self, component_ident: &Ident, generics: &Generics) -> TokenStream {
+    fn expand_structs(
+        &self,
+        component_ident: &Ident,
+        vis: &Visibility,
+        generics: &Generics,
+    ) -> TokenStream {
         let ident = &self.ident;
         let gen_ident = &self.gen_ident;
         let fields = self.expand_as_struct_fields();
@@ -1002,7 +1007,7 @@ impl EventsMeta {
         let event_wrappers = self.expand_event_wrappers(component_ident, generics);
 
         quote! {
-            struct #ident {
+            #vis struct #ident {
                 #(#fields),*
             }
 
@@ -1020,7 +1025,7 @@ impl EventsMeta {
                 }
             }
 
-            struct #gen_ident<RCTX: Render> {
+            #vis struct #gen_ident<RCTX: Render> {
                 #(#gen_fields),*
             }
 
