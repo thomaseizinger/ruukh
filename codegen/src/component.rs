@@ -584,6 +584,7 @@ impl StateMeta {
 /// The argument passed with `#[prop]` or `#[state]` attributes.
 ///
 /// Can be `#[prop]`, `#[prop(default)]` or `#[prop(default = expr)]`.
+#[derive(Default)]
 struct AttrArg {
     use_default: bool,
     default: Option<Expr>,
@@ -591,7 +592,7 @@ struct AttrArg {
 
 impl Synom for AttrArg {
     named!(parse -> Self, alt!(
-        input_end!() => {|_| AttrArg { use_default: false, default: None }}
+        input_end!() => {|_| AttrArg::default()}
         |
         parens!(alt!(
             do_parse!(
@@ -760,17 +761,29 @@ impl ComponentField {
     fn expand_builder_finish_assignment(&self) -> TokenStream {
         let ident = &self.ident;
         if let AttrArg {
-            default: Some(ref default),
-            ..
+            use_default: true,
+            ref default,
         } = self.attr_arg
         {
-            if self.is_optional {
-                quote! {
-                    #ident: self.#ident.or(#default)
+            if let Some(ref default) = default {
+                if self.is_optional {
+                    quote! {
+                        #ident: self.#ident.or(#default)
+                    }
+                } else {
+                    quote! {
+                        #ident: self.#ident.unwrap_or(#default)
+                    }
                 }
             } else {
-                quote! {
-                    #ident: self.#ident.unwrap_or(#default)
+                if self.is_optional {
+                    quote! {
+                        #ident: self.#ident
+                    }
+                } else {
+                    quote! {
+                        #ident: self.#ident.unwrap_or_default()
+                    }
                 }
             }
         } else {

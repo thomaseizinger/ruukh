@@ -33,6 +33,9 @@ fn should_build_a_component_with_props_only() {
 
         #[prop(default = 4)]
         prop_d: i32,
+
+        #[prop(default)]
+        prop_e: i32
     }
 
     let _ = ButtonProps {
@@ -40,6 +43,7 @@ fn should_build_a_component_with_props_only() {
         prop_b: 5,
         prop_c: 5,
         prop_d: 5,
+        prop_e: 5
     };
 
     let props = ButtonProps::builder()
