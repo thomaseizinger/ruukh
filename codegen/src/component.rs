@@ -649,7 +649,11 @@ impl ComponentField {
             .into_iter()
             .partition(|attr| attr.path != state_kind);
 
-        let attr_arg = Self::parse_attr_arg(prop_attr.swap_remove(0).tts, "prop");
+        let attr_arg = if !prop_attr.is_empty() {
+            Self::parse_attr_arg(prop_attr.swap_remove(0).tts, "prop")
+        } else {
+            AttrArg::default()
+        };
 
         ComponentField {
             attrs: rest,
