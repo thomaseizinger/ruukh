@@ -865,6 +865,8 @@ struct EventsMeta {
     /// Ident of Event type which stores actual events passed from parent. It serves as
     /// an intermediate event type before converting it to the above event type.
     gen_ident: Ident,
+    /// Ident of the builder type which builds `gen_ident`.
+    builder_ident: Ident,
     /// All the event declarations on the component.
     events: Vec<EventMeta>,
 }
@@ -950,6 +952,10 @@ impl EventsMeta {
             let meta = EventsMeta {
                 ident: Ident::new(&format!("{}Events", component_ident), Span::call_site()),
                 gen_ident: Ident::new(&format!("{}EventsGen", component_ident), Span::call_site()),
+                builder_ident: Ident::new(
+                    &format!("{}EventsBuilder", component_ident),
+                    Span::call_site(),
+                ),
                 events: event_metas,
             };
             (Some(meta), rest)
@@ -967,6 +973,13 @@ impl EventsMeta {
         self.events
             .iter()
             .map(EventMeta::expand_as_gen_struct_field)
+            .collect()
+    }
+
+    fn expand_as_builder_struct_fields(&self) -> Vec<TokenStream> {
+        self.events
+            .iter()
+            .map(EventMeta::expand_as_builder_struct_field)
             .collect()
     }
 
@@ -992,6 +1005,20 @@ impl EventsMeta {
             .collect()
     }
 
+    fn expand_builder_assignment(&self) -> Vec<TokenStream> {
+        self.events
+            .iter()
+            .map(EventMeta::expand_builder_assignment)
+            .collect()
+    }
+
+    fn expand_builder_finish_assignment(&self) -> Vec<TokenStream> {
+        self.events
+            .iter()
+            .map(EventMeta::expand_builder_finish_assignment)
+            .collect()
+    }
+
     fn expand_structs(
         &self,
         component_ident: &Ident,
@@ -1005,6 +1032,11 @@ impl EventsMeta {
         let event_names = &self.expand_as_event_names();
         let event_conversion = self.expand_event_conversions();
         let event_wrappers = self.expand_event_wrappers(component_ident, generics);
+
+        let builder_ident = &self.builder_ident;
+        let builder_fields = self.expand_as_builder_struct_fields();
+        let builder_assignment = self.expand_builder_assignment();
+        let builder_finish_assignment = self.expand_builder_finish_assignment();
 
         quote! {
             #vis struct #ident {
@@ -1029,11 +1061,40 @@ impl EventsMeta {
                 #(#gen_fields),*
             }
 
+            impl<RCTX: Render> #gen_ident<RCTX> {
+                pub fn builder() -> #builder_ident<RCTX> {
+                    Default::default()
+                }
+            }
+
             impl<RCTX: Render> ruukh::component::EventsPair<RCTX> for #ident {
                 type Other = #gen_ident<RCTX>;
             }
 
             #(#event_wrappers)*
+
+            #vis struct #builder_ident<RCTX: Render> {
+                #(#builder_fields),*
+            }
+
+            impl<RCTX: Render> Default for #builder_ident<RCTX> {
+                fn default() -> Self {
+                    #builder_ident {
+                        #(#event_names: None),*
+                    }
+                }
+            }
+
+            impl<RCTX: Render> #builder_ident<RCTX> {
+                #(#builder_assignment)*
+
+                // Underscored, so it is unlikely to colide with event names.
+                pub fn __finish__(self) -> #gen_ident<RCTX> {
+                    #gen_ident {
+                        #(#builder_finish_assignment),*
+                    }
+                }
+            }
         }
     }
 }
@@ -1099,6 +1160,20 @@ impl EventMeta {
                 quote! {
                     #ident: Box<Fn(&RCTX, #(#arg_types),*) -> #ty>
                 }
+            },
+        }
+    }
+
+    fn expand_as_builder_struct_field(&self) -> TokenStream {
+        let ident = &self.ident;
+        let arg_types: Vec<_> = self.arguments.iter().map(|arg| &arg.1).collect();
+
+        match self.return_type {
+            ReturnType::Default => quote! {
+                #ident: Option<Box<Fn(&RCTX, #(#arg_types),*)>>
+            },
+            ReturnType::Type(_, ref ty) => quote! {
+                #ident: Option<Box<Fn(&RCTX, #(#arg_types),*) -> #ty>>
             },
         }
     }
@@ -1179,6 +1254,39 @@ impl EventMeta {
                 fn #ident (&self, #(#arg_fields),*) #ret_type {
                     (self.__events__.#ident)(#(#arg_idents),*)
                 }
+            }
+        }
+    }
+
+    fn gen_fn_type(&self) -> TokenStream {
+        let arg_types: Vec<_> = self.arguments.iter().map(|arg| &arg.1).collect();
+        let ret_type = &self.return_type;
+        quote! {
+            Fn(&RCTX, #(#arg_types),*) #ret_type
+        }
+    }
+
+    fn expand_builder_assignment(&self) -> TokenStream {
+        let ident = &self.ident;
+        let fn_type = self.gen_fn_type();
+        quote! {
+            pub fn #ident(mut self, val: Box<#fn_type>) -> Self {
+                self.#ident = Some(val);
+                self
+            }
+        }
+    }
+
+    fn expand_builder_finish_assignment(&self) -> TokenStream {
+        let ident = &self.ident;
+
+        if self.is_optional {
+            quote! {
+                #ident: self.#ident
+            }
+        } else {
+            quote! {
+                #ident: self.#ident.expect(&format!("The event `{}` is required.", stringify!(#ident)))
             }
         }
     }
