@@ -4,12 +4,12 @@ version = "0.1.0"
 authors = ["Sharad Chand <sharad.d.chand@gmail.com>"]
 
 [dependencies]
-wasm-bindgen = "0.2.17"
+wasm-bindgen = "0.2.21"
 indexmap = "1.0.1"
 ruukh-codegen = { path = "./codegen" }
 
 [dev-dependencies]
-wasm-bindgen-test = "0.2.17"
+wasm-bindgen-test = "0.2.21"
 
 [workspace]
 members = [
