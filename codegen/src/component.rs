@@ -32,6 +32,11 @@ impl ComponentMeta {
         let (props_meta, state_meta) = match item.fields {
             Fields::Named(fields) => {
                 let fields: Vec<_> = fields.named.into_iter().collect();
+
+                for field in fields.iter() {
+                    check_supported_attributes(field)?;
+                }
+
                 let (props_meta, fields) = PropsMeta::parse(&item.ident, fields)?;
                 let (state_meta, fields) = StateMeta::parse(&item.ident, fields)?;
                 assert!(
@@ -462,7 +467,7 @@ impl PropsMeta {
         component_ident: &Ident,
         fields: Vec<Field>,
     ) -> ParseResult<(Option<PropsMeta>, Vec<Field>)> {
-        let (prop_fields, rest): (Vec<_>, Vec<_>) = fields.into_iter().partition(is_prop);
+        let (rest, prop_fields): (Vec<_>, Vec<_>) = fields.into_iter().partition(is_state);
         let prop_fields: ParseResult<Vec<_>> = prop_fields
             .into_iter()
             .map(ComponentField::parse_prop)
@@ -545,7 +550,7 @@ impl StateMeta {
         component_ident: &Ident,
         fields: Vec<Field>,
     ) -> ParseResult<(Option<StateMeta>, Vec<Field>)> {
-        let (rest, state_fields): (Vec<_>, Vec<_>) = fields.into_iter().partition(is_prop);
+        let (state_fields, rest): (Vec<_>, Vec<_>) = fields.into_iter().partition(is_state);
         let state_fields: ParseResult<Vec<_>> = state_fields
             .into_iter()
             .map(ComponentField::parse_state)
@@ -1273,7 +1278,18 @@ impl EventMeta {
     }
 }
 
-fn is_prop(field: &Field) -> bool {
+fn is_state(field: &Field) -> bool {
+    let state_kind = Ident::new("state", Span::call_site()).into();
+    let state_attrs = field
+        .attrs
+        .iter()
+        .filter(|attr| attr.path == state_kind)
+        .collect::<Vec<_>>();
+
+    !state_attrs.is_empty()
+}
+
+fn check_supported_attributes(field: &Field) -> ParseResult<()> {
     let prop_kind = Ident::new("prop", Span::call_site()).into();
     let state_kind = Ident::new("state", Span::call_site()).into();
     let prop_attrs = field
@@ -1288,17 +1304,23 @@ fn is_prop(field: &Field) -> bool {
         .collect::<Vec<_>>();
 
     if !state_attrs.is_empty() && !prop_attrs.is_empty() {
-        panic!(
-            "Component field `{}` cannot be both a prop and a state.",
-            field.ident.as_ref().unwrap()
-        );
+        Err(Error::new(
+            field.ident.span(),
+            "Cannot be both `#[prop]` and `#[state]` at once.",
+        ))?;
     }
     if prop_attrs.len() > 1 {
-        panic!(
-            "Component field `{}` cannot have multiple prop attributes.",
-            field.ident.as_ref().unwrap()
-        );
+        Err(Error::new(
+            field.ident.span(),
+            "Cannot have multiple `#[prop]` attributes.",
+        ))?;
+    }
+    if state_attrs.len() > 1 {
+        Err(Error::new(
+            field.ident.span(),
+            "Cannot have multiple `#[state]` attributes.",
+        ))?;
     }
 
-    state_attrs.is_empty()
+    Ok(())
 }
