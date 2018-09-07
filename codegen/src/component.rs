@@ -1,7 +1,7 @@
 use proc_macro2::{Span, TokenStream};
 use syn;
-use syn::punctuated::Punctuated;
-use syn::synom::Synom;
+use syn::parse::{Error, Parse, ParseStream, Result as ParseResult};
+use syn::spanned::Spanned;
 use syn::{
     Attribute, Expr, Field, Fields, FnArg, Generics, Ident, ItemStruct, Pat, ReturnType, Type,
     TypePath, Visibility,
@@ -27,24 +27,25 @@ pub struct ComponentMeta {
 }
 
 impl ComponentMeta {
-    pub fn parse(item: ItemStruct) -> ComponentMeta {
+    pub fn parse(item: ItemStruct) -> ParseResult<ComponentMeta> {
         // Sort out the struct fields into state and props fields.
         let (props_meta, state_meta) = match item.fields {
             Fields::Named(fields) => {
                 let fields: Vec<_> = fields.named.into_iter().collect();
-                let (props_meta, fields) = PropsMeta::parse(&item.ident, fields);
-                let (state_meta, fields) = StateMeta::parse(&item.ident, fields);
+                let (props_meta, fields) = PropsMeta::parse(&item.ident, fields)?;
+                let (state_meta, fields) = StateMeta::parse(&item.ident, fields)?;
                 assert!(
                     fields.is_empty(),
                     "There are no fields left other than prop and state fields."
                 );
-                (props_meta, state_meta)
+                Ok((props_meta, state_meta))
             }
-            Fields::Unnamed(_) => {
-                panic!("Only unit structs and structs with named fields can be components.");
-            }
-            Fields::Unit => (None, None),
-        };
+            Fields::Unnamed(_) => Err(Error::new(
+                item.ident.span(),
+                "Only unit and named field structs can be components.",
+            )),
+            Fields::Unit => Ok((None, None)),
+        }?;
 
         let component_name = Ident::new("component", Span::call_site()).into();
         let attrs: Vec<_> = item
@@ -53,9 +54,9 @@ impl ComponentMeta {
             .filter(|attr| attr.path != component_name)
             .collect();
 
-        let (events_meta, attrs) = EventsMeta::parse(&item.ident, attrs);
+        let (events_meta, attrs) = EventsMeta::parse(&item.ident, attrs)?;
 
-        ComponentMeta {
+        Ok(ComponentMeta {
             attrs,
             vis: item.vis,
             ident: item.ident,
@@ -63,7 +64,7 @@ impl ComponentMeta {
             props_meta,
             state_meta,
             events_meta,
-        }
+        })
     }
 
     pub fn expand(&self) -> TokenStream {
@@ -457,14 +458,18 @@ struct PropsMeta {
 }
 
 impl PropsMeta {
-    fn parse(component_ident: &Ident, fields: Vec<Field>) -> (Option<PropsMeta>, Vec<Field>) {
+    fn parse(
+        component_ident: &Ident,
+        fields: Vec<Field>,
+    ) -> ParseResult<(Option<PropsMeta>, Vec<Field>)> {
         let (prop_fields, rest): (Vec<_>, Vec<_>) = fields.into_iter().partition(is_prop);
-        let prop_fields: Vec<_> = prop_fields
+        let prop_fields: ParseResult<Vec<_>> = prop_fields
             .into_iter()
             .map(ComponentField::parse_prop)
             .collect();
+        let prop_fields = prop_fields?;
         if prop_fields.is_empty() {
-            (None, rest)
+            Ok((None, rest))
         } else {
             let meta = PropsMeta {
                 ident: Ident::new(&format!("{}Props", component_ident), Span::call_site()),
@@ -474,7 +479,7 @@ impl PropsMeta {
                 ),
                 fields: prop_fields,
             };
-            (Some(meta), rest)
+            Ok((Some(meta), rest))
         }
     }
 
@@ -536,20 +541,24 @@ struct StateMeta {
 }
 
 impl StateMeta {
-    fn parse(component_ident: &Ident, fields: Vec<Field>) -> (Option<StateMeta>, Vec<Field>) {
+    fn parse(
+        component_ident: &Ident,
+        fields: Vec<Field>,
+    ) -> ParseResult<(Option<StateMeta>, Vec<Field>)> {
         let (rest, state_fields): (Vec<_>, Vec<_>) = fields.into_iter().partition(is_prop);
-        let state_fields: Vec<_> = state_fields
+        let state_fields: ParseResult<Vec<_>> = state_fields
             .into_iter()
             .map(ComponentField::parse_state)
             .collect();
+        let state_fields = state_fields?;
         if state_fields.is_empty() {
-            (None, rest)
+            Ok((None, rest))
         } else {
             let meta = StateMeta {
                 ident: Ident::new(&format!("{}State", component_ident), Span::call_site()),
                 fields: state_fields,
             };
-            (Some(meta), rest)
+            Ok((Some(meta), rest))
         }
     }
 
@@ -590,21 +599,36 @@ struct AttrArg {
     default: Option<Expr>,
 }
 
-impl Synom for AttrArg {
-    named!(parse -> Self, alt!(
-        input_end!() => {|_| AttrArg::default()}
-        |
-        parens!(alt!(
-            do_parse!(
-                custom_keyword!(default) >>
-                syn!(Token!(=)) >>
-                expr: syn!(Expr) >>
-                ( expr )
-            ) => {|expr| AttrArg { use_default: true, default: Some(expr) }}
-            |
-            custom_keyword!(default) => {|_| AttrArg { use_default: true, default: None } }
-        )) => {|(_, attr)| attr}
-    ));
+impl Parse for AttrArg {
+    fn parse(input: ParseStream) -> ParseResult<Self> {
+        if input.is_empty() {
+            return Ok(AttrArg::default());
+        }
+
+        let content;
+        parenthesized!(content in input);
+
+        custom_keyword!(default);
+        content.parse::<default>()?;
+
+        if content.peek(Token![=]) {
+            content.parse::<Token![=]>()?;
+            let default = content.parse::<Expr>()?;
+            Ok(AttrArg {
+                use_default: true,
+                default: Some(default),
+            })
+        } else {
+            if content.is_empty() {
+                Ok(AttrArg {
+                    use_default: true,
+                    default: None,
+                })
+            } else {
+                Err(content.error("expected ')'."))
+            }
+        }
+    }
 }
 
 /// A field of a component. Stores all the struct metadata along with additional
@@ -619,31 +643,20 @@ struct ComponentField {
 }
 
 impl ComponentField {
-    fn parse_attr_arg(tts: TokenStream, kind: &str) -> AttrArg {
-        syn::parse2(tts).expect(&format!(
-            "The attribute can only be one of these: `#[{kind}]` or `#[{kind}(default = val)]`",
-            kind = kind,
-        ))
-    }
-
-    fn is_optional(field: &Field) -> bool {
+    fn is_optional(field: &Field) -> ParseResult<bool> {
         match field.ty {
             Type::Path(TypePath { ref path, .. }) => {
                 let tokens = quote! { #path };
                 let tokens = tokens.to_string().replace(' ', "");
-                tokens.starts_with("Option<") && tokens.ends_with(">")
+                Ok(tokens.starts_with("Option<") && tokens.ends_with(">"))
             }
-            _ => panic!(
-                "Type `{:?}` of field `{}` not supported",
-                field.ty,
-                field.ident.as_ref().unwrap()
-            ),
+            _ => Err(Error::new(field.ty.span(), "Type not supported")),
         }
     }
 
-    fn parse_prop(field: Field) -> ComponentField {
+    fn parse_prop(field: Field) -> ParseResult<ComponentField> {
         let state_kind = Ident::new("state", Span::call_site()).into();
-        let is_optional = Self::is_optional(&field);
+        let is_optional = Self::is_optional(&field)?;
 
         let (mut prop_attr, rest): (Vec<_>, Vec<_>) = field
             .attrs
@@ -651,40 +664,40 @@ impl ComponentField {
             .partition(|attr| attr.path != state_kind);
 
         let attr_arg = if !prop_attr.is_empty() {
-            Self::parse_attr_arg(prop_attr.swap_remove(0).tts, "prop")
+            syn::parse2(prop_attr.swap_remove(0).tts)?
         } else {
             AttrArg::default()
         };
 
-        ComponentField {
+        Ok(ComponentField {
             attrs: rest,
             attr_arg,
             is_optional,
             vis: field.vis,
             ident: field.ident.unwrap(),
             ty: field.ty,
-        }
+        })
     }
 
-    fn parse_state(field: Field) -> ComponentField {
+    fn parse_state(field: Field) -> ParseResult<ComponentField> {
         let state_kind = Ident::new("state", Span::call_site()).into();
-        let is_optional = Self::is_optional(&field);
+        let is_optional = Self::is_optional(&field)?;
 
         let (mut state_attr, rest): (Vec<_>, Vec<_>) = field
             .attrs
             .into_iter()
             .partition(|attr| attr.path == state_kind);
 
-        let attr_arg = Self::parse_attr_arg(state_attr.swap_remove(0).tts, "state");
+        let attr_arg = syn::parse2(state_attr.swap_remove(0).tts)?;
 
-        ComponentField {
+        Ok(ComponentField {
             attrs: rest,
             attr_arg,
             is_optional,
             vis: field.vis,
             ident: field.ident.unwrap(),
             ty: field.ty,
-        }
+        })
     }
 
     fn expand_as_struct_field(&self) -> TokenStream {
@@ -819,11 +832,18 @@ struct EventsSyntax {
     events: Vec<EventSyntax>,
 }
 
-impl Synom for EventsSyntax {
-    named!(parse -> Self, do_parse!(
-        events: parens!(many0!(syn!(EventSyntax))) >>
-        (EventsSyntax { events: events.1 })
-    ));
+impl Parse for EventsSyntax {
+    fn parse(input: ParseStream) -> ParseResult<Self> {
+        let content;
+        parenthesized!(content in input);
+
+        let mut events = vec![];
+        while !content.is_empty() {
+            let event: EventSyntax = content.parse()?;
+            events.push(event);
+        }
+        Ok(EventsSyntax { events })
+    }
 }
 
 /// The syntax of a single event.
@@ -839,16 +859,40 @@ struct EventSyntax {
     return_type: ReturnType,
 }
 
-impl Synom for EventSyntax {
-    named!(parse -> Self, do_parse!(
-        attrs: many0!(call!(Attribute::parse_outer)) >>
-        keyword!(fn) >>
-        ident: syn!(Ident) >>
-        args: parens!(call!(Punctuated::<FnArg, Token!(,)>::parse_terminated)) >>
-        return_type: syn!(ReturnType) >>
-        syn!(Token!(;)) >>
-        (EventSyntax { attrs, ident, args: args.1.into_iter().collect(), return_type })
-    ));
+impl Parse for EventSyntax {
+    fn parse(input: ParseStream) -> ParseResult<Self> {
+        let attrs = input.call(Attribute::parse_outer)?;
+        input.parse::<Token![fn]>()?;
+        let ident = input.parse()?;
+
+        let content;
+        parenthesized!(content in input);
+        let args = content
+            .parse_terminated::<_, Token![,]>(FnArg::parse)?
+            .into_iter()
+            .collect();
+
+        let return_type = input.parse()?;
+        // The `#[component]` macro was pointed to when the last one errored.
+        if input.peek(Token![;]) {
+            input.parse::<Token![;]>()?;
+        } else {
+            Err(input.error("expected `;`"))?;
+        }
+
+        Ok(EventSyntax {
+            attrs,
+            ident,
+            args,
+            return_type,
+        })
+    }
+}
+
+impl EventSyntax {
+    fn attribute_span(&self) -> Option<Span> {
+        self.attrs.get(0).map(|attr| attr.span())
+    }
 }
 
 /// Stores all the events declared on a component.
@@ -868,25 +912,15 @@ impl EventsMeta {
     fn parse(
         component_ident: &Ident,
         attrs: Vec<Attribute>,
-    ) -> (Option<EventsMeta>, Vec<Attribute>) {
+    ) -> ParseResult<(Option<EventsMeta>, Vec<Attribute>)> {
         let events_kind = Ident::new("events", Span::call_site()).into();
         let (event_attrs, rest): (Vec<_>, Vec<_>) =
             attrs.into_iter().partition(|attr| attr.path == events_kind);
 
-        let event_metas: Vec<_> = event_attrs
+        let event_metas: ParseResult<Vec<Vec<EventMeta>>> = event_attrs
             .into_iter()
-            // Parse each event declaration from each `#[events]` attribute found
-            // and join them. 
-            .flat_map(|attr| {
-                let parsed: EventsSyntax = syn::parse2(attr.tts).expect(
-                    r#"The events syntax is: 
-                    #[events(
-                        fn event_name(&self, args: type) -> type;
-
-                        fn event_name2(&self);
-                    )]
-                    "#,
-                );
+            .map(|attr| {
+                let parsed: EventsSyntax = syn::parse2(attr.tts)?;
                 let mut event_metas = vec![];
 
                 for event in parsed.events {
@@ -900,27 +934,27 @@ impl EventsMeta {
                                 arguments.push((captured.pat.clone(), captured.ty.clone()));
                             }
                             _ if index == 0 => {
-                                panic!(
-                                    "The first argument of event `{}` must be `&self`.",
-                                    &event.ident
-                                );
+                                Err(Error::new(arg.span(), "expected `&self`"))?;
                             }
                             _ => {
-                                panic!(
-                                    "The argument of the event `{}` must be in the format `name: type`.",
-                                    &event.ident
-                                );
+                                Err(Error::new(arg.span(), "expected `: type`"))?;
                             }
                         }
                     }
 
                     if event.attrs.len() > 1 {
-                        panic!("The event declaration `{}` does not support multiple attributes.", &event.ident);
+                        Err(Error::new(
+                            event.attribute_span().unwrap(),
+                            "Multiple attributes found. Only one allowed.",
+                        ))?;
                     }
 
                     let is_optional = if let Some(ref attr) = event.attrs.get(0) {
                         if attr.path != Ident::new("optional", Span::call_site()).into() {
-                            panic!("Did you want to annotate the event `{}` with `#[optional]`.", &event.ident);
+                            Err(Error::new(
+                                attr.span(),
+                                "Only `#[optional]` attribute allowed here.",
+                            ))?;
                         };
                         true
                     } else {
@@ -931,16 +965,18 @@ impl EventsMeta {
                         ident: event.ident,
                         arguments,
                         return_type: event.return_type,
-                        is_optional
+                        is_optional,
                     };
                     event_metas.push(meta);
                 }
 
-                event_metas
+                Ok(event_metas)
             }).collect();
 
+        let event_metas: Vec<EventMeta> = event_metas?.into_iter().flatten().collect();
+
         if event_metas.is_empty() {
-            (None, rest)
+            Ok((None, rest))
         } else {
             let meta = EventsMeta {
                 ident: Ident::new(&format!("{}Events", component_ident), Span::call_site()),
@@ -951,7 +987,7 @@ impl EventsMeta {
                 ),
                 events: event_metas,
             };
-            (Some(meta), rest)
+            Ok((Some(meta), rest))
         }
     }
 

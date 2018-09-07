@@ -9,7 +9,8 @@ extern crate syn;
 extern crate quote;
 
 use component::ComponentMeta;
-use syn::{DeriveInput, Item};
+use proc_macro2::Span;
+use syn::{parse::Error, spanned::Spanned, DeriveInput, Item};
 
 mod component;
 
@@ -17,7 +18,7 @@ mod component;
 /// as `impl Lifecycle for MyComponent {}` instead, but why not save some chars.
 #[proc_macro_derive(Lifecycle)]
 pub fn derive_lifecycle(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let input: DeriveInput = syn::parse(input).unwrap();
+    let input = parse_macro_input!(input as DeriveInput);
 
     let ident = input.ident;
     let (impl_gen, ty_gen, where_clause) = input.generics.split_for_impl();
@@ -46,15 +47,23 @@ pub fn component(
     input: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
     if !metadata.is_empty() {
-        panic!("`#[component]` does not support attribute arguments.");
+        return Error::new(
+            Span::call_site(),
+            "`#[component]` does not support attribute arguments.",
+        ).to_compile_error()
+        .into();
     }
 
-    let input: Item = syn::parse(input).unwrap();
+    let input = parse_macro_input!(input as Item);
 
-    let parsed = match input {
-        Item::Struct(struct_) => ComponentMeta::parse(struct_),
-        _ => panic!("Only structs are allowed to be Component"),
+    let expanded = match input {
+        Item::Struct(struct_) => ComponentMeta::parse(struct_)
+            .map(|s| s.expand())
+            .unwrap_or_else(|e| e.to_compile_error()),
+        _ => {
+            Error::new(input.span(), "Only structs are allowed to be Component").to_compile_error()
+        }
     };
 
-    parsed.expand().into()
+    expanded.into()
 }
