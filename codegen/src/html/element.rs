@@ -90,7 +90,8 @@ impl SelfClosingHtmlElement {
 pub struct OpeningTag {
     pub lt: Token![<],
     pub tag_name: HtmlName,
-    pub attributes: Vec<HtmlAttribute>,
+    pub prop_attributes: Vec<HtmlAttribute>,
+    pub event_attributes: Vec<HtmlAttribute>,
     pub gt: Token![>],
 }
 
@@ -98,18 +99,22 @@ impl Parse for OpeningTag {
     fn parse(input: ParseStream) -> ParseResult<Self> {
         let lt = input.parse()?;
         let tag_name = input.parse()?;
-        let mut attributes = vec![];
 
+        let mut attributes: Vec<HtmlAttribute> = vec![];
         while !input.peek(Token![>]) {
             attributes.push(input.parse()?);
         }
 
         let gt = input.parse()?;
 
+        let (prop_attributes, event_attributes) =
+            attributes.into_iter().partition(|attr| attr.at.is_none());
+
         Ok(OpeningTag {
             lt,
             tag_name,
-            attributes,
+            prop_attributes,
+            event_attributes,
             gt,
         })
     }
@@ -152,7 +157,8 @@ impl Parse for ClosingTag {
 pub struct SelfClosingTag {
     pub lt: Token![<],
     pub tag_name: HtmlName,
-    pub attributes: Vec<HtmlAttribute>,
+    pub prop_attributes: Vec<HtmlAttribute>,
+    pub event_attributes: Vec<HtmlAttribute>,
     pub slash: Option<Token![/]>,
     pub gt: Token![>],
 }
@@ -162,7 +168,7 @@ impl Parse for SelfClosingTag {
         let lt = input.parse()?;
         let tag_name = input.parse()?;
 
-        let mut attributes = vec![];
+        let mut attributes: Vec<HtmlAttribute> = vec![];
         while !input.peek(Token![/]) && !input.peek(Token![>]) {
             attributes.push(input.parse()?);
         }
@@ -170,10 +176,14 @@ impl Parse for SelfClosingTag {
         let slash = input.parse()?;
         let gt = input.parse()?;
 
+        let (prop_attributes, event_attributes) =
+            attributes.into_iter().partition(|attr| attr.at.is_none());
+
         Ok(SelfClosingTag {
             lt,
             tag_name,
-            attributes,
+            prop_attributes,
+            event_attributes,
             slash,
             gt,
         })
