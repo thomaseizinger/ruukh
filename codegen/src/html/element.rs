@@ -2,6 +2,7 @@ use super::HtmlRoot;
 use proc_macro2::{Span, TokenStream};
 use syn::parse::{Error, Parse, ParseStream, Result as ParseResult};
 use syn::punctuated::Punctuated;
+use syn::token;
 use syn::{Expr, Ident};
 
 pub enum HtmlElement {
@@ -237,16 +238,19 @@ pub struct HtmlAttribute {
     pub at: Option<Token![@]>,
     pub key: HtmlName,
     pub eq: Token![=],
+    pub brace: token::Brace,
     pub value: Expr,
 }
 
 impl Parse for HtmlAttribute {
     fn parse(input: ParseStream) -> ParseResult<Self> {
+        let content;
         Ok(HtmlAttribute {
             at: input.parse()?,
             key: input.parse()?,
             eq: input.parse()?,
-            value: input.parse()?,
+            brace: braced!(content in input),
+            value: content.parse()?,
         })
     }
 }
