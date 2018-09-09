@@ -123,14 +123,33 @@ impl Parse for OpeningTag {
 impl OpeningTag {
     fn expand_with(&self, child: Option<TokenStream>) -> TokenStream {
         let tag_name = &self.tag_name.name;
+        let prop_attributes: Vec<_> = self
+            .prop_attributes
+            .iter()
+            .map(|p| p.expand_as_prop_attribute().unwrap())
+            .collect();
+        let event_attributes: Vec<_> = self
+            .event_attributes
+            .iter()
+            .map(|e| e.expand_as_event_attribute().unwrap())
+            .collect();
 
         if let Some(child) = child {
             quote! {
-                ruukh::vdom::velement::VElement::new(#tag_name, vec![], vec![], #child)
+                ruukh::vdom::velement::VElement::new(
+                    #tag_name,
+                    vec![#(#prop_attributes),*],
+                    vec![#(#event_attributes),*],
+                    #child
+                )
             }
         } else {
             quote! {
-                ruukh::vdom::velement::VElement::childless(#tag_name, vec![], vec![])
+                ruukh::vdom::velement::VElement::childless(
+                    #tag_name,
+                    vec![#(#prop_attributes),*],
+                    vec![#(#event_attributes),*]
+                )
             }
         }
     }
@@ -193,9 +212,23 @@ impl Parse for SelfClosingTag {
 impl SelfClosingTag {
     fn expand(&self) -> TokenStream {
         let tag_name = &self.tag_name.name;
+        let prop_attributes: Vec<_> = self
+            .prop_attributes
+            .iter()
+            .map(|p| p.expand_as_prop_attribute().unwrap())
+            .collect();
+        let event_attributes: Vec<_> = self
+            .event_attributes
+            .iter()
+            .map(|e| e.expand_as_event_attribute().unwrap())
+            .collect();
 
         quote! {
-            ruukh::vdom::velement::VElement::childless(#tag_name, vec![], vec![])
+            ruukh::vdom::velement::VElement::childless(
+                #tag_name,
+                vec![#(#prop_attributes),*],
+                vec![#(#event_attributes),*]
+            )
         }
     }
 }
@@ -214,6 +247,32 @@ impl Parse for HtmlAttribute {
             key: input.parse()?,
             eq: input.parse()?,
             value: input.parse()?,
+        })
+    }
+}
+
+impl HtmlAttribute {
+    fn expand_as_prop_attribute(&self) -> Option<TokenStream> {
+        if self.at.is_some() {
+            return None;
+        }
+        let key = &self.key.name;
+        let value = &self.value;
+
+        Some(quote! {
+            ruukh::vdom::velement::Attribute::new(#key, #value)
+        })
+    }
+
+    fn expand_as_event_attribute(&self) -> Option<TokenStream> {
+        if self.at.is_none() {
+            return None;
+        }
+        let key = &self.key.name;
+        let value = &self.value;
+
+        Some(quote! {
+            ruukh::vdom::velement::EventListener::new(#key, Box::new(#value))
         })
     }
 }
