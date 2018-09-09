@@ -475,13 +475,13 @@ mod test {
 
     #[test]
     fn should_parse_normal_attribute() {
-        let attr: HtmlAttribute = syn::parse_str(r#"name="value""#).unwrap();
+        let attr: HtmlAttribute = syn::parse_str(r#"name={"value"}"#).unwrap();
         assert!(attr.at.is_none());
     }
 
     #[test]
     fn should_parse_event_attribute() {
-        let attr: HtmlAttribute = syn::parse_str(r#"@input=fn_name"#).unwrap();
+        let attr: HtmlAttribute = syn::parse_str(r#"@input={fn_name}"#).unwrap();
         assert!(attr.at.is_some());
     }
 
