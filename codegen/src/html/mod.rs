@@ -24,13 +24,13 @@
 //! OPTIONAL_AT -> @ | EPS
 //!
 //! TEXT_CHAR -> /[^{}()[]]/
-//! 
+//!
 //! DASHED_IDENT -> /[a-zA-Z][a-zA-Z0-9-]*[a-zA-Z0-9]/
-//! 
+//!
 //! N.B. EPS is Epsilon & EXPR is expression in Rust code.
 
 use self::element::HtmlElement;
-use proc_macro2::{Span, TokenTree};
+use proc_macro2::{Span, TokenStream, TokenTree};
 use syn::parse::{Parse, ParseStream, Result as ParseResult};
 use syn::token;
 use syn::Block as RustExpressionBlock;
@@ -55,6 +55,25 @@ impl Parse for HtmlRoot {
     }
 }
 
+impl HtmlRoot {
+    pub fn expand(&self) -> TokenStream {
+        let expanded: Vec<_> = self.items.iter().map(|i| i.expand()).collect();
+        if expanded.is_empty() {
+            quote!()
+        } else if self.items.len() == 1 {
+            quote! {
+                #(#expanded)*
+            }
+        } else {
+            quote! {
+                ruukh::vdom::VNode::new(ruukh::vdom::vlist::VList::new(vec![
+                    #(#expanded),*
+                ]))
+            }
+        }
+    }
+}
+
 pub enum HtmlItem {
     Element(HtmlElement),
     ExpressionBlock(RustExpressionBlock),
@@ -69,6 +88,28 @@ impl Parse for HtmlItem {
             Ok(HtmlItem::ExpressionBlock(input.parse()?))
         } else {
             Ok(HtmlItem::Text(input.parse()?))
+        }
+    }
+}
+
+impl HtmlItem {
+    fn expand(&self) -> TokenStream {
+        match self {
+            HtmlItem::Element(ref element) => {
+                let expanded = element.expand();
+                quote! {
+                    ruukh::vdom::VNode::new(#expanded)
+                }
+            }
+            HtmlItem::ExpressionBlock(_) => {
+                unimplemented!("Need to implement a mechanism to convert types into VNode");
+            }
+            HtmlItem::Text(ref text) => {
+                let string = &text.content;
+                quote! {
+                    ruukh::vdom::VNode::new(ruukh::vdom::vtext::VText::text(#string))
+                }
+            }
         }
     }
 }

@@ -9,10 +9,12 @@ extern crate syn;
 extern crate quote;
 
 use component::ComponentMeta;
+use html::HtmlRoot;
 use proc_macro2::Span;
 use syn::{parse::Error, spanned::Spanned, DeriveInput, Item};
 
 mod component;
+mod html;
 
 /// A convenient auto derive for `Lifecycle` trait. It could be simply written
 /// as `impl Lifecycle for MyComponent {}` instead, but why not save some chars.
@@ -66,4 +68,11 @@ pub fn component(
     };
 
     expanded.into()
+}
+
+/// `html!` macro to parse `vue`-inspired syntax to generate VNodes.
+#[proc_macro]
+pub fn html(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let parsed = parse_macro_input!(input as HtmlRoot);
+    parsed.expand().into()
 }

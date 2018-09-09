@@ -1,5 +1,5 @@
 use super::HtmlRoot;
-use proc_macro2::Span;
+use proc_macro2::{Span, TokenStream};
 use syn::parse::{Error, Parse, ParseStream, Result as ParseResult};
 use syn::punctuated::Punctuated;
 use syn::{Expr, Ident};
@@ -15,6 +15,15 @@ impl Parse for HtmlElement {
             Ok(HtmlElement::SelfClosing(input.parse()?))
         } else {
             Ok(HtmlElement::Normal(input.parse()?))
+        }
+    }
+}
+
+impl HtmlElement {
+    pub fn expand(&self) -> TokenStream {
+        match self {
+            HtmlElement::Normal(ref normal) => normal.expand(),
+            HtmlElement::SelfClosing(ref self_closing) => self_closing.expand(),
         }
     }
 }
@@ -53,6 +62,13 @@ impl Parse for NormalHtmlElement {
     }
 }
 
+impl NormalHtmlElement {
+    fn expand(&self) -> TokenStream {
+        let child_expanded = self.child.as_ref().map(|c| c.expand());
+        self.opening_tag.expand_with(child_expanded)
+    }
+}
+
 pub struct SelfClosingHtmlElement {
     pub tag: SelfClosingTag,
 }
@@ -62,6 +78,12 @@ impl Parse for SelfClosingHtmlElement {
         Ok(SelfClosingHtmlElement {
             tag: input.parse()?,
         })
+    }
+}
+
+impl SelfClosingHtmlElement {
+    fn expand(&self) -> TokenStream {
+        self.tag.expand()
     }
 }
 
@@ -90,6 +112,22 @@ impl Parse for OpeningTag {
             attributes,
             gt,
         })
+    }
+}
+
+impl OpeningTag {
+    fn expand_with(&self, child: Option<TokenStream>) -> TokenStream {
+        let tag_name = &self.tag_name.name;
+
+        if let Some(child) = child {
+            quote! {
+                ruukh::vdom::velement::VElement::new(#tag_name, vec![], vec![], #child)
+            }
+        } else {
+            quote! {
+                ruukh::vdom::velement::VElement::childless(#tag_name, vec![], vec![])
+            }
+        }
     }
 }
 
@@ -142,6 +180,16 @@ impl Parse for SelfClosingTag {
     }
 }
 
+impl SelfClosingTag {
+    fn expand(&self) -> TokenStream {
+        let tag_name = &self.tag_name.name;
+
+        quote! {
+            ruukh::vdom::velement::VElement::childless(#tag_name, vec![], vec![])
+        }
+    }
+}
+
 pub struct HtmlAttribute {
     pub at: Option<Token![@]>,
     pub key: HtmlName,
@@ -178,7 +226,10 @@ impl Parse for HtmlName {
             .map(|ident| ident.to_string())
             .collect::<Vec<_>>()
             .join("-");
-        Ok(HtmlName { name: name.to_ascii_lowercase(), span })
+        Ok(HtmlName {
+            name: name.to_ascii_lowercase(),
+            span,
+        })
     }
 }
 
