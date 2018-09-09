@@ -7,6 +7,7 @@ extern crate proc_macro2;
 extern crate syn;
 #[macro_use]
 extern crate quote;
+extern crate heck;
 
 use component::ComponentMeta;
 use html::HtmlRoot;

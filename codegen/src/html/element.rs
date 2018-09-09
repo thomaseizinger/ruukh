@@ -1,4 +1,5 @@
 use super::HtmlRoot;
+use heck::{CamelCase, KebabCase};
 use proc_macro2::{Span, TokenStream};
 use syn::parse::{Error, Parse, ParseStream, Result as ParseResult};
 use syn::punctuated::Punctuated;
@@ -48,11 +49,41 @@ impl Parse for NormalHtmlElement {
 
         let closing_tag: ClosingTag = input.parse()?;
 
-        if opening_tag.tag_name.name != closing_tag.tag_name.name {
-            return Err(Error::new(
-                closing_tag.tag_name.span,
-                "opening and closing tag must be same.",
-            ));
+        match (&opening_tag.tag_name, &closing_tag.tag_name) {
+            (
+                TagName::Tag { name: ref op, .. },
+                TagName::Tag {
+                    name: ref cl,
+                    ref span,
+                },
+            ) => {
+                if op != cl {
+                    return Err(Error::new(
+                        span.clone(),
+                        "opening and closing tag must be same.",
+                    ));
+                }
+            }
+            (TagName::Component { ident: ref op }, TagName::Component { ident: ref cl }) => {
+                if op != cl {
+                    return Err(Error::new(
+                        cl.span(),
+                        "opening and closing tag must be same.",
+                    ));
+                }
+            }
+            (_, TagName::Tag { ref span, .. }) => {
+                return Err(Error::new(
+                    span.clone(),
+                    "opening and closing tag must be same.",
+                ));
+            }
+            (_, TagName::Component { ref ident }) => {
+                return Err(Error::new(
+                    ident.span(),
+                    "opening and closing tag must be same.",
+                ));
+            }
         }
 
         Ok(NormalHtmlElement {
@@ -90,7 +121,7 @@ impl SelfClosingHtmlElement {
 
 pub struct OpeningTag {
     pub lt: Token![<],
-    pub tag_name: HtmlName,
+    pub tag_name: TagName,
     pub prop_attributes: Vec<HtmlAttribute>,
     pub event_attributes: Vec<HtmlAttribute>,
     pub gt: Token![>],
@@ -123,35 +154,39 @@ impl Parse for OpeningTag {
 
 impl OpeningTag {
     fn expand_with(&self, child: Option<TokenStream>) -> TokenStream {
-        let tag_name = &self.tag_name.name;
-        let prop_attributes: Vec<_> = self
-            .prop_attributes
-            .iter()
-            .map(|p| p.expand_as_prop_attribute().unwrap())
-            .collect();
-        let event_attributes: Vec<_> = self
-            .event_attributes
-            .iter()
-            .map(|e| e.expand_as_event_attribute().unwrap())
-            .collect();
+        match self.tag_name {
+            TagName::Tag { ref name, .. } => {
+                let prop_attributes: Vec<_> = self
+                    .prop_attributes
+                    .iter()
+                    .map(|p| p.expand_as_prop_attribute().unwrap())
+                    .collect();
+                let event_attributes: Vec<_> = self
+                    .event_attributes
+                    .iter()
+                    .map(|e| e.expand_as_event_attribute().unwrap())
+                    .collect();
 
-        if let Some(child) = child {
-            quote! {
-                ruukh::vdom::velement::VElement::new(
-                    #tag_name,
-                    vec![#(#prop_attributes),*],
-                    vec![#(#event_attributes),*],
-                    #child
-                )
+                if let Some(child) = child {
+                    quote! {
+                        ruukh::vdom::velement::VElement::new(
+                            #name,
+                            vec![#(#prop_attributes),*],
+                            vec![#(#event_attributes),*],
+                            #child
+                        )
+                    }
+                } else {
+                    quote! {
+                        ruukh::vdom::velement::VElement::childless(
+                            #name,
+                            vec![#(#prop_attributes),*],
+                            vec![#(#event_attributes),*]
+                        )
+                    }
+                }
             }
-        } else {
-            quote! {
-                ruukh::vdom::velement::VElement::childless(
-                    #tag_name,
-                    vec![#(#prop_attributes),*],
-                    vec![#(#event_attributes),*]
-                )
-            }
+            _ => unimplemented!(),
         }
     }
 }
@@ -159,7 +194,7 @@ impl OpeningTag {
 pub struct ClosingTag {
     pub lt: Token![<],
     pub slash: Token![/],
-    pub tag_name: HtmlName,
+    pub tag_name: TagName,
     pub gt: Token![>],
 }
 
@@ -176,7 +211,7 @@ impl Parse for ClosingTag {
 
 pub struct SelfClosingTag {
     pub lt: Token![<],
-    pub tag_name: HtmlName,
+    pub tag_name: TagName,
     pub prop_attributes: Vec<HtmlAttribute>,
     pub event_attributes: Vec<HtmlAttribute>,
     pub slash: Option<Token![/]>,
@@ -212,31 +247,35 @@ impl Parse for SelfClosingTag {
 
 impl SelfClosingTag {
     fn expand(&self) -> TokenStream {
-        let tag_name = &self.tag_name.name;
-        let prop_attributes: Vec<_> = self
-            .prop_attributes
-            .iter()
-            .map(|p| p.expand_as_prop_attribute().unwrap())
-            .collect();
-        let event_attributes: Vec<_> = self
-            .event_attributes
-            .iter()
-            .map(|e| e.expand_as_event_attribute().unwrap())
-            .collect();
+        match self.tag_name {
+            TagName::Tag { ref name, .. } => {
+                let prop_attributes: Vec<_> = self
+                    .prop_attributes
+                    .iter()
+                    .map(|p| p.expand_as_prop_attribute().unwrap())
+                    .collect();
+                let event_attributes: Vec<_> = self
+                    .event_attributes
+                    .iter()
+                    .map(|e| e.expand_as_event_attribute().unwrap())
+                    .collect();
 
-        quote! {
-            ruukh::vdom::velement::VElement::childless(
-                #tag_name,
-                vec![#(#prop_attributes),*],
-                vec![#(#event_attributes),*]
-            )
+                quote! {
+                    ruukh::vdom::velement::VElement::childless(
+                        #name,
+                        vec![#(#prop_attributes),*],
+                        vec![#(#event_attributes),*]
+                    )
+                }
+            }
+            _ => unimplemented!(),
         }
     }
 }
 
 pub struct HtmlAttribute {
     pub at: Option<Token![@]>,
-    pub key: HtmlName,
+    pub key: AttributeName,
     pub eq: Token![=],
     pub brace: token::Brace,
     pub value: Expr,
@@ -281,28 +320,79 @@ impl HtmlAttribute {
     }
 }
 
-pub struct HtmlName {
-    pub name: String,
-    pub span: Span,
+pub enum TagName {
+    Tag { name: String, span: Span },
+    Component { ident: Ident },
 }
 
-impl Parse for HtmlName {
+impl Parse for TagName {
     fn parse(input: ParseStream) -> ParseResult<Self> {
         let first_span = input.cursor().span();
-        let name = input.call(Punctuated::<Ident, Token![-]>::parse_separated_nonempty)?;
-        let span = name
+        let idents = input.call(Punctuated::<Ident, Token![-]>::parse_separated_nonempty)?;
+        let span = idents
             .iter()
             .map(|ident| ident.span())
             .fold(first_span, |acc, span| acc.join(span).unwrap());
-        let name = name
+        let mut idents = idents.into_iter().collect::<Vec<_>>();
+
+        let ident = idents.get(0).as_ref().unwrap().to_string();
+        if ident == ident.to_camel_case() {
+            if idents.len() != 1 {
+                return Err(Error::new(span, "no dashes in a component tag allowed."));
+            }
+            return Ok(TagName::Component {
+                ident: idents.swap_remove(0),
+            });
+        }
+
+        let tag_name = idents
             .into_iter()
             .map(|ident| ident.to_string())
             .collect::<Vec<_>>()
             .join("-");
-        Ok(HtmlName {
-            name: name.to_ascii_lowercase(),
+
+        let kebab_tag_name = tag_name.to_kebab_case();
+        if tag_name != kebab_tag_name {
+            return Err(Error::new(
+                span,
+                &format!("tag name in kebab case only like {}.", kebab_tag_name),
+            ));
+        }
+
+        Ok(TagName::Tag {
+            name: tag_name,
             span,
         })
+    }
+}
+
+pub struct AttributeName {
+    name: String,
+}
+
+impl Parse for AttributeName {
+    fn parse(input: ParseStream) -> ParseResult<Self> {
+        let first_span = input.cursor().span();
+        let idents = input.call(Punctuated::<Ident, Token![-]>::parse_separated_nonempty)?;
+        let span = idents
+            .iter()
+            .map(|ident| ident.span())
+            .fold(first_span, |acc, span| acc.join(span).unwrap());
+        let name = idents
+            .into_iter()
+            .map(|id| id.to_string())
+            .collect::<Vec<_>>()
+            .join("-");
+
+        let kebab_name = name.to_kebab_case();
+        if name != kebab_name {
+            return Err(Error::new(
+                span,
+                &format!("attribute name in kebab case only like {}.", kebab_name),
+            ));
+        }
+
+        Ok(AttributeName { name })
     }
 }
 
@@ -396,14 +486,24 @@ mod test {
     }
 
     #[test]
-    fn should_parse_single_html_name() {
-        let parsed: HtmlName = syn::parse_str("identifier").unwrap();
-        assert_eq!(parsed.name, "identifier");
+    fn should_parse_single_tag_name() {
+        let parsed: TagName = syn::parse_str("Identifier").unwrap();
+        match parsed {
+            TagName::Component { ident } => {
+                assert_eq!(ident, "Identifier");
+            }
+            _ => {}
+        }
     }
 
     #[test]
-    fn should_parse_dashed_html_name() {
-        let parsed: HtmlName = syn::parse_str("first-second-third").unwrap();
-        assert_eq!(parsed.name, "first-second-third");
+    fn should_parse_dashed_tag_name() {
+        let parsed: TagName = syn::parse_str("first-second-third").unwrap();
+        match parsed {
+            TagName::Tag { name, .. } => {
+                assert_eq!(name, "first-second-third");
+            }
+            _ => {}
+        }
     }
 }

@@ -25,9 +25,9 @@
 //!
 //! TEXT_CHAR -> /[^{}()[]]/
 //!
-//! DASHED_IDENT -> /[a-zA-Z][a-zA-Z0-9-]*[a-zA-Z0-9]/
+//! DASHED_IDENT -> IDENT-DASHED_IDENT | IDENT
 //!
-//! N.B. EPS is Epsilon & EXPR is expression in Rust code.
+//! N.B. EPS is Epsilon and IDENT & EXPR are Rust constructs.
 
 use self::element::HtmlElement;
 use proc_macro2::{Span, TokenStream, TokenTree};
