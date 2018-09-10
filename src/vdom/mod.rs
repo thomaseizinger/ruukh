@@ -17,6 +17,7 @@ pub mod vcomponent;
 pub mod velement;
 pub mod vlist;
 pub mod vtext;
+mod conversions;
 
 /// A virtual node in a virtual DOM tree.
 pub enum VNode<RCTX: Render> {
