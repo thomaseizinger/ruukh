@@ -201,12 +201,19 @@ impl OpeningTag {
                 } else {
                     quote! {
                         ruukh::vdom::vcomponent::VComponent::new::<#ident>(
-                            <#ident as Component>::Props::builder()
-                            #(#prop_attributes)*
-                            .__finish__(),
-                            <<#ident as Component>::Events as ruukh::component::EventsPair<Self>>::Other::builder()
-                            #(#event_attributes)*
-                            .__finish__(),
+                            ruukh::component::BuilderFinisher::finish(
+                                <<#ident as Component>
+                                    ::Props as ruukh::component::BuilderCreator>
+                                        ::builder()
+                                #(#prop_attributes)*
+                            ),
+                            ruukh::component::BuilderFinisher::finish(
+                                <<<#ident as Component>
+                                    ::Events as ruukh::component::EventsPair<Self>>
+                                        ::Other as ruukh::component::BuilderCreator>
+                                            ::builder()
+                                #(#event_attributes)*
+                            ),
                         )
                     }
                 }

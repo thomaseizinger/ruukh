@@ -1,6 +1,6 @@
+use vdom::VNode;
 use MessageSender;
 use Shared;
-use vdom::VNode;
 
 /// Trait to define a Component. You do not need to implement this trait.
 /// Use the auto derive provided as `#[derive(Component)]`.
@@ -30,7 +30,7 @@ pub trait Component: 'static {
     where
         Self::Events: EventsPair<RCTX>;
 
-    /// Updates the component with newer props and returns older props (if changed). 
+    /// Updates the component with newer props and returns older props (if changed).
     /// Also, sets the component as dirty (if props changed), so that the component
     /// is re-rendered.
     fn update<RCTX: Render>(
@@ -184,12 +184,36 @@ where
 ///     type Other = ButtonEvents<RCTX>;
 /// }
 /// ```
-/// 
+///
 /// The example is only for those who want to understand how the events work,
 /// not the users of this framework.
 pub trait EventsPair<T> {
     /// The generics pair of the `Self`.
     type Other;
+}
+
+/// Trait to create a new builder for `Self`.
+/// 
+/// Used to create `Props` and `Events` using builder pattern. This trait was
+/// introduced to abstract over type `()`.
+pub trait BuilderCreator: Sized {
+    /// The builder type.
+    type Builder: BuilderFinisher<Built = Self>;
+
+    /// Initialize a new builder.
+    fn builder() -> Self::Builder;
+}
+
+/// Trait to finish building `Self::Built`.
+/// 
+/// Used to create `Props` and `Events` using builder pattern. This trait was
+/// introduced to abstract over type `()`.
+pub trait BuilderFinisher: Sized {
+    /// The built type.
+    type Built: BuilderCreator<Builder = Self>;
+
+    /// Finish building and return the built type.
+    fn finish(self) -> Self::Built;
 }
 
 /// A void component to be used as a render context for a root component.
@@ -301,6 +325,22 @@ impl Render for RootParent {
 
 impl<RCTX: Render> EventsPair<RCTX> for () {
     type Other = ();
+}
+
+impl BuilderCreator for () {
+    type Builder = ();
+
+    fn builder() -> () {
+        ()
+    }
+}
+
+impl BuilderFinisher for () {
+    type Built = ();
+
+    fn finish(self) -> () {
+        self
+    }
 }
 
 #[cfg(test)]

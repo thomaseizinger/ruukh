@@ -512,8 +512,12 @@ impl PropsMeta {
                 #(#fields),*
             }
 
-            impl #impl_gen #ident #ty_gen #where_clause {
-                pub fn builder() -> #builder_ident #ty_gen {
+            impl #impl_gen ruukh::component::BuilderCreator for #ident #ty_gen 
+                #where_clause 
+            {
+                type Builder = #builder_ident #ty_gen;
+
+                fn builder() -> Self::Builder {
                     Default::default()
                 }
             }
@@ -525,9 +529,14 @@ impl PropsMeta {
 
             impl #impl_gen #builder_ident #ty_gen #where_clause {
                 #(#builder_assignment)*
+            }
 
-                // Underscored, so it is unlikely to colide with field names.
-                pub fn __finish__(self) -> #ident #ty_gen {
+            impl #impl_gen ruukh::component::BuilderFinisher for #builder_ident #ty_gen
+                #where_clause
+            {
+                type Built = #ident #ty_gen;
+
+                fn finish(self) -> Self::Built {
                     #ident {
                         #(#builder_finish_assignment),*
                     }
@@ -1047,8 +1056,10 @@ impl EventsMeta {
                 #(#gen_fields),*
             }
 
-            impl<RCTX: Render> #gen_ident<RCTX> {
-                pub fn builder() -> #builder_ident<RCTX> {
+            impl<RCTX: Render> ruukh::component::BuilderCreator for #gen_ident<RCTX> {
+                type Builder = #builder_ident<RCTX>;
+
+                fn builder() -> Self::Builder {
                     Default::default()
                 }
             }
@@ -1073,9 +1084,12 @@ impl EventsMeta {
 
             impl<RCTX: Render> #builder_ident<RCTX> {
                 #(#builder_assignment)*
+            }
 
-                // Underscored, so it is unlikely to colide with event names.
-                pub fn __finish__(self) -> #gen_ident<RCTX> {
+            impl<RCTX: Render> ruukh::component::BuilderFinisher for #builder_ident<RCTX> {
+                type Built = #gen_ident<RCTX>;
+
+                fn finish(self) -> Self::Built {
                     #gen_ident {
                         #(#builder_finish_assignment),*
                     }
