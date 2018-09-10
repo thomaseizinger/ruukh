@@ -4,7 +4,6 @@
 
 use component::Render;
 use std::borrow::Cow;
-use vdom::vlist::VList;
 use vdom::vtext::VText;
 use vdom::VNode;
 
