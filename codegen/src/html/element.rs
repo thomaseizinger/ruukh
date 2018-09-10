@@ -49,41 +49,38 @@ impl Parse for NormalHtmlElement {
 
         let closing_tag: ClosingTag = input.parse()?;
 
-        match (&opening_tag.tag_name, &closing_tag.tag_name) {
+        let err_span = match (&opening_tag.tag_name, &closing_tag.tag_name) {
             (
-                TagName::Tag { name: ref op, .. },
+                TagName::Tag {
+                    name: ref op,
+                    span: ref op_span,
+                },
                 TagName::Tag {
                     name: ref cl,
-                    ref span,
+                    span: ref cl_span,
                 },
             ) => {
                 if op != cl {
-                    return Err(Error::new(
-                        span.clone(),
-                        "opening and closing tag must be same.",
-                    ));
+                    op_span.join(cl_span.clone())
+                } else {
+                    None
                 }
             }
             (TagName::Component { ident: ref op }, TagName::Component { ident: ref cl }) => {
                 if op != cl {
-                    return Err(Error::new(
-                        cl.span(),
-                        "opening and closing tag must be same.",
-                    ));
+                    op.span().join(cl.span())
+                } else {
+                    None
                 }
             }
-            (_, TagName::Tag { ref span, .. }) => {
-                return Err(Error::new(
-                    span.clone(),
-                    "opening and closing tag must be same.",
-                ));
+            (TagName::Component { ref ident }, TagName::Tag { ref span, .. })
+            | (TagName::Tag { ref span, .. }, TagName::Component { ref ident }) => {
+                span.join(ident.span())
             }
-            (_, TagName::Component { ref ident }) => {
-                return Err(Error::new(
-                    ident.span(),
-                    "opening and closing tag must be same.",
-                ));
-            }
+        };
+
+        if let Some(span) = err_span {
+            return Err(Error::new(span, "opening and closing tag must be same."));
         }
 
         Ok(NormalHtmlElement {
