@@ -101,8 +101,10 @@ impl HtmlItem {
                     ruukh::vdom::VNode::new(#expanded)
                 }
             }
-            HtmlItem::ExpressionBlock(_) => {
-                unimplemented!("Need to implement a mechanism to convert types into VNode");
+            HtmlItem::ExpressionBlock(ref block) => {
+                quote! {
+                    ruukh::vdom::VNode::new(#block)
+                }
             }
             HtmlItem::Text(ref text) => {
                 let string = &text.content;
