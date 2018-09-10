@@ -183,7 +183,34 @@ impl OpeningTag {
                     }
                 }
             }
-            _ => unimplemented!(),
+            TagName::Component { ref ident } => {
+                let prop_attributes: Vec<_> = self
+                    .prop_attributes
+                    .iter()
+                    .map(|p| p.expand_as_prop_setter().unwrap())
+                    .collect();
+
+                let event_attributes: Vec<_> = self
+                    .event_attributes
+                    .iter()
+                    .map(|e| e.expand_as_event_setter().unwrap())
+                    .collect();
+
+                if let Some(_) = child {
+                    unimplemented!("Need to decide how to pass the child.")
+                } else {
+                    quote! {
+                        ruukh::vdom::vcomponent::VComponent::new::<#ident>(
+                            <#ident as Component>::Props::builder()
+                            #(#prop_attributes)*
+                            .__finish__(),
+                            <<#ident as Component>::Events as ruukh::component::EventsPair<Self>>::Other::builder()
+                            #(#event_attributes)*
+                            .__finish__(),
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -313,6 +340,30 @@ impl HtmlAttribute {
 
         Some(quote! {
             ruukh::vdom::velement::EventListener::new(#key, Box::new(#value))
+        })
+    }
+
+    fn expand_as_prop_setter(&self) -> Option<TokenStream> {
+        if self.at.is_some() {
+            return None;
+        }
+        let key = Ident::new(&self.key.name, Span::call_site());
+        let value = &self.value;
+
+        Some(quote! {
+            .#key(#value)
+        })
+    }
+
+    fn expand_as_event_setter(&self) -> Option<TokenStream> {
+        if self.at.is_none() {
+            return None;
+        }
+        let key = Ident::new(&self.key.name, Span::call_site());
+        let value = &self.value;
+
+        Some(quote! {
+            .#key(Box::new(#value))
         })
     }
 }
