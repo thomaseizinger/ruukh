@@ -268,7 +268,7 @@ impl SelfClosingTag {
                     )
                 }
             }
-            _ => unimplemented!(),
+            _ => unreachable!("The spec specified self-closing tags are the only ones allowed."),
         }
     }
 }
