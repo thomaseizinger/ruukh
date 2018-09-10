@@ -153,10 +153,7 @@ pub trait Lifecycle: Component {
 }
 
 /// Trait to render a view for the component.
-pub trait Render: Lifecycle
-where
-    Self: Sized,
-{
+pub trait Render: Lifecycle + Sized {
     #[allow(missing_docs)]
     fn render(&self) -> VNode<Self>;
 }
@@ -193,7 +190,7 @@ pub trait EventsPair<T> {
 }
 
 /// Trait to create a new builder for `Self`.
-/// 
+///
 /// Used to create `Props` and `Events` using builder pattern. This trait was
 /// introduced to abstract over type `()`.
 pub trait BuilderCreator: Sized {
@@ -205,7 +202,7 @@ pub trait BuilderCreator: Sized {
 }
 
 /// Trait to finish building `Self::Built`.
-/// 
+///
 /// Used to create `Props` and `Events` using builder pattern. This trait was
 /// introduced to abstract over type `()`.
 pub trait BuilderFinisher: Sized {
