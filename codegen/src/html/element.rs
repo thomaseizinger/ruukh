@@ -40,21 +40,14 @@ impl HtmlElement {
 
 pub struct NormalHtmlElement {
     pub opening_tag: OpeningTag,
-    pub child: Option<Box<HtmlRoot>>,
+    pub child: Box<HtmlRoot>,
     pub closing_tag: ClosingTag,
 }
 
 impl Parse for NormalHtmlElement {
     fn parse(input: ParseStream) -> ParseResult<Self> {
         let opening_tag: OpeningTag = input.parse()?;
-
-        // Check if this tag is closed next.
-        let child: Option<HtmlRoot> = if input.peek(Token![<]) && input.peek2(Token![/]) {
-            None
-        } else {
-            Some(input.parse()?)
-        };
-
+        let child = input.parse()?;
         let closing_tag: ClosingTag = input.parse()?;
 
         let err_span = match (&opening_tag.tag_name, &closing_tag.tag_name) {
@@ -93,7 +86,7 @@ impl Parse for NormalHtmlElement {
 
         Ok(NormalHtmlElement {
             opening_tag,
-            child: child.map(|c| Box::new(c)),
+            child,
             closing_tag,
         })
     }
@@ -101,7 +94,7 @@ impl Parse for NormalHtmlElement {
 
 impl NormalHtmlElement {
     fn expand(&self) -> TokenStream {
-        let child_expanded = self.child.as_ref().map(|c| c.expand());
+        let child_expanded = self.child.expand();
         self.opening_tag.expand_with(child_expanded)
     }
 
@@ -173,7 +166,7 @@ impl Parse for OpeningTag {
 }
 
 impl OpeningTag {
-    fn expand_with(&self, child: Option<TokenStream>) -> TokenStream {
+    fn expand_with(&self, child: TokenStream) -> TokenStream {
         match self.tag_name {
             TagName::Tag { ref name, .. } => {
                 let prop_attributes: Vec<_> = self
@@ -187,23 +180,13 @@ impl OpeningTag {
                     .map(|e| e.expand_as_event_attribute().unwrap())
                     .collect();
 
-                if let Some(child) = child {
-                    quote! {
-                        ruukh::vdom::velement::VElement::new(
-                            #name,
-                            vec![#(#prop_attributes),*],
-                            vec![#(#event_attributes),*],
-                            #child
-                        )
-                    }
-                } else {
-                    quote! {
-                        ruukh::vdom::velement::VElement::childless(
-                            #name,
-                            vec![#(#prop_attributes),*],
-                            vec![#(#event_attributes),*]
-                        )
-                    }
+                quote! {
+                    ruukh::vdom::velement::VElement::new(
+                        #name,
+                        vec![#(#prop_attributes),*],
+                        vec![#(#event_attributes),*],
+                        #child
+                    )
                 }
             }
             TagName::Component { ref ident } => {
@@ -219,26 +202,22 @@ impl OpeningTag {
                     .map(|e| e.expand_as_event_setter().unwrap())
                     .collect();
 
-                if let Some(_) = child {
-                    unimplemented!("Need to decide how to pass the child.")
-                } else {
-                    quote! {
-                        ruukh::vdom::vcomponent::VComponent::new::<#ident>(
-                            ruukh::component::BuilderFinisher::finish(
-                                <<#ident as Component>
-                                    ::Props as ruukh::component::BuilderCreator>
+                quote! {
+                    ruukh::vdom::vcomponent::VComponent::new::<#ident>(
+                        ruukh::component::BuilderFinisher::finish(
+                            <<#ident as Component>
+                                ::Props as ruukh::component::BuilderCreator>
+                                    ::builder()
+                            #(#prop_attributes)*
+                        ),
+                        ruukh::component::BuilderFinisher::finish(
+                            <<<#ident as Component>
+                                ::Events as ruukh::component::EventsPair<Self>>
+                                    ::Other as ruukh::component::BuilderCreator>
                                         ::builder()
-                                #(#prop_attributes)*
-                            ),
-                            ruukh::component::BuilderFinisher::finish(
-                                <<<#ident as Component>
-                                    ::Events as ruukh::component::EventsPair<Self>>
-                                        ::Other as ruukh::component::BuilderCreator>
-                                            ::builder()
-                                #(#event_attributes)*
-                            ),
-                        )
-                    }
+                            #(#event_attributes)*
+                        ),
+                    )
                 }
             }
         }
