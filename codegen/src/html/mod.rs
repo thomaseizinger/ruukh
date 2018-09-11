@@ -36,6 +36,7 @@ use syn::token;
 use syn::Block as RustExpressionBlock;
 
 mod element;
+mod kw;
 
 pub struct HtmlRoot {
     pub items: Vec<HtmlItem>,
