@@ -20,7 +20,7 @@ pub struct VElement<RCTX: Render> {
     /// Event listeners to the DOM events
     event_listeners: EventListeners<RCTX>,
     /// The child node of the given element
-    child: Option<Box<VNode<RCTX>>>,
+    child: Box<VNode<RCTX>>,
     /// Element reference to the DOM
     node: Option<Element>,
 }
@@ -72,7 +72,7 @@ impl<RCTX: Render> VElement<RCTX> {
                         listener
                     }).collect(),
             ),
-            child: Some(Box::new(child)),
+            child: Box::new(child),
             node: None,
         }
     }
@@ -94,7 +94,7 @@ impl<RCTX: Render> VElement<RCTX> {
                         listener
                     }).collect(),
             ),
-            child: None,
+            child: Box::new(VNode::None),
             node: None,
         }
     }
@@ -136,7 +136,7 @@ impl<RCTX: Render> Display for VElement<RCTX> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         if VOID_TAGS.contains(&self.tag) {
             write!(f, "<{}{}>", self.tag, self.attributes)?;
-            if self.child.is_some() {
+            if !self.child.is_none() {
                 panic!(
                     "Element with a void tag `{}` cannot have a child.",
                     self.tag
@@ -145,22 +145,13 @@ impl<RCTX: Render> Display for VElement<RCTX> {
                 Ok(())
             }
         } else {
-            if let Some(ref child) = self.child {
-                write!(
-                    f,
-                    "<{tag}{attributes}>{child}</{tag}>",
-                    tag = self.tag,
-                    attributes = self.attributes,
-                    child = child
-                )
-            } else {
-                write!(
-                    f,
-                    "<{tag}{attributes}></{tag}>",
-                    tag = self.tag,
-                    attributes = self.attributes
-                )
-            }
+            write!(
+                f,
+                "<{tag}{attributes}>{child}</{tag}>",
+                tag = self.tag,
+                attributes = self.attributes,
+                child = self.child
+            )
         }
     }
 }
@@ -194,9 +185,8 @@ impl<RCTX: Render> VElement<RCTX> {
             .patch(None, &el, None, render_ctx.clone(), rx_sender.clone())?;
         self.event_listeners
             .patch(None, &el, None, render_ctx.clone(), rx_sender.clone())?;
-        if let Some(ref mut child) = self.child {
-            child.patch(None, el.as_ref(), None, render_ctx, rx_sender)?;
-        }
+        self.child
+            .patch(None, el.as_ref(), None, render_ctx, rx_sender)?;
         if let Some(next) = next {
             parent.insert_before(el.as_ref(), next)?;
         } else {
@@ -217,14 +207,12 @@ impl<RCTX: Render> DOMPatch<RCTX> for VElement<RCTX> {
         render_ctx: Shared<RCTX>,
         rx_sender: MessageSender,
     ) -> Result<(), JsValue> {
-        if let Some(ref mut child) = self.child {
-            let node = self
-                .node
-                .as_ref()
-                .expect("The element itself must be patched before rendering the child");
-            child.render_walk(node.as_ref(), None, render_ctx, rx_sender)?;
-        }
-        Ok(())
+        let node = self
+            .node
+            .as_ref()
+            .expect("The element itself must be patched before rendering the child");
+        self.child
+            .render_walk(node.as_ref(), None, render_ctx, rx_sender)
     }
 
     fn patch(
@@ -254,15 +242,14 @@ impl<RCTX: Render> DOMPatch<RCTX> for VElement<RCTX> {
                     render_ctx.clone(),
                     rx_sender.clone(),
                 )?;
-                if let Some(ref mut child) = self.child {
-                    child.patch(
-                        old.child.map(|bx| *bx),
-                        old_el.as_ref(),
-                        None,
-                        render_ctx.clone(),
-                        rx_sender,
-                    )?;
-                }
+                self.child.patch(
+                    Some(*old.child),
+                    old_el.as_ref(),
+                    None,
+                    render_ctx.clone(),
+                    rx_sender,
+                )?;
+
                 self.node = Some(old_el);
                 Ok(())
             } else {
@@ -294,9 +281,7 @@ impl<RCTX: Render> DOMRemove for VElement<RCTX> {
         let el = self
             .node
             .expect("The old node is expected to be attached to the DOM");
-        if let Some(child) = self.child {
-            child.remove(el.as_ref())?;
-        }
+        self.child.remove(el.as_ref())?;
         self.attributes.remove(&el)?;
         parent.remove_child(el.as_ref())?;
         Ok(())
@@ -487,12 +472,8 @@ mod test {
 
     #[test]
     fn should_display_a_button_with_text() {
-        let button = VElement::<()>::new(
-            "button",
-            vec![],
-            vec![],
-            VNode::new(VText::text("Click")),
-        );
+        let button =
+            VElement::<()>::new("button", vec![], vec![], VNode::new(VText::text("Click")));
         assert_eq!(format!("{}", button), "<button>Click</button>");
     }
 

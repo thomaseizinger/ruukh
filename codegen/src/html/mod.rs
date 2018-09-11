@@ -106,7 +106,9 @@ impl HtmlRoot {
     pub fn expand(&self) -> TokenStream {
         let expanded: Vec<_> = self.items.iter().map(|i| i.expand()).collect();
         if self.flat_len == 0 {
-            quote!()
+            quote! {
+                ruukh::vdom::VNode::None
+            }
         } else if self.flat_len == 1 || self.keyed_only {
             quote! {
                 #(#expanded)*
