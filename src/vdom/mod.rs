@@ -29,12 +29,22 @@ pub enum VNode<RCTX: Render> {
     List(VList<RCTX>),
     /// A component vnode
     Component(VComponent<RCTX>),
+    /// The empty variant
+    None
 }
 
 impl<RCTX: Render> VNode<RCTX> {
     /// Construct a new VNode from one of its constituent Node types.
     pub fn new<T: Into<VNode<RCTX>>>(node: T) -> VNode<RCTX> {
         node.into()
+    }
+
+    /// Whether the VNode is of `None` variant. 
+    pub fn is_none(&self) -> bool {
+        match self {
+            VNode::None => true,
+            _ => false
+        }
     }
 }
 
@@ -45,6 +55,7 @@ impl<RCTX: Render> Display for VNode<RCTX> {
             VNode::Element(inner) => write!(f, "{}", inner),
             VNode::List(inner) => write!(f, "{}", inner),
             VNode::Component(inner) => write!(f, "{}", inner),
+            VNode::None => Ok(())
         }
     }
 }
@@ -86,6 +97,7 @@ impl<RCTX: Render> DOMPatch<RCTX> for VNode<RCTX> {
             VNode::List(ref mut list) => list.render_walk(parent, next, render_ctx, rx_sender),
             VNode::Component(ref mut comp) => comp.render_walk(parent, next, render_ctx, rx_sender),
             VNode::Text(_) => Ok(()),
+            VNode::None => Ok(())
         }
     }
 
@@ -110,6 +122,12 @@ impl<RCTX: Render> DOMPatch<RCTX> for VNode<RCTX> {
             VNode::Component(ref mut new_comp) => {
                 patch!(Component => new_comp, old, parent, next, render_ctx, rx_sender)
             }
+            VNode::None => {
+                if let Some(old) = old {
+                    old.remove(parent)?;
+                }
+                Ok(())
+            }
         }
     }
 }
@@ -121,6 +139,7 @@ impl<RCTX: Render> DOMReorder for VNode<RCTX> {
             VNode::Element(el) => el.reorder(parent, next),
             VNode::List(li) => li.reorder(parent, next),
             VNode::Component(comp) => comp.reorder(parent, next),
+            VNode::None => Ok(())
         }
     }
 }
@@ -134,6 +153,7 @@ impl<RCTX: Render> DOMRemove for VNode<RCTX> {
             VNode::Element(el) => el.remove(parent),
             VNode::List(li) => li.remove(parent),
             VNode::Component(comp) => comp.remove(parent),
+            VNode::None => Ok(())
         }
     }
 }
@@ -145,6 +165,7 @@ impl<RCTX: Render> DOMInfo for VNode<RCTX> {
             VNode::Element(el) => el.node(),
             VNode::List(li) => li.node(),
             VNode::Component(comp) => comp.node(),
+            VNode::None => None
         }
     }
 }
