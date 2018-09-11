@@ -1,3 +1,4 @@
+use super::kw;
 use super::HtmlRoot;
 use heck::{CamelCase, KebabCase};
 use proc_macro2::{Span, TokenStream};
@@ -26,6 +27,13 @@ impl HtmlElement {
         match self {
             HtmlElement::Normal(ref normal) => normal.expand(),
             HtmlElement::SelfClosing(ref self_closing) => self_closing.expand(),
+        }
+    }
+
+    pub fn key(&self) -> Option<&KeyAttribute> {
+        match self {
+            HtmlElement::Normal(ref el) => el.key(),
+            HtmlElement::SelfClosing(ref el) => el.key(),
         }
     }
 }
@@ -96,6 +104,10 @@ impl NormalHtmlElement {
         let child_expanded = self.child.as_ref().map(|c| c.expand());
         self.opening_tag.expand_with(child_expanded)
     }
+
+    pub fn key(&self) -> Option<&KeyAttribute> {
+        self.opening_tag.key.as_ref()
+    }
 }
 
 pub struct SelfClosingHtmlElement {
@@ -114,11 +126,16 @@ impl SelfClosingHtmlElement {
     fn expand(&self) -> TokenStream {
         self.tag.expand()
     }
+
+    pub fn key(&self) -> Option<&KeyAttribute> {
+        self.tag.key.as_ref()
+    }
 }
 
 pub struct OpeningTag {
     pub lt: Token![<],
     pub tag_name: TagName,
+    pub key: Option<KeyAttribute>,
     pub prop_attributes: Vec<HtmlAttribute>,
     pub event_attributes: Vec<HtmlAttribute>,
     pub gt: Token![>],
@@ -128,10 +145,15 @@ impl Parse for OpeningTag {
     fn parse(input: ParseStream) -> ParseResult<Self> {
         let lt = input.parse()?;
         let tag_name = input.parse()?;
+        let mut key = None;
 
         let mut attributes: Vec<HtmlAttribute> = vec![];
         while !input.peek(Token![>]) {
-            attributes.push(input.parse()?);
+            if input.peek(kw::key) {
+                key = Some(input.parse()?);
+            } else {
+                attributes.push(input.parse()?);
+            }
         }
 
         let gt = input.parse()?;
@@ -142,6 +164,7 @@ impl Parse for OpeningTag {
         Ok(OpeningTag {
             lt,
             tag_name,
+            key,
             prop_attributes,
             event_attributes,
             gt,
@@ -243,6 +266,7 @@ impl Parse for ClosingTag {
 pub struct SelfClosingTag {
     pub lt: Token![<],
     pub tag_name: TagName,
+    pub key: Option<KeyAttribute>,
     pub prop_attributes: Vec<HtmlAttribute>,
     pub event_attributes: Vec<HtmlAttribute>,
     pub slash: Option<Token![/]>,
@@ -253,10 +277,15 @@ impl Parse for SelfClosingTag {
     fn parse(input: ParseStream) -> ParseResult<Self> {
         let lt = input.parse()?;
         let tag_name = input.parse()?;
+        let mut key = None;
 
         let mut attributes: Vec<HtmlAttribute> = vec![];
         while !input.peek(Token![/]) && !input.peek(Token![>]) {
-            attributes.push(input.parse()?);
+            if input.peek(kw::key) {
+                key = Some(input.parse()?);
+            } else {
+                attributes.push(input.parse()?);
+            }
         }
 
         let slash = input.parse()?;
@@ -268,6 +297,7 @@ impl Parse for SelfClosingTag {
         Ok(SelfClosingTag {
             lt,
             tag_name,
+            key,
             prop_attributes,
             event_attributes,
             slash,
@@ -300,6 +330,34 @@ impl SelfClosingTag {
                 }
             }
             _ => unreachable!("The spec specified self-closing tags are the only ones allowed."),
+        }
+    }
+}
+
+pub struct KeyAttribute {
+    pub key: kw::key,
+    pub eq: Token![=],
+    pub brace: token::Brace,
+    pub value: Expr,
+}
+
+impl Parse for KeyAttribute {
+    fn parse(input: ParseStream) -> ParseResult<Self> {
+        let content;
+        Ok(KeyAttribute {
+            key: input.parse()?,
+            eq: input.parse()?,
+            brace: braced!(content in input),
+            value: content.parse()?,
+        })
+    }
+}
+
+impl KeyAttribute {
+    pub fn expand(&self) -> TokenStream {
+        let value = &self.value;
+        quote! {
+            ruukh::vdom::Key::new(#value)
         }
     }
 }
