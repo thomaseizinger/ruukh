@@ -104,7 +104,7 @@ impl<RCTX: Render> DOMPatch<RCTX> for VList<RCTX> {
                     }
                 }
 
-                next = vnode.node();
+                next = vnode.node().or(next);
             }
 
             // Remove all the remaining ones.
@@ -112,7 +112,7 @@ impl<RCTX: Render> DOMPatch<RCTX> for VList<RCTX> {
         } else {
             for (_, vnode) in self.0.iter_mut().rev() {
                 vnode.patch(None, parent, next, render_ctx.clone(), rx_sender.clone())?;
-                next = vnode.node();
+                next = vnode.node().or(next);
             }
         }
         Ok(())
