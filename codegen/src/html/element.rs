@@ -29,6 +29,13 @@ impl HtmlElement {
             HtmlElement::SelfClosing(ref self_closing) => self_closing.expand(),
         }
     }
+
+    pub fn key(&self) -> Option<&KeyAttribute> {
+        match self {
+            HtmlElement::Normal(ref el) => el.key(),
+            HtmlElement::SelfClosing(ref el) => el.key(),
+        }
+    }
 }
 
 pub struct NormalHtmlElement {
@@ -97,6 +104,10 @@ impl NormalHtmlElement {
         let child_expanded = self.child.as_ref().map(|c| c.expand());
         self.opening_tag.expand_with(child_expanded)
     }
+
+    pub fn key(&self) -> Option<&KeyAttribute> {
+        self.opening_tag.key.as_ref()
+    }
 }
 
 pub struct SelfClosingHtmlElement {
@@ -114,6 +125,10 @@ impl Parse for SelfClosingHtmlElement {
 impl SelfClosingHtmlElement {
     fn expand(&self) -> TokenStream {
         self.tag.expand()
+    }
+
+    pub fn key(&self) -> Option<&KeyAttribute> {
+        self.tag.key.as_ref()
     }
 }
 
@@ -335,6 +350,15 @@ impl Parse for KeyAttribute {
             brace: braced!(content in input),
             value: content.parse()?,
         })
+    }
+}
+
+impl KeyAttribute {
+    pub fn expand(&self) -> TokenStream {
+        let value = &self.value;
+        quote! {
+            ruukh::vdom::Key::new(#value)
+        }
     }
 }
 

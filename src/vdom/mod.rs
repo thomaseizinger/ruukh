@@ -161,6 +161,13 @@ pub enum Key {
     String(String),
 }
 
+impl Key {
+    /// Construct a new Key by passing any of the `Key` types.
+    pub fn new<T: Into<Key>>(val: T) -> Key {
+        val.into()
+    }
+}
+
 macro_rules! convert {
     ([$($f:ty),*] to I64) => {
         $(

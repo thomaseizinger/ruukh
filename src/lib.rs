@@ -8,6 +8,7 @@ extern crate wasm_bindgen;
 extern crate wasm_bindgen_test;
 
 use component::{Render, RootParent};
+pub use indexmap::IndexMap;
 use std::cell::{Ref, RefCell, RefMut};
 use std::rc::Rc;
 use vdom::vcomponent::{ComponentManager, ComponentWrapper};
@@ -66,7 +67,7 @@ where
     }
 
     /// Mounts the app on the given element in the DOM.
-    /// 
+    ///
     /// Be careful to return the `ReactiveApp` to the JS side because we want our
     /// app to live for 'static lifetimes (i.e. As long as the browser/tab runs).
     ///

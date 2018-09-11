@@ -29,7 +29,7 @@
 //!
 //! N.B. EPS is Epsilon and IDENT & EXPR are Rust constructs.
 
-use self::element::HtmlElement;
+use self::element::{HtmlElement, KeyAttribute};
 use proc_macro2::{Span, TokenStream, TokenTree};
 use syn::parse::{Parse, ParseStream, Result as ParseResult};
 use syn::token;
@@ -39,29 +39,75 @@ mod element;
 mod kw;
 
 pub struct HtmlRoot {
-    pub items: Vec<HtmlItem>,
+    pub items: Vec<HtmlItems>,
+    pub flat_len: usize,
+    pub keyed_only: bool,
 }
 
 impl Parse for HtmlRoot {
     fn parse(input: ParseStream) -> ParseResult<Self> {
-        let mut items = vec![];
+        let mut ungrouped_items: Vec<HtmlItem> = vec![];
         while !input.is_empty() {
             // Encounters an end tag.
             if input.peek(Token![<]) && input.peek2(Token![/]) {
                 break;
             }
-            items.push(input.parse()?);
+            ungrouped_items.push(input.parse()?);
         }
-        Ok(HtmlRoot { items })
+
+        let flat_len = ungrouped_items.len();
+        let mut keyed_only = true;
+        // Unflatten the items into their own seggregated list of keyed & unkeyed
+        // items while still maintaining order.
+        let mut items = vec![];
+        let mut keyed = vec![];
+        let mut unkeyed = vec![];
+        for item in ungrouped_items {
+            if item.key().is_some() {
+                // If there were unkeyed ones before push them first to maintain order.
+                if !unkeyed.is_empty() {
+                    items.push(HtmlItems::Unkeyed(unkeyed));
+                    unkeyed = vec![];
+                }
+
+                keyed.push(item);
+            } else {
+                if keyed_only {
+                    keyed_only = false;
+                }
+
+                // If there were keyed ones before push them first to maintain order.
+                if !keyed.is_empty() {
+                    items.push(HtmlItems::Keyed(keyed));
+                    keyed = vec![];
+                }
+
+                unkeyed.push(item);
+            }
+        }
+
+        // Push in the remaining ones.
+        if !keyed.is_empty() {
+            items.push(HtmlItems::Keyed(keyed));
+        }
+        if !unkeyed.is_empty() {
+            items.push(HtmlItems::Unkeyed(unkeyed));
+        }
+
+        Ok(HtmlRoot {
+            items,
+            flat_len,
+            keyed_only,
+        })
     }
 }
 
 impl HtmlRoot {
     pub fn expand(&self) -> TokenStream {
         let expanded: Vec<_> = self.items.iter().map(|i| i.expand()).collect();
-        if expanded.is_empty() {
+        if self.flat_len == 0 {
             quote!()
-        } else if self.items.len() == 1 {
+        } else if self.flat_len == 1 || self.keyed_only {
             quote! {
                 #(#expanded)*
             }
@@ -70,6 +116,34 @@ impl HtmlRoot {
                 ruukh::vdom::VNode::new(ruukh::vdom::vlist::VList::new(vec![
                     #(#expanded),*
                 ]))
+            }
+        }
+    }
+}
+
+pub enum HtmlItems {
+    Keyed(Vec<HtmlItem>),
+    Unkeyed(Vec<HtmlItem>),
+}
+
+impl HtmlItems {
+    fn expand(&self) -> TokenStream {
+        match self {
+            HtmlItems::Keyed(ref items) => {
+                let expanded: Vec<_> = items.iter().map(HtmlItem::expand).collect();
+                quote! {
+                    ruukh::vdom::VNode::new(ruukh::vdom::vlist::VList::new({
+                        let mut map = ruukh::IndexMap::new();
+                        #(map.insert(#expanded);)*
+                        map
+                    }))
+                }
+            }
+            HtmlItems::Unkeyed(ref items) => {
+                let expanded: Vec<_> = items.iter().map(HtmlItem::expand).collect();
+                quote! {
+                    #(#expanded),*
+                }
             }
         }
     }
@@ -95,7 +169,7 @@ impl Parse for HtmlItem {
 
 impl HtmlItem {
     fn expand(&self) -> TokenStream {
-        match self {
+        let expanded = match self {
             HtmlItem::Element(ref element) => {
                 let expanded = element.expand();
                 quote! {
@@ -113,6 +187,22 @@ impl HtmlItem {
                     ruukh::vdom::VNode::new(ruukh::vdom::vtext::VText::text(#string))
                 }
             }
+        };
+
+        if let Some(key) = self.key() {
+            let key_expanded = key.expand();
+            quote! {
+                #key_expanded, #expanded 
+            }
+        } else {
+            expanded
+        }
+    }
+
+    fn key(&self) -> Option<&KeyAttribute> {
+        match self {
+            HtmlItem::Element(ref el) => el.key(),
+            _ => None,
         }
     }
 }
