@@ -136,7 +136,10 @@ impl HtmlItems {
                 let capacity = expanded.len();
                 quote! {
                     ruukh::vdom::VNode::new(ruukh::vdom::vlist::VList::new({
-                        let mut map = ruukh::IndexMap::with_capacity(#capacity);
+                        let mut map = ruukh::IndexMap::with_capacity_and_hasher(
+                            #capacity,
+                            ruukh::FnvBuildHasher::default()
+                        );
                         #(map.insert(#expanded);)*
                         map
                     }))

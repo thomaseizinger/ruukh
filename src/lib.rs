@@ -1,6 +1,7 @@
 #![deny(missing_docs)]
 //! The Ruukh framework
 
+extern crate fnv;
 extern crate indexmap;
 extern crate ruukh_codegen;
 extern crate wasm_bindgen;
@@ -8,6 +9,7 @@ extern crate wasm_bindgen;
 extern crate wasm_bindgen_test;
 
 use component::{Render, RootParent};
+pub use fnv::FnvBuildHasher;
 pub use indexmap::IndexMap;
 use std::cell::{Ref, RefCell, RefMut};
 use std::rc::Rc;

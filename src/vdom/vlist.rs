@@ -2,6 +2,7 @@
 
 use component::Render;
 use dom::{DOMInfo, DOMPatch, DOMRemove, DOMReorder};
+use fnv::FnvBuildHasher;
 use indexmap::IndexMap;
 use std::collections::HashSet;
 use std::fmt::{self, Display, Formatter};
@@ -13,7 +14,7 @@ use MessageSender;
 use Shared;
 
 /// The representation of a list of vnodes in the vtree.
-pub struct VList<RCTX: Render>(IndexMap<Key, VNode<RCTX>>);
+pub struct VList<RCTX: Render>(IndexMap<Key, VNode<RCTX>, FnvBuildHasher>);
 
 impl<RCTX: Render> VList<RCTX> {
     /// Constructor to create a list of VNodes.
@@ -40,8 +41,8 @@ impl<RCTX: Render> From<Vec<VNode<RCTX>>> for VList<RCTX> {
     }
 }
 
-impl<RCTX: Render> From<IndexMap<Key, VNode<RCTX>>> for VList<RCTX> {
-    fn from(map: IndexMap<Key, VNode<RCTX>>) -> Self {
+impl<RCTX: Render> From<IndexMap<Key, VNode<RCTX>, FnvBuildHasher>> for VList<RCTX> {
+    fn from(map: IndexMap<Key, VNode<RCTX>, FnvBuildHasher>) -> Self {
         VList(map)
     }
 }
@@ -84,7 +85,7 @@ impl<RCTX: Render> DOMPatch<RCTX> for VList<RCTX> {
         let mut next = next;
         if let Some(old) = old {
             // Collect the keys of alive nodes from old vlist.
-            let mut alive_keys = HashSet::new();
+            let mut alive_keys = HashSet::with_hasher(FnvBuildHasher::default());
 
             for (index, (key, vnode)) in self.0.iter_mut().enumerate().rev() {
                 // Patch the old vnode if found.
