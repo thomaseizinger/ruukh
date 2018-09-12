@@ -3,7 +3,7 @@
 use component::Render;
 use dom::{DOMInfo, DOMPatch, DOMRemove, DOMReorder};
 use indexmap::IndexMap;
-use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fmt::{self, Display, Formatter};
 use vdom::Key;
 use vdom::VNode;
@@ -75,40 +75,47 @@ impl<RCTX: Render> DOMPatch<RCTX> for VList<RCTX> {
 
     fn patch(
         &mut self,
-        old: Option<Self>,
+        old: Option<&mut Self>,
         parent: &Self::Node,
         next: Option<&Self::Node>,
         render_ctx: Shared<RCTX>,
         rx_sender: MessageSender,
     ) -> Result<(), JsValue> {
         let mut next = next;
-        if let Some(mut old) = old {
-            // Collect the order of the older nodes, so that we can re-order them
-            // if they exist in the current VDOM in a different order.
-            let mut old_order: HashMap<_, _> = old
-                .0
-                .iter()
-                .enumerate()
-                .map(|(index, (key, _))| (key.clone(), index))
-                .collect();
+        if let Some(old) = old {
+            // Collect the keys of alive nodes from old vlist.
+            let mut alive_keys = HashSet::new();
 
             for (index, (key, vnode)) in self.0.iter_mut().enumerate().rev() {
                 // Patch the old vnode if found.
-                let old = old.0.remove(key);
-                vnode.patch(old, parent, next, render_ctx.clone(), rx_sender.clone())?;
+                if let Some((old_index, _, old)) = old.0.get_full_mut(key) {
+                    vnode.patch(
+                        Some(old),
+                        parent,
+                        next,
+                        render_ctx.clone(),
+                        rx_sender.clone(),
+                    )?;
 
-                // If the order changed, update it in the DOM.
-                if let Some(old_index) = old_order.remove(key) {
+                    // If the order changed, update it in the DOM.
                     if index != old_index {
                         vnode.reorder(parent, next)?;
                     }
+
+                    alive_keys.insert(key);
+                } else {
+                    vnode.patch(None, parent, next, render_ctx.clone(), rx_sender.clone())?;
                 }
 
                 next = vnode.node().or(next);
             }
 
             // Remove all the remaining ones.
-            old.remove(parent)?;
+            for (key, vnode) in old.0.iter() {
+                if !alive_keys.contains(key) {
+                    vnode.remove(parent)?;
+                }
+            }
         } else {
             for (_, vnode) in self.0.iter_mut().rev() {
                 vnode.patch(None, parent, next, render_ctx.clone(), rx_sender.clone())?;
@@ -131,8 +138,8 @@ impl<RCTX: Render> DOMReorder for VList<RCTX> {
 impl<RCTX: Render> DOMRemove for VList<RCTX> {
     type Node = Node;
 
-    fn remove(self, parent: &Self::Node) -> Result<(), JsValue> {
-        for (_, vnode) in self.0 {
+    fn remove(&self, parent: &Self::Node) -> Result<(), JsValue> {
+        for (_, vnode) in self.0.iter() {
             vnode.remove(parent)?;
         }
         Ok(())

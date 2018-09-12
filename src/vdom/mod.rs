@@ -103,7 +103,7 @@ impl<RCTX: Render> DOMPatch<RCTX> for VNode<RCTX> {
 
     fn patch(
         &mut self,
-        old: Option<Self>,
+        old: Option<&mut Self>,
         parent: &Self::Node,
         next: Option<&Self::Node>,
         render_ctx: Shared<RCTX>,
@@ -147,7 +147,7 @@ impl<RCTX: Render> DOMReorder for VNode<RCTX> {
 impl<RCTX: Render> DOMRemove for VNode<RCTX> {
     type Node = Node;
 
-    fn remove(self, parent: &Self::Node) -> Result<(), JsValue> {
+    fn remove(&self, parent: &Self::Node) -> Result<(), JsValue> {
         match self {
             VNode::Text(txt) => txt.remove(parent),
             VNode::Element(el) => el.remove(parent),

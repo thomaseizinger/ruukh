@@ -93,7 +93,7 @@ impl<RCTX: Render> DOMPatch<RCTX> for VText<RCTX> {
 
     fn patch(
         &mut self,
-        old: Option<Self>,
+        old: Option<&mut Self>,
         parent: &Node,
         next: Option<&Node>,
         _: Shared<RCTX>,
@@ -103,11 +103,12 @@ impl<RCTX: Render> DOMPatch<RCTX> for VText<RCTX> {
             if self.is_comment == old.is_comment {
                 let old_node = old
                     .node
+                    .as_ref()
                     .expect("The old node is expected to be attached to the DOM");
                 if self.content != old.content {
                     old_node.set_text_content(&self.content);
                 }
-                self.node = Some(old_node);
+                self.node = Some(old_node.clone());
                 Ok(())
             } else {
                 old.remove(parent)?;
@@ -134,7 +135,7 @@ impl<RCTX: Render> DOMReorder for VText<RCTX> {
 impl<RCTX: Render> DOMRemove for VText<RCTX> {
     type Node = Node;
 
-    fn remove(self, parent: &Node) -> Result<(), JsValue> {
+    fn remove(&self, parent: &Node) -> Result<(), JsValue> {
         parent.remove_child(
             self.node
                 .as_ref()
@@ -184,8 +185,13 @@ pub mod wasm_test {
         let mut vtext = VText::text("Hello World! It is nice to render.");
         let div = html_document.create_element("div").unwrap();
         vtext
-            .patch(None, div.as_ref(), None, root_render_ctx(), ::message_sender())
-            .expect("To patch the div");
+            .patch(
+                None,
+                div.as_ref(),
+                None,
+                root_render_ctx(),
+                ::message_sender(),
+            ).expect("To patch the div");
 
         assert_eq!(div.inner_html(), "Hello World! It is nice to render.");
     }
@@ -195,15 +201,25 @@ pub mod wasm_test {
         let mut vtext = VText::text("Hello World! It is nice to render.");
         let div = html_document.create_element("div").unwrap();
         vtext
-            .patch(None, div.as_ref(), None, root_render_ctx(), ::message_sender())
-            .expect("To patch div");
+            .patch(
+                None,
+                div.as_ref(),
+                None,
+                root_render_ctx(),
+                ::message_sender(),
+            ).expect("To patch div");
 
         assert_eq!(div.inner_html(), "Hello World! It is nice to render.");
 
         let mut updated = VText::text("How you doing?");
         updated
-            .patch(Some(vtext), div.as_ref(), None, root_render_ctx(), ::message_sender())
-            .expect("To patch div");
+            .patch(
+                Some(vtext),
+                div.as_ref(),
+                None,
+                root_render_ctx(),
+                ::message_sender(),
+            ).expect("To patch div");
 
         assert_eq!(div.inner_html(), "How you doing?");
     }
@@ -213,8 +229,13 @@ pub mod wasm_test {
         let mut comment = VText::comment("This is a comment");
         let div = html_document.create_element("div").unwrap();
         comment
-            .patch(None, div.as_ref(), None, root_render_ctx(), ::message_sender())
-            .expect("To patch div");
+            .patch(
+                None,
+                div.as_ref(),
+                None,
+                root_render_ctx(),
+                ::message_sender(),
+            ).expect("To patch div");
 
         assert_eq!(div.inner_html(), "<!--This is a comment-->");
     }
@@ -224,14 +245,24 @@ pub mod wasm_test {
         let mut comment = VText::comment("This is a comment");
         let div = html_document.create_element("div").unwrap();
         comment
-            .patch(None, div.as_ref(), None, root_render_ctx(), ::message_sender())
-            .expect("To patch div");
+            .patch(
+                None,
+                div.as_ref(),
+                None,
+                root_render_ctx(),
+                ::message_sender(),
+            ).expect("To patch div");
 
         assert_eq!(div.inner_html(), "<!--This is a comment-->");
 
         let mut text = VText::text("This is a text");
-        text.patch(Some(comment), div.as_ref(), None, root_render_ctx(), ::message_sender())
-            .expect("To patch div");
+        text.patch(
+            Some(comment),
+            div.as_ref(),
+            None,
+            root_render_ctx(),
+            ::message_sender(),
+        ).expect("To patch div");
 
         assert_eq!(div.inner_html(), "This is a text");
     }

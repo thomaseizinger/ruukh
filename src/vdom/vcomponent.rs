@@ -53,27 +53,6 @@ where
             _phantom: PhantomData,
         }
     }
-
-    fn try_cast(
-        other: Box<ComponentManager<RCTX>>,
-    ) -> Result<ComponentWrapper<COMP, RCTX>, Box<ComponentManager<RCTX>>> {
-        let mut same_type = false;
-        {
-            let any = other.as_any();
-            if any.is::<ComponentWrapper<COMP, RCTX>>() {
-                same_type = true;
-            }
-        }
-
-        if same_type {
-            let boxed = other.into_any();
-            Ok(*boxed
-                .downcast::<ComponentWrapper<COMP, RCTX>>()
-                .expect("Impossible! The type cannot be different."))
-        } else {
-            Err(other)
-        }
-    }
 }
 
 impl<RCTX: Render> DOMPatch<RCTX> for VComponent<RCTX> {
@@ -91,13 +70,14 @@ impl<RCTX: Render> DOMPatch<RCTX> for VComponent<RCTX> {
 
     fn patch(
         &mut self,
-        old: Option<Self>,
+        old: Option<&mut Self>,
         parent: &Self::Node,
         next: Option<&Self::Node>,
         render_ctx: Shared<RCTX>,
         _: MessageSender,
     ) -> Result<(), JsValue> {
-        self.0.patch(old.map(|old| old.0), parent, next, render_ctx)
+        self.0
+            .patch(old.map(|old| &mut *old.0), parent, next, render_ctx)
     }
 }
 
@@ -110,7 +90,7 @@ impl<RCTX: Render> DOMReorder for VComponent<RCTX> {
 impl<RCTX: Render> DOMRemove for VComponent<RCTX> {
     type Node = Node;
 
-    fn remove(mut self, parent: &Self::Node) -> Result<(), JsValue> {
+    fn remove(&self, parent: &Self::Node) -> Result<(), JsValue> {
         self.0.remove(parent)
     }
 }
@@ -121,7 +101,7 @@ impl<RCTX: Render> DOMInfo for VComponent<RCTX> {
     }
 }
 
-pub(crate) trait ComponentManager<RCTX: Render>: Downcast + Display {
+pub(crate) trait ComponentManager<RCTX: Render>: Display + 'static {
     fn render_walk(
         &mut self,
         parent: &Node,
@@ -132,7 +112,7 @@ pub(crate) trait ComponentManager<RCTX: Render>: Downcast + Display {
 
     fn patch(
         &mut self,
-        old: Option<Box<ComponentManager<RCTX>>>,
+        old: Option<&mut ComponentManager<RCTX>>,
         parent: &Node,
         next: Option<&Node>,
         render_ctx: Shared<RCTX>,
@@ -140,11 +120,11 @@ pub(crate) trait ComponentManager<RCTX: Render>: Downcast + Display {
 
     fn reorder(&self, parent: &Node, next: Option<&Node>) -> Result<(), JsValue>;
 
-    fn remove(&mut self, parent: &Node) -> Result<(), JsValue>;
+    fn remove(&self, parent: &Node) -> Result<(), JsValue>;
 
     fn node(&self) -> Option<&Node>;
 
-    fn as_any(&self) -> &Any;
+    fn as_any_mut(&mut self) -> &mut Any;
 }
 
 impl<COMP: Render, RCTX: Render> ComponentManager<RCTX> for ComponentWrapper<COMP, RCTX>
@@ -190,8 +170,14 @@ where
 
             if state_changed || comp.borrow_mut().is_props_dirty() {
                 let mut rerender = comp.borrow().render();
-                let cached_render = self.cached_render.take();
-                rerender.patch(cached_render, parent, next, comp.clone(), rx_sender.clone())?;
+                let mut cached_render = self.cached_render.take();
+                rerender.patch(
+                    cached_render.as_mut(),
+                    parent,
+                    next,
+                    comp.clone(),
+                    rx_sender.clone(),
+                )?;
                 self.cached_render = Some(rerender);
             }
         }
@@ -208,15 +194,18 @@ where
 
     fn patch(
         &mut self,
-        old: Option<Box<ComponentManager<RCTX>>>,
+        old: Option<&mut ComponentManager<RCTX>>,
         parent: &Node,
         _: Option<&Node>,
         render_ctx: Shared<RCTX>,
     ) -> Result<(), JsValue> {
         if let Some(old) = old {
-            match Self::try_cast(old) {
-                Ok(same) => {
-                    let comp = same.component.unwrap();
+            let is_same = match old
+                .as_any_mut()
+                .downcast_mut::<ComponentWrapper<COMP, RCTX>>()
+            {
+                Some(old) => {
+                    let comp = old.component.take().unwrap();
                     let props = self.props.take().unwrap();
                     let events = self.events.take().unwrap();
 
@@ -228,12 +217,15 @@ where
                     self.component = Some(comp);
 
                     // Reuse the cached render too to do patches on.
-                    self.cached_render = same.cached_render;
+                    self.cached_render = old.cached_render.take();
+
+                    true
                 }
-                Err(mut not_same) => {
-                    // The component is not the same, remove it from the DOM tree.
-                    not_same.remove(parent)?;
-                }
+                None => false,
+            };
+            if !is_same {
+                // The component is not the same, remove it from the DOM tree.
+                old.remove(parent)?;
             }
         }
         Ok(())
@@ -246,8 +238,8 @@ where
         Ok(())
     }
 
-    fn remove(&mut self, parent: &Node) -> Result<(), JsValue> {
-        if let Some(cached_render) = self.cached_render.take() {
+    fn remove(&self, parent: &Node) -> Result<(), JsValue> {
+        if let Some(ref cached_render) = self.cached_render {
             cached_render.remove(parent)?;
             let comp = self.component.as_ref().unwrap();
             comp.borrow().destroyed();
@@ -259,7 +251,7 @@ where
         self.cached_render.as_ref().and_then(|inner| inner.node())
     }
 
-    fn as_any(&self) -> &Any {
+    fn as_any_mut(&mut self) -> &mut Any {
         self
     }
 }
@@ -267,16 +259,6 @@ where
 impl<RCTX: Render> From<VComponent<RCTX>> for VNode<RCTX> {
     fn from(comp: VComponent<RCTX>) -> VNode<RCTX> {
         VNode::Component(comp)
-    }
-}
-
-pub(crate) trait Downcast: Any {
-    fn into_any(self: Box<Self>) -> Box<Any>;
-}
-
-impl<T: Any> Downcast for T {
-    fn into_any(self: Box<Self>) -> Box<Any> {
-        self
     }
 }
 
@@ -334,7 +316,7 @@ pub mod wasm_test {
         ) -> Self {
             Button {
                 disabled: props.disabled,
-                __status: status
+                __status: status,
             }
         }
         fn update<RCTX: Render>(
