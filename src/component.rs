@@ -1,6 +1,6 @@
-use vdom::VNode;
-use MessageSender;
-use Shared;
+//! This module defines traits the user needs to design a Ruukh Component.
+
+use {Markup, MessageSender, Shared};
 
 /// Trait to define a Component. You do not need to implement this trait.
 /// Use the auto derive provided as `#[derive(Component)]`.
@@ -154,8 +154,8 @@ pub trait Lifecycle: Component {
 
 /// Trait to render a view for the component.
 pub trait Render: Lifecycle + Sized {
-    #[allow(missing_docs)]
-    fn render(&self) -> VNode<Self>;
+    /// Render a markup for the Component by using the html! macro.
+    fn render(&self) -> Markup<Self>;
 }
 
 /// Since the events passed on to the component need to run in the context
@@ -168,7 +168,7 @@ pub trait Render: Lifecycle + Sized {
 /// normal event type associated to the Component.
 ///
 /// # Example
-/// ```ignore
+/// ```ignore,compile_fail
 /// struct ButtonEvents<RCTX: Render> {
 ///     ...
 /// }
@@ -312,7 +312,7 @@ impl Lifecycle for RootParent {
 }
 
 impl Render for RootParent {
-    fn render(&self) -> VNode<Self> {
+    fn render(&self) -> Markup<Self> {
         unreachable!(
             "It is a void component to be used as a render context for a root \
              component. Not to be used as a component itself."

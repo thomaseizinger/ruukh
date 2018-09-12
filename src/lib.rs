@@ -22,7 +22,6 @@ use web_api::*;
 #[cfg(test)]
 wasm_bindgen_test_configure!(run_in_browser);
 
-#[allow(missing_docs)]
 pub mod component;
 mod dom;
 pub mod vdom;
@@ -38,7 +37,8 @@ pub mod web_api;
 /// ```
 pub type Markup<RCTX> = vdom::VNode<RCTX>;
 
-#[allow(missing_docs)]
+/// Things you'll require to build the next great App. Just glob import the 
+/// prelude and start building your app.
 pub mod prelude {
     pub use component::{Component, Lifecycle, Render};
     pub use ruukh_codegen::*;
