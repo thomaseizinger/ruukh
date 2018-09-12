@@ -198,7 +198,7 @@ impl ComponentMeta {
 
         quote! {
             impl #impl_gen Component for #ident #ty_gen #where_clause {
-                type Props = #props_ident;
+                type Props = #props_ident #ty_gen;
                 type State = #state_ident;
                 type Events = #events_ident;
 
