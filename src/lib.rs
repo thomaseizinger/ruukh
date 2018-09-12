@@ -37,7 +37,7 @@ pub mod web_api;
 /// ```
 pub type Markup<RCTX> = vdom::VNode<RCTX>;
 
-/// Things you'll require to build the next great App. Just glob import the 
+/// Things you'll require to build the next great App. Just glob import the
 /// prelude and start building your app.
 pub mod prelude {
     pub use component::{Component, Lifecycle, Render};
@@ -81,8 +81,9 @@ where
 
     /// Mounts the app on the given element in the DOM.
     ///
-    /// Be careful to return the `ReactiveApp` to the JS side because we want our
-    /// app to live for 'static lifetimes (i.e. As long as the browser/tab runs).
+    /// Be careful to return the `ReactiveApp` to the JS side because we want
+    /// our app to live for 'static lifetimes (i.e. As long as the browser/tab
+    /// runs).
     ///
     /// # Example
     /// ```ignore
@@ -117,8 +118,8 @@ where
 /// The mounted app which reacts to any change event messaged by the components
 /// in the tree.
 ///
-/// It stores the receiver end of the message port which listens onto any messages
-/// and invokes the app to update itself.
+/// It stores the receiver end of the message port which listens onto any
+/// messages and invokes the app to update itself.
 #[wasm_bindgen]
 pub struct ReactiveApp {
     rx: MessagePort,
@@ -147,8 +148,8 @@ impl ReactiveApp {
     }
 }
 
-/// Whenever the state changes in components, MessageSender is responsible
-/// to message the App. The App reacts to the messages and updates it tree.   
+/// Whenever the state changes in components, MessageSender is responsible to
+/// message the App. The App reacts to the messages and updates it tree.   
 #[derive(Clone)]
 struct MessageSender {
     tx: MessagePort,

@@ -2,13 +2,13 @@
 
 use {Markup, MessageSender, Shared};
 
-/// Trait to define a Component. You do not need to implement this trait.
-/// Use the auto derive provided as `#[derive(Component)]`.
+/// Trait to define a Component. You do not need to implement this trait. Use
+/// the auto derive provided as `#[derive(Component)]`.
 ///
-/// A concrete implementation of a component must have two forms of state.
-/// One, the read only state which is accessed by the user. Another, a
-/// meta-state which stores the mutable state as well as other helpful values
-/// to notify for component re-render.
+/// A concrete implementation of a component must have two forms of state. One,
+/// the read only state which is accessed by the user. Another, a meta-state
+/// which stores the mutable state as well as other helpful values to notify
+/// for component re-render.
 ///
 /// Note: The user should not worry about the implementation detail of the
 /// actual component. Use the auto derive on the component.
@@ -30,9 +30,9 @@ pub trait Component: 'static {
     where
         Self::Events: EventsPair<RCTX>;
 
-    /// Updates the component with newer props and returns older props (if changed).
-    /// Also, sets the component as dirty (if props changed), so that the component
-    /// is re-rendered.
+    /// Updates the component with newer props and returns older props (if
+    /// changed). Also, sets the component as dirty (if props changed), so that
+    /// the component is re-rendered.
     fn update<RCTX: Render>(
         &mut self,
         props: Self::Props,
@@ -45,16 +45,17 @@ pub trait Component: 'static {
     /// Updates the read only state from the mutated status.
     fn refresh_state(&mut self);
 
-    /// Finds whether the component status has been altered. If altered, resets it to
-    /// an undirtied state.
+    /// Finds whether the component status has been altered. If altered, resets
+    /// it to an undirtied state.
     fn is_state_dirty(&self) -> bool;
 
-    /// Finds whether the component has been updated with newer props. If updated,
-    /// resets it to undirtied state.
+    /// Finds whether the component has been updated with newer props. If
+    /// updated, resets it to undirtied state.
     fn is_props_dirty(&self) -> bool;
 
-    /// Mutates the state of the component by executing the closure which accepts the
-    /// current state. If the state is mutated, it marks the state as dirty.
+    /// Mutates the state of the component by executing the closure which
+    /// accepts the current state. If the state is mutated, it marks the state
+    /// as dirty.
     ///
     /// # Example
     /// ```ignore
@@ -133,8 +134,8 @@ impl<T> Status<T> {
     }
 }
 
-/// The lifecycle of a stateful component. Implement only the appropriate
-/// hooks as needed.
+/// The lifecycle of a stateful component. Implement only the appropriate hooks
+/// as needed.
 ///
 /// For stateless component, mark the component with `#[stateless]`.
 pub trait Lifecycle: Component {
@@ -158,14 +159,13 @@ pub trait Render: Lifecycle + Sized {
     fn render(&self) -> Markup<Self>;
 }
 
-/// Since the events passed on to the component need to run in the context
-/// of their parent, the events type needs to be generic over the Render
-/// Context. But, Rust does not allowed generics associated type to be
-/// specified in a trait which prohibits us to use a generic events type
-/// in `Component` trait.
+/// Since the events passed on to the component need to run in the context of
+/// their parent, the events type needs to be generic over the Render Context.
+/// But, Rust does not allowed generics associated type to be specified in a
+/// trait which prohibits us to use a generic events type in `Component` trait.
 ///
-/// So, this is a workaround to get the Generics Events type from the
-/// normal event type associated to the Component.
+/// So, this is a workaround to get the Generics Events type from the normal
+/// event type associated to the Component.
 ///
 /// # Example
 /// ```ignore,compile_fail

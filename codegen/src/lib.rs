@@ -33,15 +33,15 @@ pub fn derive_lifecycle(input: proc_macro::TokenStream) -> proc_macro::TokenStre
     expanded.into()
 }
 
-/// `#[component]` macro to derive `Component` trait as well as to do modifications
-/// to the struct. It does all the heavy lifting which the user would have to do,
-/// to make the component work.
+/// `#[component]` macro to derive `Component` trait as well as to do
+/// modifications to the struct. It does all the heavy lifting which the user
+/// would have to do, to make the component work.
 ///
 /// # Example
 /// ```ignore,compile_fail
 /// #[component]
 /// struct MyButton {
-///     disabled: bool
+///     disabled: bool,
 /// }
 /// ```
 #[proc_macro_attribute]

@@ -1,6 +1,6 @@
-//! Conversion from the non-component types to VNode for use in html! expression blocks.
-//! Allows the user to use basic types such as string and number types ergonomically within
-//! html! expression blocks.
+//! Conversion from the non-component types to VNode for use in html!
+//! expression blocks. Allows the user to use basic types such as string and
+//! number types ergonomically within html! expression blocks.
 
 use component::Render;
 use std::borrow::Cow;

@@ -12,7 +12,8 @@ where
     /// The type of the Node the VDOM works upon.
     type Node;
 
-    /// Walks through the VDOM till an uninitialized or a dirty Component is found and renders it recursively.
+    /// Walks through the VDOM till an uninitialized or a dirty Component is
+    /// found and renders it recursively.
     fn render_walk(
         &mut self,
         parent: &Self::Node,
@@ -34,8 +35,8 @@ where
 
 /// Trait to reorder the VNode in the DOM.
 pub(crate) trait DOMReorder {
-    /// Reappends already existing Node in its correct place to reflect
-    /// the current VDOM.
+    /// Reappends already existing Node in its correct place to reflect the
+    /// current VDOM.
     fn reorder(&self, parent: &Node, next: Option<&Node>) -> Result<(), JsValue>;
 }
 
