@@ -35,7 +35,7 @@ impl<RCTX: Render> From<Vec<VNode<RCTX>>> for VList<RCTX> {
             children
                 .into_iter()
                 .enumerate()
-                .map(|(k, v)| (Key::U64(k as u64), v))
+                .map(|(k, v)| (Key::new(k as u32), v))
                 .collect(),
         )
     }

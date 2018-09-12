@@ -174,8 +174,12 @@ impl<RCTX: Render> DOMInfo for VNode<RCTX> {
 /// Only the basic types are supported.
 #[derive(Clone, Eq, PartialEq, Hash)]
 pub enum Key {
+    /// An `i32` key
+    I32(i32),
     /// An `i64` key
     I64(i64),
+    /// An `u32` key
+    U32(u32),
     /// An `u64` key
     U64(u64),
     /// A `String` key
@@ -190,28 +194,40 @@ impl Key {
 }
 
 macro_rules! convert {
-    ([$($f:ty),*] to I64) => {
+    ([$($f:ty),*] to I32) => {
         $(
             impl From<$f> for Key {
                 fn from(num: $f) -> Key {
-                    Key::I64(num as i64)
+                    Key::I32(num as i32)
                 }
             }
         )*
     };
-    ([$($f:ty),*] to U64) => {
+    ([$($f:ty),*] to U32) => {
         $(
             impl From<$f> for Key {
                 fn from(num: $f) -> Key {
-                    Key::U64(num as u64)
+                    Key::U32(num as u32)
                 }
             }
         )*
     };
 }
 
-convert!([i8, i16, i32, i64] to I64);
-convert!([u8, u16, u32, u64] to U64);
+convert!([i8, i16, i32] to I32);
+convert!([u8, u16, u32] to U32);
+
+impl From<i64> for Key {
+    fn from(num: i64) -> Key {
+        Key::I64(num)
+    }
+}
+
+impl From<u64> for Key {
+    fn from(num: u64) -> Key {
+        Key::U64(num)
+    }
+}
 
 impl<'a> From<&'a str> for Key {
     fn from(string: &'a str) -> Key {
