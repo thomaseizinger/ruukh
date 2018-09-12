@@ -503,6 +503,7 @@ impl PropsMeta {
         let builder_ident = &self.builder_ident;
         let builder_fields =
             self.expand_fields_with(ComponentField::expand_as_builder_struct_field);
+        let builder_field_idents = self.expand_fields_with(ComponentField::expand_as_ident);
         let builder_assignment = self.expand_fields_with(ComponentField::expand_builder_assignment);
         let builder_finish_assignment =
             self.expand_fields_with(ComponentField::expand_builder_finish_assignment);
@@ -512,8 +513,8 @@ impl PropsMeta {
                 #(#fields),*
             }
 
-            impl #impl_gen ruukh::component::BuilderCreator for #ident #ty_gen 
-                #where_clause 
+            impl #impl_gen ruukh::component::BuilderCreator for #ident #ty_gen
+                #where_clause
             {
                 type Builder = #builder_ident #ty_gen;
 
@@ -522,9 +523,16 @@ impl PropsMeta {
                 }
             }
 
-            #[derive(Default)]
             #vis struct #builder_ident #generics {
                 #(#builder_fields),*
+            }
+
+            impl #impl_gen Default for #builder_ident #ty_gen #where_clause {
+                fn default() -> Self {
+                    #builder_ident {
+                        #(#builder_field_idents: None),*
+                    }
+                }
             }
 
             impl #impl_gen #builder_ident #ty_gen #where_clause {
@@ -913,8 +921,9 @@ impl EventSyntax {
 struct EventsMeta {
     /// Ident of Event type stored in the component itself.
     ident: Ident,
-    /// Ident of Event type which stores actual events passed from parent. It serves as
-    /// an intermediate event type before converting it to the above event type.
+    /// Ident of Event type which stores actual events passed from parent. It
+    /// serves as an intermediate event type before converting it to the
+    /// above event type.
     gen_ident: Ident,
     /// Ident of the builder type which builds `gen_ident`.
     builder_ident: Ident,
