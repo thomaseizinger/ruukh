@@ -7,10 +7,10 @@ extern crate ruukh_codegen;
 extern crate wasm_bindgen;
 #[cfg(test)]
 extern crate wasm_bindgen_test;
+#[cfg(test)]
+use wasm_bindgen_test::*;
 
 use component::{Render, RootParent};
-pub use fnv::FnvBuildHasher;
-pub use indexmap::IndexMap;
 use std::cell::{Ref, RefCell, RefMut};
 use std::rc::Rc;
 use vdom::vcomponent::{ComponentManager, ComponentWrapper};
@@ -44,6 +44,12 @@ pub mod prelude {
     pub use ruukh_codegen::*;
     pub use Markup;
     pub use {App, ReactiveApp};
+}
+
+/// Things the proc-macro uses without bugging the using to import them.
+pub mod reexports {
+    pub use fnv::FnvBuildHasher;
+    pub use indexmap::IndexMap;
 }
 
 /// The main entry point to use your root component and run it on the browser.
