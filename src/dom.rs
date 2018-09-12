@@ -24,7 +24,7 @@ where
     /// Patches the DOM by diffing the VDOM `Self` with Older VDOM.
     fn patch(
         &mut self,
-        old: Option<Self>,
+        old: Option<&mut Self>,
         parent: &Self::Node,
         next: Option<&Self::Node>,
         render_ctx: Shared<RCTX>,
@@ -44,7 +44,7 @@ pub(crate) trait DOMRemove {
     type Node;
 
     /// Removes the VDOM from the actual DOM.
-    fn remove(self, parent: &Self::Node) -> Result<(), JsValue>;
+    fn remove(&self, parent: &Self::Node) -> Result<(), JsValue>;
 }
 
 /// Glean out the info from the DOM attached VDOM.

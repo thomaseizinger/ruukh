@@ -133,9 +133,13 @@ impl HtmlItems {
         match self {
             HtmlItems::Keyed(ref items) => {
                 let expanded: Vec<_> = items.iter().map(HtmlItem::expand).collect();
+                let capacity = expanded.len();
                 quote! {
                     ruukh::vdom::VNode::new(ruukh::vdom::vlist::VList::new({
-                        let mut map = ruukh::IndexMap::new();
+                        let mut map = ruukh::IndexMap::with_capacity_and_hasher(
+                            #capacity,
+                            ruukh::FnvBuildHasher::default()
+                        );
                         #(map.insert(#expanded);)*
                         map
                     }))
@@ -194,7 +198,7 @@ impl HtmlItem {
         if let Some(key) = self.key() {
             let key_expanded = key.expand();
             quote! {
-                #key_expanded, #expanded 
+                #key_expanded, #expanded
             }
         } else {
             expanded

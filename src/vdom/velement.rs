@@ -217,7 +217,7 @@ impl<RCTX: Render> DOMPatch<RCTX> for VElement<RCTX> {
 
     fn patch(
         &mut self,
-        old: Option<Self>,
+        old: Option<&mut Self>,
         parent: &Node,
         next: Option<&Node>,
         render_ctx: Shared<RCTX>,
@@ -227,30 +227,31 @@ impl<RCTX: Render> DOMPatch<RCTX> for VElement<RCTX> {
             if self.tag == old.tag {
                 let old_el = old
                     .node
+                    .as_ref()
                     .expect("The old node is expected to be attached to the DOM");
                 self.attributes.patch(
-                    Some(old.attributes),
+                    Some(&mut old.attributes),
                     &old_el,
                     None,
                     render_ctx.clone(),
                     rx_sender.clone(),
                 )?;
                 self.event_listeners.patch(
-                    Some(old.event_listeners),
+                    Some(&mut old.event_listeners),
                     &old_el,
                     None,
                     render_ctx.clone(),
                     rx_sender.clone(),
                 )?;
                 self.child.patch(
-                    Some(*old.child),
+                    Some(&mut *old.child),
                     old_el.as_ref(),
                     None,
                     render_ctx.clone(),
                     rx_sender,
                 )?;
 
-                self.node = Some(old_el);
+                self.node = Some(old_el.clone());
                 Ok(())
             } else {
                 old.remove(parent)?;
@@ -277,9 +278,10 @@ impl<RCTX: Render> DOMReorder for VElement<RCTX> {
 impl<RCTX: Render> DOMRemove for VElement<RCTX> {
     type Node = Node;
 
-    fn remove(self, parent: &Node) -> Result<(), JsValue> {
+    fn remove(&self, parent: &Node) -> Result<(), JsValue> {
         let el = self
             .node
+            .as_ref()
             .expect("The old node is expected to be attached to the DOM");
         self.child.remove(el.as_ref())?;
         self.attributes.remove(&el)?;
@@ -309,7 +311,7 @@ impl<RCTX: Render> DOMPatch<RCTX> for Attributes {
 
     fn patch(
         &mut self,
-        mut old: Option<Self>,
+        mut old: Option<&mut Self>,
         parent: &Element,
         next: Option<&Element>,
         _: Shared<RCTX>,
@@ -347,8 +349,8 @@ impl<RCTX: Render> DOMPatch<RCTX> for Attributes {
 impl DOMRemove for Attributes {
     type Node = Element;
 
-    fn remove(self, parent: &Element) -> Result<(), JsValue> {
-        for (k, _) in self.0 {
+    fn remove(&self, parent: &Element) -> Result<(), JsValue> {
+        for (k, _) in self.0.iter() {
             parent.remove_attribute(&k)?;
         }
         Ok(())
@@ -370,7 +372,7 @@ impl<RCTX: Render> DOMPatch<RCTX> for EventListeners<RCTX> {
 
     fn patch(
         &mut self,
-        old: Option<Self>,
+        old: Option<&mut Self>,
         parent: &Element,
         _: Option<&Element>,
         render_ctx: Shared<RCTX>,
@@ -389,8 +391,8 @@ impl<RCTX: Render> DOMPatch<RCTX> for EventListeners<RCTX> {
 impl<RCTX: Render> DOMRemove for EventListeners<RCTX> {
     type Node = Element;
 
-    fn remove(self, parent: &Element) -> Result<(), JsValue> {
-        for mut listener in self.0 {
+    fn remove(&self, parent: &Element) -> Result<(), JsValue> {
+        for listener in self.0.iter() {
             listener.stop_listening(parent)?;
         }
         Ok(())
@@ -404,7 +406,7 @@ trait EventManager<RCTX: Render> {
         render_ctx: Shared<RCTX>,
     ) -> Result<(), JsValue>;
 
-    fn stop_listening(&mut self, parent: &Element) -> Result<(), JsValue>;
+    fn stop_listening(&self, parent: &Element) -> Result<(), JsValue>;
 }
 
 impl<RCTX: Render> EventManager<RCTX> for EventListener<RCTX> {
@@ -422,9 +424,11 @@ impl<RCTX: Render> EventManager<RCTX> for EventListener<RCTX> {
         Ok(())
     }
 
-    fn stop_listening(&mut self, parent: &Element) -> Result<(), JsValue> {
-        let js_closure = self.dom_listener.take().unwrap();
-        parent.remove_event_listener(&self.type_, &js_closure)
+    fn stop_listening(&self, parent: &Element) -> Result<(), JsValue> {
+        if let Some(ref dom_listener) = self.dom_listener {
+            parent.remove_event_listener(&self.type_, dom_listener)?;
+        }
+        Ok(())
     }
 }
 
