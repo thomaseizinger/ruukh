@@ -983,6 +983,45 @@ impl EventsMeta {
         let event_wrappers =
             self.expand_events_with(|e| e.expand_event_wrapper(component_ident, generics));
 
+        let mut next_event_names = event_names.clone();
+        let first = next_event_names.remove(0);
+        next_event_names.push(quote!(@finish));
+
+        let events_assignment = self.expand_events_with(EventMeta::expand_event_assignment);
+        let events_default_val = self.expand_events_with(EventMeta::expand_event_default_value);
+
+        let mut match_hands = vec![];
+        for ((cur, next), (assignment, default)) in event_names
+            .iter()
+            .zip(next_event_names.iter())
+            .zip(events_assignment.iter().zip(events_default_val.iter()))
+        {
+            match_hands.push(quote!{
+                (
+                    @#cur
+                    arguments = [{ $($args:tt)* }]
+                    tokens = [{ [#cur = $val:expr] $($rest:tt)* }]
+                ) => {
+                    __new_events_internal__!(
+                        @#next
+                        arguments = [{ $($args)* #assignment }]
+                        tokens = [{ $($rest)* }]
+                    );
+                },
+                (
+                    @#cur
+                    arguments = [{ $($args:tt)* }]
+                    tokens = [{ $($rest:tt)* }]
+                ) => {
+                    __new_events_internal__!(
+                        @#next
+                        arguments = [{ $($args)* #default }]
+                        tokens = [{ $($rest)* }]
+                    );
+                },
+            });
+        }
+
         quote! {
             #vis struct #ident {
                 #(#fields),*
@@ -1011,6 +1050,34 @@ impl EventsMeta {
             }
 
             #(#event_wrappers)*
+
+            macro __new_events_internal__ {
+                #(#match_hands)*
+                (
+                    @@finish
+                    arguments = [{ $([$key:ident = $val:expr])* }]
+                    tokens = [{ }]
+                ) => {
+                    #gen_ident {
+                        $($key: $val),*
+                    }
+                },
+                (
+                    @@finish
+                    arguments = [{ $($tt:tt)* }]
+                    tokens = [{ [$key:ident = $val:expr] $($rem:tt)* }]
+                ) => {
+                    compile_error!(concat!("There is no event `", stringify!($key), "` on `", stringify!(#component_ident), "`."));
+                }
+            }
+
+            #vis macro #ident($($key:ident: $val:expr),*) {
+                __new_events_internal__!(
+                    @#first
+                    arguments = [{ }]
+                    tokens = [{ $([$key = $val])* }]
+                );
+            }
         }
     }
 }
@@ -1170,6 +1237,30 @@ impl EventMeta {
                 fn #ident (&self, #(#arg_fields),*) #ret_type {
                     (self.__events__.#ident)(#(#arg_idents),*)
                 }
+            }
+        }
+    }
+
+    fn expand_event_default_value(&self) -> TokenStream {
+        let ident = &self.ident;
+        if self.is_optional {
+            quote! {
+                [#ident = None]
+            }
+        } else {
+            quote!()
+        }
+    }
+
+    fn expand_event_assignment(&self) -> TokenStream {
+        let ident = &self.ident;
+        if self.is_optional {
+            quote! {
+                [#ident = Some(Box::new($val))]
+            }
+        } else {
+            quote! {
+                [#ident = Box::new($val)]
             }
         }
     }
