@@ -470,7 +470,8 @@ impl PropsMeta {
             .into_iter()
             .map(ComponentField::parse_prop)
             .collect();
-        let prop_fields = prop_fields?;
+        let mut prop_fields = prop_fields?;
+        prop_fields.sort_by(|l, r| l.ident.cmp(&r.ident));
         if prop_fields.is_empty() {
             Ok((None, rest))
         } else {
