@@ -878,8 +878,6 @@ struct EventsMeta {
     /// serves as an intermediate event type before converting it to the
     /// above event type.
     gen_ident: Ident,
-    /// Ident of the builder type which builds `gen_ident`.
-    builder_ident: Ident,
     /// All the event declarations on the component.
     events: Vec<EventMeta>,
 }
@@ -957,10 +955,6 @@ impl EventsMeta {
             let meta = EventsMeta {
                 ident: Ident::new(&format!("{}Events", component_ident), Span::call_site()),
                 gen_ident: Ident::new(&format!("{}EventsGen", component_ident), Span::call_site()),
-                builder_ident: Ident::new(
-                    &format!("{}EventsBuilder", component_ident),
-                    Span::call_site(),
-                ),
                 events: event_metas,
             };
             Ok((Some(meta), rest))
@@ -989,12 +983,6 @@ impl EventsMeta {
         let event_wrappers =
             self.expand_events_with(|e| e.expand_event_wrapper(component_ident, generics));
 
-        let builder_ident = &self.builder_ident;
-        let builder_fields = self.expand_events_with(EventMeta::expand_as_builder_struct_field);
-        let builder_assignment = self.expand_events_with(EventMeta::expand_builder_assignment);
-        let builder_finish_assignment =
-            self.expand_events_with(EventMeta::expand_builder_finish_assignment);
-
         quote! {
             #vis struct #ident {
                 #(#fields),*
@@ -1018,45 +1006,11 @@ impl EventsMeta {
                 #(#gen_fields),*
             }
 
-            impl<RCTX: Render> ruukh::component::BuilderCreator for #gen_ident<RCTX> {
-                type Builder = #builder_ident<RCTX>;
-
-                fn builder() -> Self::Builder {
-                    Default::default()
-                }
-            }
-
             impl<RCTX: Render> ruukh::component::EventsPair<RCTX> for #ident {
                 type Other = #gen_ident<RCTX>;
             }
 
             #(#event_wrappers)*
-
-            #vis struct #builder_ident<RCTX: Render> {
-                #(#builder_fields),*
-            }
-
-            impl<RCTX: Render> Default for #builder_ident<RCTX> {
-                fn default() -> Self {
-                    #builder_ident {
-                        #(#event_names: None),*
-                    }
-                }
-            }
-
-            impl<RCTX: Render> #builder_ident<RCTX> {
-                #(#builder_assignment)*
-            }
-
-            impl<RCTX: Render> ruukh::component::BuilderFinisher for #builder_ident<RCTX> {
-                type Built = #gen_ident<RCTX>;
-
-                fn finish(self) -> Self::Built {
-                    #gen_ident {
-                        #(#builder_finish_assignment),*
-                    }
-                }
-            }
         }
     }
 }
@@ -1140,14 +1094,6 @@ impl EventMeta {
         }
     }
 
-    fn expand_as_builder_struct_field(&self) -> TokenStream {
-        let ident = &self.ident;
-        let fn_type = self.gen_fn_type();
-        quote! {
-            #ident: Option<Box<#fn_type>>
-        }
-    }
-
     fn expand_as_arg_fields(&self) -> Vec<TokenStream> {
         self.arguments
             .iter()
@@ -1224,31 +1170,6 @@ impl EventMeta {
                 fn #ident (&self, #(#arg_fields),*) #ret_type {
                     (self.__events__.#ident)(#(#arg_idents),*)
                 }
-            }
-        }
-    }
-
-    fn expand_builder_assignment(&self) -> TokenStream {
-        let ident = &self.ident;
-        let fn_type = self.gen_fn_type();
-        quote! {
-            pub fn #ident(mut self, val: Box<#fn_type>) -> Self {
-                self.#ident = Some(val);
-                self
-            }
-        }
-    }
-
-    fn expand_builder_finish_assignment(&self) -> TokenStream {
-        let ident = &self.ident;
-
-        if self.is_optional {
-            quote! {
-                #ident: self.#ident
-            }
-        } else {
-            quote! {
-                #ident: self.#ident.expect(&format!("The event `{}` is required.", stringify!(#ident)))
             }
         }
     }
