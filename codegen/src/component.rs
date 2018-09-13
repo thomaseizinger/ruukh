@@ -79,7 +79,7 @@ impl ComponentMeta {
         let prop_struct = self
             .props_meta
             .as_ref()
-            .map(|m| m.expand_struct(&self.vis, &self.generics));
+            .map(|m| m.expand_struct(&self.ident, &self.vis, &self.generics));
         let events_structs = self
             .events_meta
             .as_ref()
@@ -490,13 +490,83 @@ impl PropsMeta {
         self.fields.iter().map(map_fn).collect()
     }
 
-    fn expand_struct(&self, vis: &Visibility, generics: &Generics) -> TokenStream {
+    fn expand_struct(
+        &self,
+        comp_ident: &Ident,
+        vis: &Visibility,
+        generics: &Generics,
+    ) -> TokenStream {
         let ident = &self.ident;
         let fields = self.expand_fields_with(ComponentField::expand_as_struct_field);
+        let field_idents = self.expand_fields_with(ComponentField::expand_as_ident);
+        let field_default_vals =
+            self.expand_fields_with(ComponentField::expand_default_fields_for_macro);
+        let mut next_idents = field_idents.clone();
+        let first = next_idents.remove(0);
+        next_idents.push(quote!(@finish));
 
+        let mut match_hands = vec![];
+        for ((cur, next), default) in field_idents
+            .iter()
+            .zip(next_idents.iter())
+            .zip(field_default_vals.iter())
+        {
+            match_hands.push(quote!{
+                (
+                    @#cur
+                    arguments = [{ $($args:tt)* }]
+                    tokens = [{ [#cur = $val:expr] $($rest:tt)* }]
+                ) => {
+                    __new_props_internal__!(
+                        @#next
+                        arguments = [{ $($args)* [#cur = $val] }]
+                        tokens = [{ $($rest)* }]
+                    );
+                },
+                (
+                    @#cur
+                    arguments = [{ $($args:tt)* }]
+                    tokens = [{ $($rest:tt)* }]
+                ) => {
+                    __new_props_internal__!(
+                        @#next
+                        arguments = [{ $($args)* #default }]
+                        tokens = [{ $($rest)* }]
+                    );
+                },
+            });
+        }
         quote! {
             #vis struct #ident #generics {
                 #(#fields),*
+            }
+
+            macro __new_props_internal__ {
+                #(#match_hands)*
+                (
+                    @@finish
+                    arguments = [{ $([$key:ident = $val:expr])* }]
+                    tokens = [{ }]
+                ) => {
+                    #ident {
+                        $($key: $val),*
+                    }
+                },
+                (
+                    @@finish
+                    arguments = [{ $($tt:tt)* }]
+                    tokens = [{ [$key:ident = $val:expr] $($rem:tt)* }]
+                ) => {
+                    compile_error!(concat!("There is no prop `", stringify!($key), "` on `", stringify!(#comp_ident), "`."));
+                }
+            }
+
+            #vis macro #ident($($key:ident: $val:expr),*) {
+                __new_props_internal__!(
+                    @#first
+                    arguments = [{ }]
+                    tokens = [{ $([$key = $val])* }]
+                );
             }
         }
     }
@@ -702,6 +772,25 @@ impl ComponentField {
         let ident = &self.ident;
         quote! {
             #ident
+        }
+    }
+
+    fn expand_default_fields_for_macro(&self) -> TokenStream {
+        let ident = &self.ident;
+        if let AttrArg {
+            default: Some(ref default),
+            ..
+        } = self.attr_arg
+        {
+            quote! {
+                [ #ident = #default ]
+            }
+        } else if self.attr_arg.use_default || self.is_optional {
+            quote! {
+                [ #ident = Default::default() ]
+            }
+        } else {
+            quote!()
         }
     }
 }
