@@ -79,7 +79,7 @@ impl ComponentMeta {
         let prop_struct = self
             .props_meta
             .as_ref()
-            .map(|m| m.expand_struct(&self.vis, &self.generics));
+            .map(|m| m.expand_struct(&self.ident, &self.vis, &self.generics));
         let events_structs = self
             .events_meta
             .as_ref()
@@ -456,8 +456,6 @@ impl ComponentMeta {
 struct PropsMeta {
     /// Ident of props struct.
     ident: Ident,
-    /// Ident of props builder struct.
-    builder_ident: Ident,
     /// List of prop fields.
     fields: Vec<ComponentField>,
 }
@@ -472,16 +470,13 @@ impl PropsMeta {
             .into_iter()
             .map(ComponentField::parse_prop)
             .collect();
-        let prop_fields = prop_fields?;
+        let mut prop_fields = prop_fields?;
+        prop_fields.sort_by(|l, r| l.ident.cmp(&r.ident));
         if prop_fields.is_empty() {
             Ok((None, rest))
         } else {
             let meta = PropsMeta {
                 ident: Ident::new(&format!("{}Props", component_ident), Span::call_site()),
-                builder_ident: Ident::new(
-                    &format!("{}PropsBuilder", component_ident),
-                    Span::call_site(),
-                ),
                 fields: prop_fields,
             };
             Ok((Some(meta), rest))
@@ -495,60 +490,83 @@ impl PropsMeta {
         self.fields.iter().map(map_fn).collect()
     }
 
-    fn expand_struct(&self, vis: &Visibility, generics: &Generics) -> TokenStream {
+    fn expand_struct(
+        &self,
+        comp_ident: &Ident,
+        vis: &Visibility,
+        generics: &Generics,
+    ) -> TokenStream {
         let ident = &self.ident;
         let fields = self.expand_fields_with(ComponentField::expand_as_struct_field);
-        let (impl_gen, ty_gen, where_clause) = generics.split_for_impl();
+        let field_idents = self.expand_fields_with(ComponentField::expand_as_ident);
+        let field_default_vals =
+            self.expand_fields_with(ComponentField::expand_default_fields_for_macro);
+        let mut next_idents = field_idents.clone();
+        let first = next_idents.remove(0);
+        next_idents.push(quote!(@finish));
 
-        let builder_ident = &self.builder_ident;
-        let builder_fields =
-            self.expand_fields_with(ComponentField::expand_as_builder_struct_field);
-        let builder_field_idents = self.expand_fields_with(ComponentField::expand_as_ident);
-        let builder_assignment = self.expand_fields_with(ComponentField::expand_builder_assignment);
-        let builder_finish_assignment =
-            self.expand_fields_with(ComponentField::expand_builder_finish_assignment);
-
+        let mut match_hands = vec![];
+        for ((cur, next), default) in field_idents
+            .iter()
+            .zip(next_idents.iter())
+            .zip(field_default_vals.iter())
+        {
+            match_hands.push(quote!{
+                (
+                    @#cur
+                    arguments = [{ $($args:tt)* }]
+                    tokens = [{ [#cur = $val:expr] $($rest:tt)* }]
+                ) => {
+                    __new_props_internal__!(
+                        @#next
+                        arguments = [{ $($args)* [#cur = $val] }]
+                        tokens = [{ $($rest)* }]
+                    );
+                },
+                (
+                    @#cur
+                    arguments = [{ $($args:tt)* }]
+                    tokens = [{ $($rest:tt)* }]
+                ) => {
+                    __new_props_internal__!(
+                        @#next
+                        arguments = [{ $($args)* #default }]
+                        tokens = [{ $($rest)* }]
+                    );
+                },
+            });
+        }
         quote! {
             #vis struct #ident #generics {
                 #(#fields),*
             }
 
-            impl #impl_gen ruukh::component::BuilderCreator for #ident #ty_gen
-                #where_clause
-            {
-                type Builder = #builder_ident #ty_gen;
-
-                fn builder() -> Self::Builder {
-                    Default::default()
-                }
-            }
-
-            #vis struct #builder_ident #generics {
-                #(#builder_fields),*
-            }
-
-            impl #impl_gen Default for #builder_ident #ty_gen #where_clause {
-                fn default() -> Self {
-                    #builder_ident {
-                        #(#builder_field_idents: None),*
-                    }
-                }
-            }
-
-            impl #impl_gen #builder_ident #ty_gen #where_clause {
-                #(#builder_assignment)*
-            }
-
-            impl #impl_gen ruukh::component::BuilderFinisher for #builder_ident #ty_gen
-                #where_clause
-            {
-                type Built = #ident #ty_gen;
-
-                fn finish(self) -> Self::Built {
+            macro __new_props_internal__ {
+                #(#match_hands)*
+                (
+                    @@finish
+                    arguments = [{ $([$key:ident = $val:expr])* }]
+                    tokens = [{ }]
+                ) => {
                     #ident {
-                        #(#builder_finish_assignment),*
+                        $($key: $val),*
                     }
+                },
+                (
+                    @@finish
+                    arguments = [{ $($tt:tt)* }]
+                    tokens = [{ [$key:ident = $val:expr] $($rem:tt)* }]
+                ) => {
+                    compile_error!(concat!("There is no prop `", stringify!($key), "` on `", stringify!(#comp_ident), "`."));
                 }
+            }
+
+            #vis macro #ident($($key:ident: $val:expr),*) {
+                __new_props_internal__!(
+                    @#first
+                    arguments = [{ }]
+                    tokens = [{ $([$key = $val])* }]
+                );
             }
         }
     }
@@ -733,20 +751,6 @@ impl ComponentField {
         }
     }
 
-    fn expand_as_builder_struct_field(&self) -> TokenStream {
-        let ident = &self.ident;
-        let ty = &self.ty;
-        if self.is_optional {
-            quote! {
-                #ident: #ty
-            }
-        } else {
-            quote! {
-                #ident: Option<#ty>
-            }
-        }
-    }
-
     fn expand_as_default_field(&self) -> TokenStream {
         let ident = &self.ident;
         if let AttrArg {
@@ -764,80 +768,29 @@ impl ComponentField {
         }
     }
 
-    fn expand_as_arg_field(&self) -> TokenStream {
-        let ident = &self.ident;
-        let ty = &self.ty;
-        quote! {
-            #ident: #ty
-        }
-    }
-
-    fn expand_builder_assignment(&self) -> TokenStream {
-        let ident = &self.ident;
-        let arg_field = self.expand_as_arg_field();
-
-        if self.is_optional {
-            quote! {
-                pub fn #ident(mut self, #arg_field) -> Self {
-                    self.#ident = #ident;
-                    self
-                }
-            }
-        } else {
-            quote! {
-                pub fn #ident(mut self, #arg_field) -> Self {
-                    self.#ident = Some(#ident);
-                    self
-                }
-            }
-        }
-    }
-
-    fn expand_builder_finish_assignment(&self) -> TokenStream {
-        let ident = &self.ident;
-        if let AttrArg {
-            use_default: true,
-            ref default,
-        } = self.attr_arg
-        {
-            if let Some(ref default) = default {
-                if self.is_optional {
-                    quote! {
-                        #ident: self.#ident.or(#default)
-                    }
-                } else {
-                    quote! {
-                        #ident: self.#ident.unwrap_or(#default)
-                    }
-                }
-            } else {
-                if self.is_optional {
-                    quote! {
-                        #ident: self.#ident
-                    }
-                } else {
-                    quote! {
-                        #ident: self.#ident.unwrap_or_default()
-                    }
-                }
-            }
-        } else {
-            if self.is_optional {
-                quote! {
-                    #ident: self.#ident
-                }
-            } else {
-                quote! {
-                    #ident: self.#ident.expect(&format!("The field `{}` is required.", stringify!(#ident)))
-                }
-            }
-        }
-    }
-
     fn expand_as_ident(&self) -> TokenStream {
         let ident = &self.ident;
         quote! {
             #ident
+        }
+    }
+
+    fn expand_default_fields_for_macro(&self) -> TokenStream {
+        let ident = &self.ident;
+        if let AttrArg {
+            default: Some(ref default),
+            ..
+        } = self.attr_arg
+        {
+            quote! {
+                [ #ident = #default ]
+            }
+        } else if self.attr_arg.use_default || self.is_optional {
+            quote! {
+                [ #ident = Default::default() ]
+            }
+        } else {
+            quote!()
         }
     }
 }

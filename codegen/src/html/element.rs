@@ -151,8 +151,11 @@ impl Parse for OpeningTag {
 
         let gt = input.parse()?;
 
-        let (prop_attributes, event_attributes) =
-            attributes.into_iter().partition(|attr| attr.at.is_none());
+        let (mut prop_attributes, event_attributes) = attributes
+            .into_iter()
+            .partition::<Vec<_>, _>(|attr| attr.at.is_none());
+
+        prop_attributes.sort_by(|l, r| l.key.name.cmp(&r.key.name));
 
         Ok(OpeningTag {
             lt,
@@ -193,7 +196,7 @@ impl OpeningTag {
                 let prop_attributes: Vec<_> = self
                     .prop_attributes
                     .iter()
-                    .map(|p| p.expand_as_prop_setter().unwrap())
+                    .map(|p| p.expand_as_named_arg().unwrap())
                     .collect();
 
                 let event_attributes: Vec<_> = self
@@ -202,14 +205,11 @@ impl OpeningTag {
                     .map(|e| e.expand_as_event_setter().unwrap())
                     .collect();
 
-                quote! {
+                let prop_ident = Ident::new(&format!("{}Props", ident), ident.span());
+                let span = ident.span();
+                quote_spanned!{span=>
                     ruukh::vdom::vcomponent::VComponent::new::<#ident>(
-                        ruukh::component::BuilderFinisher::finish(
-                            <<#ident as Component>
-                                ::Props as ruukh::component::BuilderCreator>
-                                    ::builder()
-                            #(#prop_attributes)*
-                        ),
+                        #prop_ident!(#(#prop_attributes),*),
                         ruukh::component::BuilderFinisher::finish(
                             <<<#ident as Component>
                                 ::Events as ruukh::component::EventsPair<Self>>
@@ -387,7 +387,7 @@ impl HtmlAttribute {
         })
     }
 
-    fn expand_as_prop_setter(&self) -> Option<TokenStream> {
+    fn expand_as_named_arg(&self) -> Option<TokenStream> {
         if self.at.is_some() {
             return None;
         }
@@ -395,7 +395,7 @@ impl HtmlAttribute {
         let value = &self.value;
 
         Some(quote! {
-            .#key(#value)
+            #key: #value
         })
     }
 
