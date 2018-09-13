@@ -456,8 +456,6 @@ impl ComponentMeta {
 struct PropsMeta {
     /// Ident of props struct.
     ident: Ident,
-    /// Ident of props builder struct.
-    builder_ident: Ident,
     /// List of prop fields.
     fields: Vec<ComponentField>,
 }
@@ -478,10 +476,6 @@ impl PropsMeta {
         } else {
             let meta = PropsMeta {
                 ident: Ident::new(&format!("{}Props", component_ident), Span::call_site()),
-                builder_ident: Ident::new(
-                    &format!("{}PropsBuilder", component_ident),
-                    Span::call_site(),
-                ),
                 fields: prop_fields,
             };
             Ok((Some(meta), rest))
@@ -498,57 +492,10 @@ impl PropsMeta {
     fn expand_struct(&self, vis: &Visibility, generics: &Generics) -> TokenStream {
         let ident = &self.ident;
         let fields = self.expand_fields_with(ComponentField::expand_as_struct_field);
-        let (impl_gen, ty_gen, where_clause) = generics.split_for_impl();
-
-        let builder_ident = &self.builder_ident;
-        let builder_fields =
-            self.expand_fields_with(ComponentField::expand_as_builder_struct_field);
-        let builder_field_idents = self.expand_fields_with(ComponentField::expand_as_ident);
-        let builder_assignment = self.expand_fields_with(ComponentField::expand_builder_assignment);
-        let builder_finish_assignment =
-            self.expand_fields_with(ComponentField::expand_builder_finish_assignment);
 
         quote! {
             #vis struct #ident #generics {
                 #(#fields),*
-            }
-
-            impl #impl_gen ruukh::component::BuilderCreator for #ident #ty_gen
-                #where_clause
-            {
-                type Builder = #builder_ident #ty_gen;
-
-                fn builder() -> Self::Builder {
-                    Default::default()
-                }
-            }
-
-            #vis struct #builder_ident #generics {
-                #(#builder_fields),*
-            }
-
-            impl #impl_gen Default for #builder_ident #ty_gen #where_clause {
-                fn default() -> Self {
-                    #builder_ident {
-                        #(#builder_field_idents: None),*
-                    }
-                }
-            }
-
-            impl #impl_gen #builder_ident #ty_gen #where_clause {
-                #(#builder_assignment)*
-            }
-
-            impl #impl_gen ruukh::component::BuilderFinisher for #builder_ident #ty_gen
-                #where_clause
-            {
-                type Built = #ident #ty_gen;
-
-                fn finish(self) -> Self::Built {
-                    #ident {
-                        #(#builder_finish_assignment),*
-                    }
-                }
             }
         }
     }
@@ -733,20 +680,6 @@ impl ComponentField {
         }
     }
 
-    fn expand_as_builder_struct_field(&self) -> TokenStream {
-        let ident = &self.ident;
-        let ty = &self.ty;
-        if self.is_optional {
-            quote! {
-                #ident: #ty
-            }
-        } else {
-            quote! {
-                #ident: Option<#ty>
-            }
-        }
-    }
-
     fn expand_as_default_field(&self) -> TokenStream {
         let ident = &self.ident;
         if let AttrArg {
@@ -760,76 +693,6 @@ impl ComponentField {
         } else {
             quote! {
                 #ident: Default::default()
-            }
-        }
-    }
-
-    fn expand_as_arg_field(&self) -> TokenStream {
-        let ident = &self.ident;
-        let ty = &self.ty;
-        quote! {
-            #ident: #ty
-        }
-    }
-
-    fn expand_builder_assignment(&self) -> TokenStream {
-        let ident = &self.ident;
-        let arg_field = self.expand_as_arg_field();
-
-        if self.is_optional {
-            quote! {
-                pub fn #ident(mut self, #arg_field) -> Self {
-                    self.#ident = #ident;
-                    self
-                }
-            }
-        } else {
-            quote! {
-                pub fn #ident(mut self, #arg_field) -> Self {
-                    self.#ident = Some(#ident);
-                    self
-                }
-            }
-        }
-    }
-
-    fn expand_builder_finish_assignment(&self) -> TokenStream {
-        let ident = &self.ident;
-        if let AttrArg {
-            use_default: true,
-            ref default,
-        } = self.attr_arg
-        {
-            if let Some(ref default) = default {
-                if self.is_optional {
-                    quote! {
-                        #ident: self.#ident.or(#default)
-                    }
-                } else {
-                    quote! {
-                        #ident: self.#ident.unwrap_or(#default)
-                    }
-                }
-            } else {
-                if self.is_optional {
-                    quote! {
-                        #ident: self.#ident
-                    }
-                } else {
-                    quote! {
-                        #ident: self.#ident.unwrap_or_default()
-                    }
-                }
-            }
-        } else {
-            if self.is_optional {
-                quote! {
-                    #ident: self.#ident
-                }
-            } else {
-                quote! {
-                    #ident: self.#ident.expect(&format!("The field `{}` is required.", stringify!(#ident)))
-                }
             }
         }
     }
