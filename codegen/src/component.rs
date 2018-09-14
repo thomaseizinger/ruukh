@@ -504,6 +504,8 @@ impl PropsMeta {
         let mut next_idents = field_idents.clone();
         let first = next_idents.remove(0);
         next_idents.push(quote!(@finish));
+        let internal_macro_ident =
+            &Ident::new(&format!("__new_{}_internal__", ident), Span::call_site());
 
         let mut match_hands = vec![];
         for ((cur, next), default) in field_idents
@@ -517,7 +519,7 @@ impl PropsMeta {
                     arguments = [{ $($args:tt)* }]
                     tokens = [{ [#cur = $val:expr] $($rest:tt)* }]
                 ) => {
-                    __new_props_internal__!(
+                    #internal_macro_ident!(
                         @#next
                         arguments = [{ $($args)* [#cur = $val] }]
                         tokens = [{ $($rest)* }]
@@ -528,7 +530,7 @@ impl PropsMeta {
                     arguments = [{ $($args:tt)* }]
                     tokens = [{ $($rest:tt)* }]
                 ) => {
-                    __new_props_internal__!(
+                    #internal_macro_ident!(
                         @#next
                         arguments = [{ $($args)* #default }]
                         tokens = [{ $($rest)* }]
@@ -541,7 +543,7 @@ impl PropsMeta {
                 #(#fields),*
             }
 
-            macro __new_props_internal__ {
+            macro #internal_macro_ident {
                 #(#match_hands)*
                 (
                     @@finish
@@ -562,7 +564,7 @@ impl PropsMeta {
             }
 
             #vis macro #ident($($key:ident: $val:expr),*) {
-                __new_props_internal__!(
+                #internal_macro_ident!(
                     @#first
                     arguments = [{ }]
                     tokens = [{ $([$key = $val])* }]
@@ -990,6 +992,9 @@ impl EventsMeta {
         let events_assignment = self.expand_events_with(EventMeta::expand_event_assignment);
         let events_default_val = self.expand_events_with(EventMeta::expand_event_default_value);
 
+        let macro_internal_ident =
+            &Ident::new(&format!("__new_{}_internal__", ident), Span::call_site());
+
         let mut match_hands = vec![];
         for ((cur, next), (assignment, default)) in event_names
             .iter()
@@ -1002,7 +1007,7 @@ impl EventsMeta {
                     arguments = [{ $($args:tt)* }]
                     tokens = [{ [#cur = $val:expr] $($rest:tt)* }]
                 ) => {
-                    __new_events_internal__!(
+                    #macro_internal_ident!(
                         @#next
                         arguments = [{ $($args)* #assignment }]
                         tokens = [{ $($rest)* }]
@@ -1013,7 +1018,7 @@ impl EventsMeta {
                     arguments = [{ $($args:tt)* }]
                     tokens = [{ $($rest:tt)* }]
                 ) => {
-                    __new_events_internal__!(
+                    #macro_internal_ident!(
                         @#next
                         arguments = [{ $($args)* #default }]
                         tokens = [{ $($rest)* }]
@@ -1051,7 +1056,7 @@ impl EventsMeta {
 
             #(#event_wrappers)*
 
-            macro __new_events_internal__ {
+            macro #macro_internal_ident {
                 #(#match_hands)*
                 (
                     @@finish
@@ -1072,7 +1077,7 @@ impl EventsMeta {
             }
 
             #vis macro #ident($($key:ident: $val:expr),*) {
-                __new_events_internal__!(
+                #macro_internal_ident!(
                     @#first
                     arguments = [{ }]
                     tokens = [{ $([$key = $val])* }]
