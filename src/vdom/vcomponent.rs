@@ -284,12 +284,12 @@ where
 }
 
 #[cfg(test)]
-pub mod wasm_test {
+pub mod test {
+    use super::*;
     use component::*;
-    use dom::*;
     use prelude::*;
+    use vdom::{velement::*, vtext::*, VNode};
     use wasm_bindgen_test::*;
-    use web_api::*;
     use Shared;
 
     struct Button {
@@ -340,12 +340,12 @@ pub mod wasm_test {
             unreachable!()
         }
 
-        fn is_state_dirty(&self) -> bool {
+        fn take_state_dirty(&self) -> bool {
             false
         }
 
-        fn is_props_dirty(&self) -> bool {
-            self.__status.borrow_mut().is_props_dirty()
+        fn take_props_dirty(&self) -> bool {
+            self.__status.borrow_mut().take_props_dirty()
         }
 
         fn set_state<F>(&self, _: F) {
@@ -354,7 +354,7 @@ pub mod wasm_test {
     }
 
     impl Render for Button {
-        fn render(&self) -> VNode<Self> {
+        fn render(&self) -> Markup<Self> {
             VNode::new(VElement::new(
                 "button",
                 vec![Attribute::new("disabled", self.disabled.to_string())],
@@ -398,7 +398,7 @@ pub mod wasm_test {
         let mut patched = VComponent::new::<Button>(ButtonProps { disabled: true }, ());
         patched
             .patch(
-                Some(vcomp),
+                Some(&mut vcomp),
                 div.as_ref(),
                 None,
                 root_render_ctx(),

@@ -1,8 +1,8 @@
 use super::kw;
 use super::HtmlRoot;
 use heck::{CamelCase, KebabCase};
-use suffix::{EVENT_SUFFIX, PROPS_SUFFIX};
 use proc_macro2::{Span, TokenStream};
+use suffix::{EVENT_SUFFIX, PROPS_SUFFIX};
 use syn::parse::{Error, Parse, ParseStream, Result as ParseResult};
 use syn::punctuated::Punctuated;
 use syn::token;
@@ -536,22 +536,16 @@ mod test {
     #[test]
     fn should_parse_single_tag_name() {
         let parsed: TagName = syn::parse_str("Identifier").unwrap();
-        match parsed {
-            TagName::Component { ident } => {
-                assert_eq!(ident, "Identifier");
-            }
-            _ => {}
+        if let TagName::Component { ident } = parsed {
+            assert_eq!(ident, "Identifier");
         }
     }
 
     #[test]
     fn should_parse_dashed_tag_name() {
         let parsed: TagName = syn::parse_str("first-second-third").unwrap();
-        match parsed {
-            TagName::Tag { name, .. } => {
-                assert_eq!(name, "first-second-third");
-            }
-            _ => {}
+        if let TagName::Component { ident } = parsed {
+            assert_eq!(ident, "first-second-third");
         }
     }
 }

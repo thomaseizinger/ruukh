@@ -40,11 +40,11 @@ fn should_impl_lifecycle() {
             unimplemented!()
         }
 
-        fn is_state_dirty(&self) -> bool {
+        fn take_state_dirty(&self) -> bool {
             unimplemented!()
         }
 
-        fn is_props_dirty(&self) -> bool {
+        fn take_props_dirty(&self) -> bool {
             unimplemented!()
         }
 

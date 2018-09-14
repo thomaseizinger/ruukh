@@ -154,11 +154,13 @@ impl<RCTX: Render> DOMInfo for VList<RCTX> {
 }
 
 #[cfg(test)]
-mod test {
-    use super::VList;
+pub mod test {
+    use super::*;
+    use component::root_render_ctx;
     use vdom::velement::VElement;
     use vdom::vtext::VText;
     use vdom::VNode;
+    use wasm_bindgen_test::*;
 
     #[test]
     fn should_display_a_list_of_vnodes() {
@@ -168,15 +170,6 @@ mod test {
         ]);
         assert_eq!(format!("{}", list), "First of the node<input>");
     }
-}
-
-#[cfg(test)]
-pub mod wasm_test {
-    use component::root_render_ctx;
-    use dom::*;
-    use prelude::*;
-    use wasm_bindgen_test::*;
-    use web_api::*;
 
     fn container() -> Element {
         html_document.create_element("div").unwrap()
@@ -224,7 +217,7 @@ pub mod wasm_test {
         ]);
         new_list
             .patch(
-                Some(list),
+                Some(&mut list),
                 div.as_ref(),
                 None,
                 root_render_ctx(),

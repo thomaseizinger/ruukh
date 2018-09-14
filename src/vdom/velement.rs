@@ -464,9 +464,12 @@ impl From<Vec<Attribute>> for Attributes {
 }
 
 #[cfg(test)]
-mod test {
+pub mod test {
     use super::*;
     use vdom::vtext::VText;
+    use component::root_render_ctx;
+    use wasm_bindgen_test::*;
+
 
     #[test]
     fn should_display_a_div() {
@@ -496,16 +499,6 @@ mod test {
             "<p class=\"mt-3\" style=\"background-color: grey;\"></p>"
         );
     }
-}
-
-#[cfg(test)]
-
-pub mod wasm_test {
-    use component::root_render_ctx;
-    use dom::*;
-    use prelude::*;
-    use wasm_bindgen_test::*;
-    use web_api::*;
 
     fn container() -> Element {
         html_document.create_element("div").unwrap()
@@ -599,7 +592,7 @@ pub mod wasm_test {
         let mut button_el = VElement::childless("button", vec![], vec![]);
         button_el
             .patch(
-                Some(div_el),
+                Some(&mut div_el),
                 div.as_ref(),
                 None,
                 root_render_ctx(),
@@ -635,7 +628,7 @@ pub mod wasm_test {
         );
         div_diff
             .patch(
-                Some(div_el),
+                Some(&mut div_el),
                 div.as_ref(),
                 None,
                 root_render_ctx(),

@@ -12,17 +12,15 @@ extern crate wasm_bindgen_test;
 #[cfg(test)]
 use wasm_bindgen_test::*;
 
+#[cfg(test)]
+wasm_bindgen_test_configure!(run_in_browser);
+
 use component::{Render, RootParent};
 use std::cell::{Ref, RefCell, RefMut};
 use std::rc::Rc;
 use vdom::vcomponent::{ComponentManager, ComponentWrapper};
 use wasm_bindgen::prelude::*;
-#[cfg(test)]
-use wasm_bindgen_test::*;
 use web_api::*;
-
-#[cfg(test)]
-wasm_bindgen_test_configure!(run_in_browser);
 
 pub mod component;
 mod dom;
@@ -229,9 +227,4 @@ impl AppMount for String {
     fn app_mount(self) -> Element {
         self.as_str().app_mount()
     }
-}
-
-#[cfg(test)]
-fn message_sender() -> MessageSender {
-    ReactiveApp::new().1
 }

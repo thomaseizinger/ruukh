@@ -122,7 +122,7 @@ extern "C" {
 }
 
 #[cfg(test)]
-pub mod wasm_test {
+pub mod test {
     use super::*;
     use wasm_bindgen_test::*;
 

@@ -1,3 +1,5 @@
+#![feature(proc_macro_gen, decl_macro)]
+
 extern crate ruukh;
 extern crate ruukh_codegen;
 
@@ -16,7 +18,7 @@ fn should_build_a_component_from_struct() {
         prop_a: i32,
     }
 
-    let _ = ButtonProps::builder().prop_a(5).__finish__();
+    let _ = ButtonProps!(prop_a: 5);
 }
 
 #[test]
@@ -35,7 +37,7 @@ fn should_build_a_component_with_props_only() {
         prop_d: i32,
 
         #[prop(default)]
-        prop_e: i32
+        prop_e: i32,
     }
 
     let _ = ButtonProps {
@@ -43,14 +45,10 @@ fn should_build_a_component_with_props_only() {
         prop_b: 5,
         prop_c: 5,
         prop_d: 5,
-        prop_e: 5
+        prop_e: 5,
     };
 
-    let props = ButtonProps::builder()
-        .prop_a(1)
-        .prop_b(2)
-        .prop_c(3)
-        .__finish__();
+    let props = ButtonProps!(prop_a: 1, prop_b: 2, prop_c: 3, prop_d: 4);
 
     assert_eq!(props.prop_a, 1);
     assert_eq!(props.prop_b, 2);
@@ -94,7 +92,7 @@ fn should_build_a_component_with_state_and_props() {
         state_c: i32,
     }
 
-    let _ = ButtonProps::builder().prop_a(false).__finish__();
+    let _ = ButtonProps!(prop_a: false);
     let _ = ButtonState::default();
 }
 
@@ -163,14 +161,11 @@ fn should_build_a_component_with_default_option_props() {
         prop_b: Option<i32>,
     }
 
-    let props = ButtonProps::builder().__finish__();
+    let props = ButtonProps!();
     assert!(props.prop_a.is_none());
     assert_eq!(props.prop_b, Some(5));
 
-    let props = ButtonProps::builder()
-        .prop_b(Some(3))
-        .prop_a(Some(false))
-        .__finish__();
+    let props = ButtonProps!(prop_a: Some(false), prop_b: Some(3));
     assert_eq!(props.prop_a, Some(false));
     assert_eq!(props.prop_b, Some(3));
 }

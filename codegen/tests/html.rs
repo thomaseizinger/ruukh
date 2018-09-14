@@ -8,14 +8,14 @@ use ruukh::web_api::Event;
 
 #[test]
 fn should_expand_single_element() {
-    let _: VNode<()> = html! {
+    let _: Markup<()> = html! {
         <div>Hello World!</div>
     };
 }
 
 #[test]
 fn should_expand_list_of_elements() {
-    let _: VNode<()> = html! {
+    let _: Markup<()> = html! {
         <div>Hello</div>
         <div>World</div>
         <div>How are you?</div>
@@ -24,14 +24,14 @@ fn should_expand_list_of_elements() {
 
 #[test]
 fn should_expand_text() {
-    let _: VNode<()> = html! {
+    let _: Markup<()> = html! {
         Hello World!
     };
 }
 
 #[test]
 fn should_expand_multiline_text() {
-    let _: VNode<()> = html! {
+    let _: Markup<()> = html! {
         Hello World!
         How are you?
     };
@@ -39,7 +39,7 @@ fn should_expand_multiline_text() {
 
 #[test]
 fn should_expand_element_with_props() {
-    let _: VNode<()> = html! {
+    let _: Markup<()> = html! {
         <button disabled={true}>Click</button>
     };
 }
@@ -48,14 +48,14 @@ fn on_click(_: &(), _: Event) {}
 
 #[test]
 fn should_expand_element_with_event_listener() {
-    let _: VNode<()> = html! {
+    let _: Markup<()> = html! {
         <button @click={on_click}>Click</button>
     };
 }
 
 #[test]
 fn should_expand_element_with_attributes() {
-    let _: VNode<()> = html! {
+    let _: Markup<()> = html! {
         <button
             disabled={true}
             @click={on_click}

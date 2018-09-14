@@ -152,8 +152,10 @@ impl<RCTX: Render> DOMInfo for VText<RCTX> {
 }
 
 #[cfg(test)]
-mod test {
-    use super::VText;
+pub mod test {
+    use super::*;
+    use component::root_render_ctx;
+    use wasm_bindgen_test::*;
 
     #[test]
     fn should_display_text() {
@@ -169,16 +171,6 @@ mod test {
             "<!--Something to remind the hacky users.-->"
         );
     }
-}
-
-#[cfg(test)]
-
-pub mod wasm_test {
-    use component::root_render_ctx;
-    use dom::*;
-    use prelude::*;
-    use wasm_bindgen_test::*;
-    use web_api::*;
 
     #[wasm_bindgen_test]
     fn should_patch_container_with_new_text() {
@@ -214,7 +206,7 @@ pub mod wasm_test {
         let mut updated = VText::text("How you doing?");
         updated
             .patch(
-                Some(vtext),
+                Some(&mut vtext),
                 div.as_ref(),
                 None,
                 root_render_ctx(),
@@ -257,7 +249,7 @@ pub mod wasm_test {
 
         let mut text = VText::text("This is a text");
         text.patch(
-            Some(comment),
+            Some(&mut comment),
             div.as_ref(),
             None,
             root_render_ctx(),
