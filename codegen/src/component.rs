@@ -999,7 +999,8 @@ impl EventsMeta {
                 Ok(event_metas)
             }).collect();
 
-        let event_metas: Vec<EventMeta> = event_metas?.into_iter().flatten().collect();
+        let mut event_metas: Vec<EventMeta> = event_metas?.into_iter().flatten().collect();
+        event_metas.sort_by(|l, r| l.ident.cmp(&r.ident));
 
         if event_metas.is_empty() {
             Ok((None, rest))

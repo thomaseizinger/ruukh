@@ -152,11 +152,12 @@ impl Parse for OpeningTag {
 
         let gt = input.parse()?;
 
-        let (mut prop_attributes, event_attributes) = attributes
+        let (mut prop_attributes, mut event_attributes) = attributes
             .into_iter()
             .partition::<Vec<_>, _>(|attr| attr.at.is_none());
 
         prop_attributes.sort_by(|l, r| l.key.name.cmp(&r.key.name));
+        event_attributes.sort_by(|l, r| l.key.name.cmp(&r.key.name));
 
         Ok(OpeningTag {
             lt,
