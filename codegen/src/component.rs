@@ -878,8 +878,6 @@ struct EventsMeta {
     /// serves as an intermediate event type before converting it to the
     /// above event type.
     gen_ident: Ident,
-    /// Ident of the builder type which builds `gen_ident`.
-    builder_ident: Ident,
     /// All the event declarations on the component.
     events: Vec<EventMeta>,
 }
@@ -957,10 +955,6 @@ impl EventsMeta {
             let meta = EventsMeta {
                 ident: Ident::new(&format!("{}Events", component_ident), Span::call_site()),
                 gen_ident: Ident::new(&format!("{}EventsGen", component_ident), Span::call_site()),
-                builder_ident: Ident::new(
-                    &format!("{}EventsBuilder", component_ident),
-                    Span::call_site(),
-                ),
                 events: event_metas,
             };
             Ok((Some(meta), rest))
@@ -989,11 +983,44 @@ impl EventsMeta {
         let event_wrappers =
             self.expand_events_with(|e| e.expand_event_wrapper(component_ident, generics));
 
-        let builder_ident = &self.builder_ident;
-        let builder_fields = self.expand_events_with(EventMeta::expand_as_builder_struct_field);
-        let builder_assignment = self.expand_events_with(EventMeta::expand_builder_assignment);
-        let builder_finish_assignment =
-            self.expand_events_with(EventMeta::expand_builder_finish_assignment);
+        let mut next_event_names = event_names.clone();
+        let first = next_event_names.remove(0);
+        next_event_names.push(quote!(@finish));
+
+        let events_assignment = self.expand_events_with(EventMeta::expand_event_assignment);
+        let events_default_val = self.expand_events_with(EventMeta::expand_event_default_value);
+
+        let mut match_hands = vec![];
+        for ((cur, next), (assignment, default)) in event_names
+            .iter()
+            .zip(next_event_names.iter())
+            .zip(events_assignment.iter().zip(events_default_val.iter()))
+        {
+            match_hands.push(quote!{
+                (
+                    @#cur
+                    arguments = [{ $($args:tt)* }]
+                    tokens = [{ [#cur = $val:expr] $($rest:tt)* }]
+                ) => {
+                    __new_events_internal__!(
+                        @#next
+                        arguments = [{ $($args)* #assignment }]
+                        tokens = [{ $($rest)* }]
+                    );
+                },
+                (
+                    @#cur
+                    arguments = [{ $($args:tt)* }]
+                    tokens = [{ $($rest:tt)* }]
+                ) => {
+                    __new_events_internal__!(
+                        @#next
+                        arguments = [{ $($args)* #default }]
+                        tokens = [{ $($rest)* }]
+                    );
+                },
+            });
+        }
 
         quote! {
             #vis struct #ident {
@@ -1018,44 +1045,38 @@ impl EventsMeta {
                 #(#gen_fields),*
             }
 
-            impl<RCTX: Render> ruukh::component::BuilderCreator for #gen_ident<RCTX> {
-                type Builder = #builder_ident<RCTX>;
-
-                fn builder() -> Self::Builder {
-                    Default::default()
-                }
-            }
-
             impl<RCTX: Render> ruukh::component::EventsPair<RCTX> for #ident {
                 type Other = #gen_ident<RCTX>;
             }
 
             #(#event_wrappers)*
 
-            #vis struct #builder_ident<RCTX: Render> {
-                #(#builder_fields),*
-            }
-
-            impl<RCTX: Render> Default for #builder_ident<RCTX> {
-                fn default() -> Self {
-                    #builder_ident {
-                        #(#event_names: None),*
-                    }
-                }
-            }
-
-            impl<RCTX: Render> #builder_ident<RCTX> {
-                #(#builder_assignment)*
-            }
-
-            impl<RCTX: Render> ruukh::component::BuilderFinisher for #builder_ident<RCTX> {
-                type Built = #gen_ident<RCTX>;
-
-                fn finish(self) -> Self::Built {
+            macro __new_events_internal__ {
+                #(#match_hands)*
+                (
+                    @@finish
+                    arguments = [{ $([$key:ident = $val:expr])* }]
+                    tokens = [{ }]
+                ) => {
                     #gen_ident {
-                        #(#builder_finish_assignment),*
+                        $($key: $val),*
                     }
+                },
+                (
+                    @@finish
+                    arguments = [{ $($tt:tt)* }]
+                    tokens = [{ [$key:ident = $val:expr] $($rem:tt)* }]
+                ) => {
+                    compile_error!(concat!("There is no event `", stringify!($key), "` on `", stringify!(#component_ident), "`."));
                 }
+            }
+
+            #vis macro #ident($($key:ident: $val:expr),*) {
+                __new_events_internal__!(
+                    @#first
+                    arguments = [{ }]
+                    tokens = [{ $([$key = $val])* }]
+                );
             }
         }
     }
@@ -1140,14 +1161,6 @@ impl EventMeta {
         }
     }
 
-    fn expand_as_builder_struct_field(&self) -> TokenStream {
-        let ident = &self.ident;
-        let fn_type = self.gen_fn_type();
-        quote! {
-            #ident: Option<Box<#fn_type>>
-        }
-    }
-
     fn expand_as_arg_fields(&self) -> Vec<TokenStream> {
         self.arguments
             .iter()
@@ -1228,27 +1241,26 @@ impl EventMeta {
         }
     }
 
-    fn expand_builder_assignment(&self) -> TokenStream {
+    fn expand_event_default_value(&self) -> TokenStream {
         let ident = &self.ident;
-        let fn_type = self.gen_fn_type();
-        quote! {
-            pub fn #ident(mut self, val: Box<#fn_type>) -> Self {
-                self.#ident = Some(val);
-                self
+        if self.is_optional {
+            quote! {
+                [#ident = None]
             }
+        } else {
+            quote!()
         }
     }
 
-    fn expand_builder_finish_assignment(&self) -> TokenStream {
+    fn expand_event_assignment(&self) -> TokenStream {
         let ident = &self.ident;
-
         if self.is_optional {
             quote! {
-                #ident: self.#ident
+                [#ident = Some(Box::new($val))]
             }
         } else {
             quote! {
-                #ident: self.#ident.expect(&format!("The event `{}` is required.", stringify!(#ident)))
+                [#ident = Box::new($val)]
             }
         }
     }

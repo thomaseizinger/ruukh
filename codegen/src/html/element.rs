@@ -196,27 +196,22 @@ impl OpeningTag {
                 let prop_attributes: Vec<_> = self
                     .prop_attributes
                     .iter()
-                    .map(|p| p.expand_as_named_arg().unwrap())
+                    .map(|p| p.expand_as_named_arg())
                     .collect();
 
                 let event_attributes: Vec<_> = self
                     .event_attributes
                     .iter()
-                    .map(|e| e.expand_as_event_setter().unwrap())
+                    .map(|e| e.expand_as_named_arg())
                     .collect();
 
                 let prop_ident = Ident::new(&format!("{}Props", ident), ident.span());
+                let event_ident = Ident::new(&format!("{}Events", ident), ident.span());
                 let span = ident.span();
                 quote_spanned!{span=>
                     ruukh::vdom::vcomponent::VComponent::new::<#ident>(
                         #prop_ident!(#(#prop_attributes),*),
-                        ruukh::component::BuilderFinisher::finish(
-                            <<<#ident as Component>
-                                ::Events as ruukh::component::EventsPair<Self>>
-                                    ::Other as ruukh::component::BuilderCreator>
-                                        ::builder()
-                            #(#event_attributes)*
-                        ),
+                        #event_ident!(#(#event_attributes),*),
                     )
                 }
             }
@@ -387,28 +382,13 @@ impl HtmlAttribute {
         })
     }
 
-    fn expand_as_named_arg(&self) -> Option<TokenStream> {
-        if self.at.is_some() {
-            return None;
-        }
+    fn expand_as_named_arg(&self) -> TokenStream {
         let key = Ident::new(&self.key.name, Span::call_site());
         let value = &self.value;
 
-        Some(quote! {
+        quote! {
             #key: #value
-        })
-    }
-
-    fn expand_as_event_setter(&self) -> Option<TokenStream> {
-        if self.at.is_none() {
-            return None;
         }
-        let key = Ident::new(&self.key.name, Span::call_site());
-        let value = &self.value;
-
-        Some(quote! {
-            .#key(Box::new(#value))
-        })
     }
 }
 
