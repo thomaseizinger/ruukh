@@ -25,12 +25,10 @@ mod suffix;
 #[proc_macro_derive(Lifecycle)]
 pub fn derive_lifecycle(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-
     let ident = input.ident;
-    let (impl_gen, ty_gen, where_clause) = input.generics.split_for_impl();
 
     let expanded = quote! {
-        impl #impl_gen Lifecycle for #ident #ty_gen #where_clause {}
+        impl Lifecycle for #ident {}
     };
 
     expanded.into()
