@@ -15,7 +15,7 @@ pub enum HtmlElement {
 
 impl Parse for HtmlElement {
     fn parse(input: ParseStream) -> ParseResult<Self> {
-        if self_closing_tags::is_self_closing(&input) {
+        if kw::is_self_closing(&input) {
             Ok(HtmlElement::SelfClosing(input.parse()?))
         } else {
             Ok(HtmlElement::Normal(input.parse()?))
@@ -473,38 +473,6 @@ impl Parse for AttributeName {
         }
 
         Ok(AttributeName { name })
-    }
-}
-
-mod self_closing_tags {
-    use syn::parse::ParseStream;
-
-    macro_rules! custom_keywords {
-        ($($ident:ident),*) => {
-            $(
-                custom_keyword!($ident);
-            )*
-        };
-    }
-
-    custom_keywords![
-        area, base, br, col, embed, hr, img, input, link, meta, param, source, track, wbr
-    ];
-
-    macro_rules! is_self_closing {
-        ($inp:ident is [$($ident:ident),*]) => {
-            $(
-                $inp.peek2($ident)
-            )|| *
-        };
-    }
-
-    pub fn is_self_closing(inp: ParseStream) -> bool {
-        inp.peek(Token![<])
-            && (is_self_closing!(
-                inp is
-                [area, base, br, col, embed, hr, img, input, link, meta, param, source, track, wbr]
-            ))
     }
 }
 
