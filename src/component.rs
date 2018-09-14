@@ -189,30 +189,6 @@ pub trait EventsPair<T> {
     type Other;
 }
 
-/// Trait to create a new builder for `Self`.
-///
-/// Used to create `Props` and `Events` using builder pattern. This trait was
-/// introduced to abstract over type `()`.
-pub trait BuilderCreator: Sized {
-    /// The builder type.
-    type Builder: BuilderFinisher<Built = Self>;
-
-    /// Initialize a new builder.
-    fn builder() -> Self::Builder;
-}
-
-/// Trait to finish building `Self::Built`.
-///
-/// Used to create `Props` and `Events` using builder pattern. This trait was
-/// introduced to abstract over type `()`.
-pub trait BuilderFinisher: Sized {
-    /// The built type.
-    type Built: BuilderCreator<Builder = Self>;
-
-    /// Finish building and return the built type.
-    fn finish(self) -> Self::Built;
-}
-
 /// A void component to be used as a render context for a root component.
 /// Simply the parent of the root.
 pub type RootParent = ();
@@ -322,22 +298,6 @@ impl Render for RootParent {
 
 impl<RCTX: Render> EventsPair<RCTX> for () {
     type Other = ();
-}
-
-impl BuilderCreator for () {
-    type Builder = ();
-
-    fn builder() -> () {
-        ()
-    }
-}
-
-impl BuilderFinisher for () {
-    type Built = ();
-
-    fn finish(self) -> () {
-        self
-    }
 }
 
 #[cfg(test)]
