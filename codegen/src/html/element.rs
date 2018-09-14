@@ -95,7 +95,7 @@ impl Parse for NormalHtmlElement {
 impl NormalHtmlElement {
     fn expand(&self) -> TokenStream {
         let child_expanded = self.child.expand();
-        self.opening_tag.expand_with(child_expanded)
+        self.opening_tag.expand_with(&child_expanded)
     }
 
     pub fn key(&self) -> Option<&KeyAttribute> {
@@ -169,7 +169,7 @@ impl Parse for OpeningTag {
 }
 
 impl OpeningTag {
-    fn expand_with(&self, child: TokenStream) -> TokenStream {
+    fn expand_with(&self, child: &TokenStream) -> TokenStream {
         match self.tag_name {
             TagName::Tag { ref name, .. } => {
                 let prop_attributes: Vec<_> = self
@@ -317,12 +317,16 @@ pub struct KeyAttribute {
 
 impl Parse for KeyAttribute {
     fn parse(input: ParseStream) -> ParseResult<Self> {
+        let key = input.parse()?;
+        let eq = input.parse()?;
         let content;
+        let brace = braced!(content in input);
+        let value = content.parse()?;
         Ok(KeyAttribute {
-            key: input.parse()?,
-            eq: input.parse()?,
-            brace: braced!(content in input),
-            value: content.parse()?,
+            key,
+            eq,
+            brace,
+            value,
         })
     }
 }
@@ -346,13 +350,18 @@ pub struct HtmlAttribute {
 
 impl Parse for HtmlAttribute {
     fn parse(input: ParseStream) -> ParseResult<Self> {
+        let at = input.parse()?;
+        let key = input.parse()?;
+        let eq = input.parse()?;
         let content;
+        let brace = braced!(content in input);
+        let value = content.parse()?;
         Ok(HtmlAttribute {
-            at: input.parse()?,
-            key: input.parse()?,
-            eq: input.parse()?,
-            brace: braced!(content in input),
-            value: content.parse()?,
+            at,
+            key,
+            eq,
+            brace,
+            value,
         })
     }
 }
@@ -371,9 +380,7 @@ impl HtmlAttribute {
     }
 
     fn expand_as_event_attribute(&self) -> Option<TokenStream> {
-        if self.at.is_none() {
-            return None;
-        }
+        self.at?;
         let key = &self.key.name;
         let value = &self.value;
 
@@ -491,7 +498,7 @@ mod self_closing_tags {
         };
     }
 
-    pub fn is_self_closing(inp: &ParseStream) -> bool {
+    pub fn is_self_closing(inp: ParseStream) -> bool {
         inp.peek(Token![<])
             && (is_self_closing!(
                 inp is

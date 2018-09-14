@@ -80,12 +80,12 @@ impl ComponentMeta {
             .props_meta
             .as_ref()
             .map(|m| m.expand_struct(&self.ident, &self.vis, &self.generics))
-            .unwrap_or(PropsMeta::expand_void_macro(&self.ident, &self.vis));
+            .unwrap_or_else(|| PropsMeta::expand_void_macro(&self.ident, &self.vis));
         let events_structs = self
             .events_meta
             .as_ref()
             .map(|m| m.expand_structs(&self.ident, &self.vis, &self.generics))
-            .unwrap_or(EventsMeta::expand_void_macro(&self.ident, &self.vis));
+            .unwrap_or_else(|| EventsMeta::expand_void_macro(&self.ident, &self.vis));
 
         quote! {
             #component_struct
@@ -194,8 +194,8 @@ impl ComponentMeta {
         let updation_ret_block = self.expand_updation_return_block();
         let events_updation = self.expand_events_updation();
         let refresh_state_body = self.expand_refresh_state_body(state_field_idents);
-        let is_state_dirty_body = self.expand_is_state_dirty_body();
-        let is_props_dirty_body = self.expand_is_props_dirty_body();
+        let take_state_dirty_body = self.expand_take_state_dirty_body();
+        let take_props_dirty_body = self.expand_take_props_dirty_body();
         let set_state_body = self.expand_set_state_body(state_field_idents);
 
         quote! {
@@ -244,12 +244,12 @@ impl ComponentMeta {
                     #refresh_state_body
                 }
 
-                fn is_state_dirty(&self) -> bool {
-                    #is_state_dirty_body
+                fn take_state_dirty(&self) -> bool {
+                    #take_state_dirty_body
                 }
 
-                fn is_props_dirty(&self) -> bool {
-                    #is_props_dirty_body
+                fn take_props_dirty(&self) -> bool {
+                    #take_props_dirty_body
                 }
 
                 fn set_state<F>(&self, mut mutator: F)
@@ -262,7 +262,7 @@ impl ComponentMeta {
         }
     }
 
-    fn expand_set_state_body(&self, idents: &Vec<TokenStream>) -> TokenStream {
+    fn expand_set_state_body(&self, idents: &[TokenStream]) -> TokenStream {
         let idents2 = idents;
         if self.state_meta.is_some() {
             quote! {
@@ -289,27 +289,27 @@ impl ComponentMeta {
         }
     }
 
-    fn expand_is_props_dirty_body(&self) -> TokenStream {
+    fn expand_take_props_dirty_body(&self) -> TokenStream {
         if self.props_meta.is_some() {
             quote! {
-                self.__status__.borrow_mut().is_props_dirty()
+                self.__status__.borrow_mut().take_props_dirty()
             }
         } else {
             quote! { false }
         }
     }
 
-    fn expand_is_state_dirty_body(&self) -> TokenStream {
+    fn expand_take_state_dirty_body(&self) -> TokenStream {
         if self.state_meta.is_some() {
             quote! {
-                self.__status__.borrow_mut().is_state_dirty()
+                self.__status__.borrow_mut().take_state_dirty()
             }
         } else {
             quote! { false }
         }
     }
 
-    fn expand_refresh_state_body(&self, idents: &Vec<TokenStream>) -> TokenStream {
+    fn expand_refresh_state_body(&self, idents: &[TokenStream]) -> TokenStream {
         let idents2 = idents;
         let idents3 = idents;
         let idents4 = idents;
@@ -329,7 +329,7 @@ impl ComponentMeta {
         }
     }
 
-    fn expand_props_updation(&self, idents: &Vec<TokenStream>) -> TokenStream {
+    fn expand_props_updation(&self, idents: &[TokenStream]) -> TokenStream {
         let idents2 = idents;
         let idents3 = idents;
         let idents4 = idents;
@@ -691,15 +691,13 @@ impl Parse for AttrArg {
                 use_default: true,
                 default: Some(default),
             })
+        } else if content.is_empty() {
+            Ok(AttrArg {
+                use_default: true,
+                default: None,
+            })
         } else {
-            if content.is_empty() {
-                Ok(AttrArg {
-                    use_default: true,
-                    default: None,
-                })
-            } else {
-                Err(content.error("expected ')'."))
-            }
+            Err(content.error("expected ')'."))
         }
     }
 }
@@ -721,7 +719,7 @@ impl ComponentField {
             Type::Path(TypePath { ref path, .. }) => {
                 let tokens = quote! { #path };
                 let tokens = tokens.to_string().replace(' ', "");
-                Ok(tokens.starts_with("Option<") && tokens.ends_with(">"))
+                Ok(tokens.starts_with("Option<") && tokens.ends_with('>'))
             }
             _ => Err(Error::new(field.ty.span(), "Type not supported")),
         }

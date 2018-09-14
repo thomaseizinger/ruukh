@@ -127,7 +127,7 @@ impl<RCTX: Render> From<VElement<RCTX>> for VNode<RCTX> {
     }
 }
 
-const VOID_TAGS: [&'static str; 14] = [
+const VOID_TAGS: [&str; 14] = [
     "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source",
     "track", "wbr",
 ];

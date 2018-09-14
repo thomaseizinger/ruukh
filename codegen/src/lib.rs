@@ -1,4 +1,6 @@
 #![recursion_limit = "256"]
+#![cfg_attr(feature = "cargo-clippy", feature(tool_lints))]
+#![cfg_attr(feature = "cargo-clippy", warn(clippy::all))]
 //! The crate which removes all the boilerplate from `ruukh` apps.
 
 extern crate proc_macro;
@@ -45,6 +47,10 @@ pub fn derive_lifecycle(input: proc_macro::TokenStream) -> proc_macro::TokenStre
 /// }
 /// ```
 #[proc_macro_attribute]
+#[cfg_attr(
+    feature = "cargo-clippy",
+    allow(clippy::needless_pass_by_value)
+)]
 pub fn component(
     metadata: proc_macro::TokenStream,
     input: proc_macro::TokenStream,

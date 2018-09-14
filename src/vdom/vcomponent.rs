@@ -163,12 +163,12 @@ where
         } else {
             let comp = self.component.as_ref().unwrap();
 
-            let state_changed = comp.borrow_mut().is_state_dirty();
+            let state_changed = comp.borrow_mut().take_state_dirty();
             if state_changed {
                 comp.borrow_mut().refresh_state();
             }
 
-            if state_changed || comp.borrow_mut().is_props_dirty() {
+            if state_changed || comp.borrow_mut().take_props_dirty() {
                 let mut rerender = comp.borrow().render();
                 let mut cached_render = self.cached_render.take();
                 rerender.patch(

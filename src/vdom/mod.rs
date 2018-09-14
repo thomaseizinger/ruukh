@@ -198,7 +198,7 @@ macro_rules! convert {
         $(
             impl From<$f> for Key {
                 fn from(num: $f) -> Key {
-                    Key::I32(num as i32)
+                    Key::I32(i32::from(num))
                 }
             }
         )*
@@ -207,7 +207,7 @@ macro_rules! convert {
         $(
             impl From<$f> for Key {
                 fn from(num: $f) -> Key {
-                    Key::U32(num as u32)
+                    Key::U32(u32::from(num))
                 }
             }
         )*

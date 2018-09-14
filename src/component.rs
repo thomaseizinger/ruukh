@@ -47,11 +47,11 @@ pub trait Component: 'static {
 
     /// Finds whether the component status has been altered. If altered, resets
     /// it to an undirtied state.
-    fn is_state_dirty(&self) -> bool;
+    fn take_state_dirty(&self) -> bool;
 
     /// Finds whether the component has been updated with newer props. If
     /// updated, resets it to undirtied state.
-    fn is_props_dirty(&self) -> bool;
+    fn take_props_dirty(&self) -> bool;
 
     /// Mutates the state of the component by executing the closure which
     /// accepts the current state. If the state is mutated, it marks the state
@@ -94,7 +94,7 @@ impl<T> Status<T> {
     }
 
     /// Gets and resets `state_dirty` flag.
-    pub fn is_state_dirty(&mut self) -> bool {
+    pub fn take_state_dirty(&mut self) -> bool {
         if self.state_dirty {
             self.state_dirty = false;
             true
@@ -109,7 +109,7 @@ impl<T> Status<T> {
     }
 
     /// Gets and resets `props_dirty` flag.
-    pub fn is_props_dirty(&mut self) -> bool {
+    pub fn take_props_dirty(&mut self) -> bool {
         if self.props_dirty {
             self.props_dirty = false;
             true
@@ -235,14 +235,14 @@ impl Component for RootParent {
         )
     }
 
-    fn is_state_dirty(&self) -> bool {
+    fn take_state_dirty(&self) -> bool {
         unreachable!(
             "It is a void component to be used as a render context for a root \
              component. Not to be used as a component itself."
         )
     }
 
-    fn is_props_dirty(&self) -> bool {
+    fn take_props_dirty(&self) -> bool {
         unreachable!(
             "It is a void component to be used as a render context for a root \
              component. Not to be used as a component itself."

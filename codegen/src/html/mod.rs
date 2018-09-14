@@ -156,7 +156,7 @@ impl HtmlItems {
 }
 
 pub enum HtmlItem {
-    Element(HtmlElement),
+    Element(Box<HtmlElement>),
     ExpressionBlock(RustExpressionBlock),
     Text(Text),
 }
@@ -164,7 +164,7 @@ pub enum HtmlItem {
 impl Parse for HtmlItem {
     fn parse(input: ParseStream) -> ParseResult<Self> {
         if input.peek(Token![<]) {
-            Ok(HtmlItem::Element(input.parse()?))
+            Ok(HtmlItem::Element(Box::new(input.parse()?)))
         } else if input.peek(token::Brace) {
             Ok(HtmlItem::ExpressionBlock(input.parse()?))
         } else {
@@ -253,8 +253,8 @@ impl Parse for Text {
 
 /// Only push one space as HTML does not recognize multiple.
 ///
-/// For <pre> contents when whitespaces are required as-is, use literal string in rust
-/// expression instead.
+/// For <pre> contents when whitespaces are required as-is, use literal string
+/// in rust expression instead.
 fn add_space_to(string: &mut String, left: &Span, right: &Span) {
     let left = left.end();
     let right = right.start();
