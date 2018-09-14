@@ -3,8 +3,8 @@ use syn;
 use syn::parse::{Error, Parse, ParseStream, Result as ParseResult};
 use syn::spanned::Spanned;
 use syn::{
-    Attribute, Expr, Field, Fields, FnArg, Generics, Ident, ItemStruct, Pat, ReturnType, Type,
-    TypePath, Visibility,
+    Attribute, Expr, Field, Fields, FnArg, Ident, ItemStruct, Pat, ReturnType, Type, TypePath,
+    Visibility,
 };
 
 /// All the necessary metadata taken from the struct declaration to construct
@@ -16,8 +16,6 @@ pub struct ComponentMeta {
     vis: Visibility,
     /// Ident of component.
     ident: Ident,
-    /// Generics part of component declaration.
-    generics: Generics,
     /// Props metadata if any prop fields.
     props_meta: Option<PropsMeta>,
     /// State metadata if any state fields.
@@ -28,6 +26,13 @@ pub struct ComponentMeta {
 
 impl ComponentMeta {
     pub fn parse(item: ItemStruct) -> ParseResult<ComponentMeta> {
+        if item.generics != Default::default() {
+            return Err(Error::new(
+                item.ident.span(),
+                "Generic parameters not allowed on a component.",
+            ));
+        }
+
         // Sort out the struct fields into state and props fields.
         let (props_meta, state_meta) = match item.fields {
             Fields::Named(fields) => {
@@ -65,7 +70,6 @@ impl ComponentMeta {
             attrs,
             vis: item.vis,
             ident: item.ident,
-            generics: item.generics,
             props_meta,
             state_meta,
             events_meta,
@@ -79,12 +83,12 @@ impl ComponentMeta {
         let prop_struct = self
             .props_meta
             .as_ref()
-            .map(|m| m.expand_struct(&self.ident, &self.vis, &self.generics))
+            .map(|m| m.expand_struct(&self.ident, &self.vis))
             .unwrap_or_else(|| PropsMeta::expand_void_macro(&self.ident, &self.vis));
         let events_structs = self
             .events_meta
             .as_ref()
-            .map(|m| m.expand_structs(&self.ident, &self.vis, &self.generics))
+            .map(|m| m.expand_structs(&self.ident, &self.vis))
             .unwrap_or_else(|| EventsMeta::expand_void_macro(&self.ident, &self.vis));
 
         quote! {
@@ -104,12 +108,11 @@ impl ComponentMeta {
         let attrs = &self.attrs;
         let ident = &self.ident;
         let vis = &self.vis;
-        let generics = &self.generics;
 
         if self.props_meta.is_none() && self.state_meta.is_none() && self.events_meta.is_none() {
             quote! {
                 #(#attrs)*
-                #vis struct #ident #generics;
+                #vis struct #ident;
             }
         } else {
             let state_fields = self
@@ -127,7 +130,7 @@ impl ComponentMeta {
 
             quote! {
                 #(#attrs)*
-                #vis struct #ident #generics {
+                #vis struct #ident {
                     #(#state_fields ,)*
                     #(#props_fields ,)*
                     #status_field
@@ -180,7 +183,6 @@ impl ComponentMeta {
 
     fn expand_component_impl(&self) -> TokenStream {
         let ident = &self.ident;
-        let (impl_gen, ty_gen, where_clause) = self.generics.split_for_impl();
         let props_ident = self.expand_props_ident();
         let state_ident = self.expand_state_ident();
         let events_ident = self.expand_events_ident();
@@ -199,8 +201,8 @@ impl ComponentMeta {
         let set_state_body = self.expand_set_state_body(state_field_idents);
 
         quote! {
-            impl #impl_gen Component for #ident #ty_gen #where_clause {
-                type Props = #props_ident #ty_gen;
+            impl Component for #ident {
+                type Props = #props_ident;
                 type State = #state_ident;
                 type Events = #events_ident;
 
@@ -492,12 +494,7 @@ impl PropsMeta {
         self.fields.iter().map(map_fn).collect()
     }
 
-    fn expand_struct(
-        &self,
-        comp_ident: &Ident,
-        vis: &Visibility,
-        generics: &Generics,
-    ) -> TokenStream {
+    fn expand_struct(&self, comp_ident: &Ident, vis: &Visibility) -> TokenStream {
         let ident = &self.ident;
         let fields = self.expand_fields_with(ComponentField::expand_as_struct_field);
         let field_idents = self.expand_fields_with(ComponentField::expand_as_ident);
@@ -541,7 +538,7 @@ impl PropsMeta {
             });
         }
         quote! {
-            #vis struct #ident #generics {
+            #vis struct #ident {
                 #(#fields),*
             }
 
@@ -999,20 +996,14 @@ impl EventsMeta {
         self.events.iter().map(map_fn).collect()
     }
 
-    fn expand_structs(
-        &self,
-        component_ident: &Ident,
-        vis: &Visibility,
-        generics: &Generics,
-    ) -> TokenStream {
+    fn expand_structs(&self, component_ident: &Ident, vis: &Visibility) -> TokenStream {
         let ident = &self.ident;
         let gen_ident = &self.gen_ident;
         let fields = self.expand_events_with(EventMeta::expand_as_struct_field);
         let gen_fields = self.expand_events_with(EventMeta::expand_as_gen_struct_field);
         let event_names = &self.expand_events_with(EventMeta::expand_as_ident);
         let event_conversion = self.expand_events_with(EventMeta::expand_event_conversion);
-        let event_wrappers =
-            self.expand_events_with(|e| e.expand_event_wrapper(component_ident, generics));
+        let event_wrappers = self.expand_events_with(|e| e.expand_event_wrapper(component_ident));
 
         let mut next_event_names = event_names.clone();
         let first = next_event_names.remove(0);
@@ -1288,15 +1279,14 @@ impl EventMeta {
         }
     }
 
-    fn expand_event_wrapper(&self, component_ident: &Ident, generics: &Generics) -> TokenStream {
+    fn expand_event_wrapper(&self, component_ident: &Ident) -> TokenStream {
         let ident = &self.ident;
-        let (impl_gen, ty_gen, where_clause) = generics.split_for_impl();
         let arg_fields = self.expand_as_arg_fields();
         let arg_idents = self.expand_as_arg_idents();
         let ret_type = self.expand_as_return_type();
 
         quote! {
-            impl #impl_gen #component_ident #ty_gen #where_clause {
+            impl #component_ident {
                 fn #ident (&self, #(#arg_fields),*) #ret_type {
                     (self.__events__.#ident)(#(#arg_idents),*)
                 }
