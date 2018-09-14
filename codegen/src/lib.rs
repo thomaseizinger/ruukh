@@ -18,6 +18,7 @@ use syn::{parse::Error, spanned::Spanned, DeriveInput, Item};
 
 mod component;
 mod html;
+mod suffix;
 
 /// A convenient auto derive for `Lifecycle` trait. It could be simply written
 /// as `impl Lifecycle for MyComponent {}` instead, but why not save some chars.

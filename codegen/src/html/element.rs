@@ -1,6 +1,7 @@
 use super::kw;
 use super::HtmlRoot;
 use heck::{CamelCase, KebabCase};
+use suffix::{EVENT_SUFFIX, PROPS_SUFFIX};
 use proc_macro2::{Span, TokenStream};
 use syn::parse::{Error, Parse, ParseStream, Result as ParseResult};
 use syn::punctuated::Punctuated;
@@ -205,12 +206,12 @@ impl OpeningTag {
                     .map(|e| e.expand_as_named_arg())
                     .collect();
 
-                let prop_ident = Ident::new(&format!("{}Props", ident), ident.span());
-                let event_ident = Ident::new(&format!("{}Events", ident), ident.span());
+                let props_ident = Ident::new(&format!("{}{}", ident, PROPS_SUFFIX), ident.span());
+                let event_ident = Ident::new(&format!("{}{}", ident, EVENT_SUFFIX), ident.span());
                 let span = ident.span();
                 quote_spanned!{span=>
                     ruukh::vdom::vcomponent::VComponent::new::<#ident>(
-                        #prop_ident!(#(#prop_attributes),*),
+                        #props_ident!(#(#prop_attributes),*),
                         #event_ident!(#(#event_attributes),*),
                     )
                 }

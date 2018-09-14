@@ -1,4 +1,5 @@
 use proc_macro2::{Span, TokenStream};
+use suffix::{EVENT_PROPS_SUFFIX, EVENT_SUFFIX, PROPS_SUFFIX, STATE_SUFFIX};
 use syn;
 use syn::parse::{Error, Parse, ParseStream, Result as ParseResult};
 use syn::spanned::Spanned;
@@ -480,7 +481,10 @@ impl PropsMeta {
             Ok((None, rest))
         } else {
             let meta = PropsMeta {
-                ident: Ident::new(&format!("{}Props", component_ident), Span::call_site()),
+                ident: Ident::new(
+                    &format!("{}{}", component_ident, PROPS_SUFFIX),
+                    Span::call_site(),
+                ),
                 fields: prop_fields,
             };
             Ok((Some(meta), rest))
@@ -573,7 +577,10 @@ impl PropsMeta {
     }
 
     fn expand_void_macro(comp_ident: &Ident, vis: &Visibility) -> TokenStream {
-        let prop_ident = Ident::new(&format!("{}Props", comp_ident), Span::call_site());
+        let prop_ident = Ident::new(
+            &format!("{}{}", comp_ident, PROPS_SUFFIX),
+            Span::call_site(),
+        );
         let internal_macro_ident = Ident::new(
             &format!("__new_{}_internal__", prop_ident),
             Span::call_site(),
@@ -625,7 +632,10 @@ impl StateMeta {
             Ok((None, rest))
         } else {
             let meta = StateMeta {
-                ident: Ident::new(&format!("{}State", component_ident), Span::call_site()),
+                ident: Ident::new(
+                    &format!("{}{}", component_ident, STATE_SUFFIX),
+                    Span::call_site(),
+                ),
                 fields: state_fields,
             };
             Ok((Some(meta), rest))
@@ -905,7 +915,7 @@ struct EventsMeta {
     /// Ident of Event type which stores actual events passed from parent. It
     /// serves as an intermediate event type before converting it to the
     /// above event type.
-    gen_ident: Ident,
+    event_props_ident: Ident,
     /// All the event declarations on the component.
     events: Vec<EventMeta>,
 }
@@ -981,8 +991,14 @@ impl EventsMeta {
             Ok((None, rest))
         } else {
             let meta = EventsMeta {
-                ident: Ident::new(&format!("{}Events", component_ident), Span::call_site()),
-                gen_ident: Ident::new(&format!("{}EventsGen", component_ident), Span::call_site()),
+                ident: Ident::new(
+                    &format!("{}{}", component_ident, EVENT_SUFFIX),
+                    Span::call_site(),
+                ),
+                event_props_ident: Ident::new(
+                    &format!("{}{}", component_ident, EVENT_PROPS_SUFFIX),
+                    Span::call_site(),
+                ),
                 events: event_metas,
             };
             Ok((Some(meta), rest))
@@ -998,7 +1014,7 @@ impl EventsMeta {
 
     fn expand_structs(&self, component_ident: &Ident, vis: &Visibility) -> TokenStream {
         let ident = &self.ident;
-        let gen_ident = &self.gen_ident;
+        let event_props_ident = &self.event_props_ident;
         let fields = self.expand_events_with(EventMeta::expand_as_struct_field);
         let gen_fields = self.expand_events_with(EventMeta::expand_as_gen_struct_field);
         let event_names = &self.expand_events_with(EventMeta::expand_as_ident);
@@ -1066,12 +1082,12 @@ impl EventsMeta {
                 }
             }
 
-            #vis struct #gen_ident<RCTX: Render> {
+            #vis struct #event_props_ident<RCTX: Render> {
                 #(#gen_fields),*
             }
 
             impl<RCTX: Render> ruukh::component::EventsPair<RCTX> for #ident {
-                type Other = #gen_ident<RCTX>;
+                type Other = #event_props_ident<RCTX>;
             }
 
             #(#event_wrappers)*
@@ -1083,7 +1099,7 @@ impl EventsMeta {
                     arguments = [{ $([$key:ident = $val:expr])* }]
                     tokens = [{ }]
                 ) => {
-                    #gen_ident {
+                    #event_props_ident {
                         $($key: $val),*
                     }
                 },
@@ -1107,7 +1123,10 @@ impl EventsMeta {
     }
 
     fn expand_void_macro(comp_ident: &Ident, vis: &Visibility) -> TokenStream {
-        let event_ident = Ident::new(&format!("{}Events", comp_ident), Span::call_site());
+        let event_ident = Ident::new(
+            &format!("{}{}", comp_ident, EVENT_SUFFIX),
+            Span::call_site(),
+        );
         let internal_macro_ident = Ident::new(
             &format!("__new_{}_internal__", event_ident),
             Span::call_site(),
