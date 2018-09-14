@@ -79,11 +79,13 @@ impl ComponentMeta {
         let prop_struct = self
             .props_meta
             .as_ref()
-            .map(|m| m.expand_struct(&self.ident, &self.vis, &self.generics));
+            .map(|m| m.expand_struct(&self.ident, &self.vis, &self.generics))
+            .unwrap_or(PropsMeta::expand_void_macro(&self.ident, &self.vis));
         let events_structs = self
             .events_meta
             .as_ref()
-            .map(|m| m.expand_structs(&self.ident, &self.vis, &self.generics));
+            .map(|m| m.expand_structs(&self.ident, &self.vis, &self.generics))
+            .unwrap_or(EventsMeta::expand_void_macro(&self.ident, &self.vis));
 
         quote! {
             #component_struct
@@ -567,6 +569,35 @@ impl PropsMeta {
                 #internal_macro_ident!(
                     @#first
                     arguments = [{ }]
+                    tokens = [{ $([$key = $val])* }]
+                );
+            }
+        }
+    }
+
+    fn expand_void_macro(comp_ident: &Ident, vis: &Visibility) -> TokenStream {
+        let prop_ident = Ident::new(&format!("{}Props", comp_ident), Span::call_site());
+        let internal_macro_ident = Ident::new(
+            &format!("__new_{}_internal__", prop_ident),
+            Span::call_site(),
+        );
+        quote! {
+            macro #internal_macro_ident {
+                (
+                    tokens = [{ }]
+                ) => {
+                    // A void prop.
+                    ()
+                },
+                (
+                    tokens = [{ $($tt:tt)+ }]
+                ) => {
+                    compile_error!(concat!("`", stringify!(#comp_ident), "` has no props."));
+                }
+            }
+
+            #vis macro #prop_ident($($key:ident: $val:expr),*) {
+                #internal_macro_ident!(
                     tokens = [{ $([$key = $val])* }]
                 );
             }
@@ -1080,6 +1111,35 @@ impl EventsMeta {
                 #macro_internal_ident!(
                     @#first
                     arguments = [{ }]
+                    tokens = [{ $([$key = $val])* }]
+                );
+            }
+        }
+    }
+
+    fn expand_void_macro(comp_ident: &Ident, vis: &Visibility) -> TokenStream {
+        let event_ident = Ident::new(&format!("{}Events", comp_ident), Span::call_site());
+        let internal_macro_ident = Ident::new(
+            &format!("__new_{}_internal__", event_ident),
+            Span::call_site(),
+        );
+        quote! {
+            macro #internal_macro_ident {
+                (
+                    tokens = [{ }]
+                ) => {
+                    // A void event.
+                    ()
+                },
+                (
+                    tokens = [{ $($tt:tt)+ }]
+                ) => {
+                    compile_error!(concat!("`", stringify!(#comp_ident), "` has no events."));
+                }
+            }
+
+            #vis macro #event_ident($($key:ident: $val:expr),*) {
+                #internal_macro_ident!(
                     tokens = [{ $([$key = $val])* }]
                 );
             }
