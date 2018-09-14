@@ -672,13 +672,14 @@ impl StateMeta {
     }
 }
 
+custom_keyword!(default);
+
 /// The argument passed with `#[prop]` or `#[state]` attributes.
 ///
 /// Can be `#[prop]`, `#[prop(default)]` or `#[prop(default = expr)]`.
 #[derive(Default)]
 struct AttrArg {
-    use_default: bool,
-    default: Option<Expr>,
+    default: Option<DefaultArg>,
 }
 
 impl Parse for AttrArg {
@@ -690,23 +691,32 @@ impl Parse for AttrArg {
         let content;
         parenthesized!(content in input);
 
-        custom_keyword!(default);
-        content.parse::<default>()?;
-
-        if content.peek(Token![=]) {
-            content.parse::<Token![=]>()?;
-            let default = content.parse::<Expr>()?;
-            Ok(AttrArg {
-                use_default: true,
-                default: Some(default),
-            })
-        } else if content.is_empty() {
-            Ok(AttrArg {
-                use_default: true,
-                default: None,
-            })
+        let default = if content.peek(default) {
+            Some(content.parse()?)
         } else {
-            Err(content.error("expected ')'."))
+            None
+        };
+
+        if !input.is_empty() {
+            return Err(input.error("expected `)`."));
+        }
+        Ok(AttrArg { default })
+    }
+}
+
+enum DefaultArg {
+    Expr(Box<Expr>),
+    Default,
+}
+
+impl Parse for DefaultArg {
+    fn parse(input: ParseStream) -> ParseResult<Self> {
+        input.parse::<default>()?;
+        if input.peek(Token![=]) {
+            input.parse::<Token![=]>()?;
+            Ok(DefaultArg::Expr(Box::new(input.parse()?)))
+        } else {
+            Ok(DefaultArg::Default)
         }
     }
 }
@@ -794,8 +804,7 @@ impl ComponentField {
     fn to_field_assignment_as_default(&self) -> TokenStream {
         let ident = &self.ident;
         if let AttrArg {
-            default: Some(ref default),
-            ..
+            default: Some(DefaultArg::Expr(ref default)),
         } = self.attr_arg
         {
             quote! {
@@ -818,14 +827,17 @@ impl ComponentField {
     fn to_default_argument_for_macro(&self) -> TokenStream {
         let ident = &self.ident;
         if let AttrArg {
-            default: Some(ref default),
-            ..
+            default: Some(DefaultArg::Expr(ref default)),
         } = self.attr_arg
         {
             quote! {
                 [ #ident = #default ]
             }
-        } else if self.attr_arg.use_default || self.is_optional {
+        } else if let Some(DefaultArg::Default) = self.attr_arg.default {
+            quote! {
+                [ #ident = Default::default() ]
+            }
+        } else if self.is_optional {
             quote! {
                 [ #ident = Default::default() ]
             }
