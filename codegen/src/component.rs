@@ -1,4 +1,5 @@
 use proc_macro2::{Span, TokenStream};
+use suffix::{EVENT_PROPS_SUFFIX, EVENT_SUFFIX, PROPS_SUFFIX, STATE_SUFFIX};
 use syn;
 use syn::parse::{Error, Parse, ParseStream, Result as ParseResult};
 use syn::spanned::Spanned;
@@ -42,8 +43,8 @@ impl ComponentMeta {
                     check_supported_attributes(field)?;
                 }
 
-                let (props_meta, fields) = PropsMeta::parse(&item.ident, fields)?;
-                let (state_meta, fields) = StateMeta::parse(&item.ident, fields)?;
+                let (props_meta, fields) = PropsMeta::take_prop_fields(&item.ident, fields)?;
+                let (state_meta, fields) = StateMeta::take_state_fields(&item.ident, fields)?;
                 assert!(
                     fields.is_empty(),
                     "There are no fields left other than prop and state fields."
@@ -56,15 +57,8 @@ impl ComponentMeta {
             )),
             Fields::Unit => Ok((None, None)),
         }?;
-
-        let component_name = Ident::new("component", Span::call_site()).into();
-        let attrs: Vec<_> = item
-            .attrs
-            .into_iter()
-            .filter(|attr| attr.path != component_name)
-            .collect();
-
-        let (events_meta, attrs) = EventsMeta::parse(&item.ident, attrs)?;
+        let attrs = Self::filter_out_component_attributes(item.attrs);
+        let (events_meta, attrs) = EventsMeta::take_events_attributes(&item.ident, attrs)?;
 
         Ok(ComponentMeta {
             attrs,
@@ -76,27 +70,35 @@ impl ComponentMeta {
         })
     }
 
+    fn filter_out_component_attributes(attrs: Vec<Attribute>) -> Vec<Attribute> {
+        let component_name = Ident::new("component", Span::call_site()).into();
+        attrs
+            .into_iter()
+            .filter(|attr| attr.path != component_name)
+            .collect()
+    }
+
     pub fn expand(&self) -> TokenStream {
-        let component_struct = self.expand_component_struct();
-        let component_impl = self.expand_component_impl();
-        let state_struct = self.state_meta.as_ref().map(StateMeta::expand_struct);
-        let prop_struct = self
+        let component_struct = self.create_component_struct();
+        let component_impl = self.impl_component_trait_on_component_struct();
+        let state_struct = self.state_meta.as_ref().map(StateMeta::create_state_struct);
+        let props_struct = self
             .props_meta
             .as_ref()
-            .map(|m| m.expand_struct(&self.ident, &self.vis))
-            .unwrap_or_else(|| PropsMeta::expand_void_macro(&self.ident, &self.vis));
+            .map(|m| m.create_props_struct_and_macro(&self.ident, &self.vis))
+            .unwrap_or_else(|| PropsMeta::create_void_props_macro(&self.ident, &self.vis));
         let events_structs = self
             .events_meta
             .as_ref()
-            .map(|m| m.expand_structs(&self.ident, &self.vis))
-            .unwrap_or_else(|| EventsMeta::expand_void_macro(&self.ident, &self.vis));
+            .map(|m| m.create_events_and_event_props_struct_and_macro(&self.ident, &self.vis))
+            .unwrap_or_else(|| EventsMeta::create_void_events_macro(&self.ident, &self.vis));
 
         quote! {
             #component_struct
 
             #state_struct
 
-            #prop_struct
+            #props_struct
 
             #events_structs
 
@@ -104,7 +106,7 @@ impl ComponentMeta {
         }
     }
 
-    fn expand_component_struct(&self) -> TokenStream {
+    fn create_component_struct(&self) -> TokenStream {
         let attrs = &self.attrs;
         let ident = &self.ident;
         let vis = &self.vis;
@@ -118,15 +120,15 @@ impl ComponentMeta {
             let state_fields = self
                 .state_meta
                 .as_ref()
-                .map(|s| s.expand_fields_with(ComponentField::expand_as_struct_field))
+                .map(|s| s.expand_fields_with(ComponentField::to_struct_field))
                 .unwrap_or_default();
             let props_fields = self
                 .props_meta
                 .as_ref()
-                .map(|p| p.expand_fields_with(ComponentField::expand_as_struct_field))
+                .map(|p| p.expand_fields_with(ComponentField::to_struct_field))
                 .unwrap_or_default();
-            let status_field = self.expand_status_field();
-            let events_field = self.expand_events_field();
+            let status_field = self.create_status_field();
+            let events_field = self.create_events_field();
 
             quote! {
                 #(#attrs)*
@@ -140,7 +142,7 @@ impl ComponentMeta {
         }
     }
 
-    fn expand_status_field(&self) -> TokenStream {
+    fn create_status_field(&self) -> TokenStream {
         if self.props_meta.is_none() && self.state_meta.is_none() {
             quote!()
         } else {
@@ -156,7 +158,7 @@ impl ComponentMeta {
         }
     }
 
-    fn expand_events_field(&self) -> TokenStream {
+    fn create_events_field(&self) -> TokenStream {
         if self.events_meta.is_none() {
             quote!()
         } else {
@@ -170,41 +172,69 @@ impl ComponentMeta {
     fn expand_state_field_idents(&self) -> Vec<TokenStream> {
         self.state_meta
             .as_ref()
-            .map(|s| s.expand_fields_with(ComponentField::expand_as_ident))
+            .map(|s| s.expand_fields_with(ComponentField::to_ident))
             .unwrap_or_default()
     }
 
-    fn expand_props_field_idents(&self) -> Vec<TokenStream> {
-        self.props_meta
-            .as_ref()
-            .map(|p| p.expand_fields_with(ComponentField::expand_as_ident))
-            .unwrap_or_default()
+    fn get_props_type(&self) -> TokenStream {
+        if let Some(ref props_meta) = self.props_meta {
+            let ident = &props_meta.ident;
+            quote!(#ident)
+        } else {
+            quote!(())
+        }
     }
 
-    fn expand_component_impl(&self) -> TokenStream {
+    fn get_state_type(&self) -> TokenStream {
+        if let Some(ref state_meta) = self.state_meta {
+            let ident = &state_meta.ident;
+            quote!(#ident)
+        } else {
+            quote!(())
+        }
+    }
+
+    fn get_events_type(&self) -> TokenStream {
+        if let Some(ref events_meta) = self.events_meta {
+            let ident = &events_meta.ident;
+            quote!(#ident)
+        } else {
+            quote!(())
+        }
+    }
+
+    fn impl_component_trait_on_component_struct(&self) -> TokenStream {
         let ident = &self.ident;
-        let props_ident = self.expand_props_ident();
-        let state_ident = self.expand_state_ident();
-        let events_ident = self.expand_events_ident();
-        let state_clone = self.expand_state_clone();
-        let build_event = self.expand_build_event();
-        let state_field_idents = &self.expand_state_field_idents();
-        let props_field_idents = &self.expand_props_field_idents();
+        let props_type = &self.get_props_type();
+        let state_type = &self.get_state_type();
+        let events_type = &self.get_events_type();
+        let state_clone = self.impl_state_clone_from_status();
+        let build_event = self.build_events_from_event_props();
+        let state_field_idents = &self
+            .state_meta
+            .as_ref()
+            .map(|m| m.fields.iter().map(|f| &f.ident).collect::<Vec<_>>())
+            .unwrap_or_default();
+        let props_field_idents = &self
+            .props_meta
+            .as_ref()
+            .map(|m| m.fields.iter().map(|f| &f.ident).collect::<Vec<_>>())
+            .unwrap_or_default();
         let props_field_idents2 = props_field_idents;
-        let status_assignment = self.expand_status_assignment();
-        let props_updation = self.expand_props_updation(props_field_idents);
-        let updation_ret_block = self.expand_updation_return_block();
-        let events_updation = self.expand_events_updation();
-        let refresh_state_body = self.expand_refresh_state_body(state_field_idents);
-        let take_state_dirty_body = self.expand_take_state_dirty_body();
-        let take_props_dirty_body = self.expand_take_props_dirty_body();
-        let set_state_body = self.expand_set_state_body(state_field_idents);
+        let status_assignment = self.impl_status_assignment();
+        let props_updation = self.impl_props_updation(props_field_idents);
+        let updation_ret_block = self.impl_return_block_after_updation();
+        let events_updation = self.impl_events_updation();
+        let refresh_state_body = self.impl_fn_refresh_state_body(state_field_idents);
+        let take_state_dirty_body = self.impl_fn_take_state_dirty_body();
+        let take_props_dirty_body = self.impl_fn_take_props_dirty_body();
+        let set_state_body = self.impl_fn_set_state_body(state_field_idents);
 
         quote! {
             impl Component for #ident {
-                type Props = #props_ident;
-                type State = #state_ident;
-                type Events = #events_ident;
+                type Props = #props_type;
+                type State = #state_type;
+                type Events = #events_type;
 
                 fn init<RCTX: Render>(
                     __props__: Self::Props,
@@ -264,7 +294,7 @@ impl ComponentMeta {
         }
     }
 
-    fn expand_set_state_body(&self, idents: &[TokenStream]) -> TokenStream {
+    fn impl_fn_set_state_body(&self, idents: &[&Ident]) -> TokenStream {
         let idents2 = idents;
         if self.state_meta.is_some() {
             quote! {
@@ -291,7 +321,7 @@ impl ComponentMeta {
         }
     }
 
-    fn expand_take_props_dirty_body(&self) -> TokenStream {
+    fn impl_fn_take_props_dirty_body(&self) -> TokenStream {
         if self.props_meta.is_some() {
             quote! {
                 self.__status__.borrow_mut().take_props_dirty()
@@ -301,7 +331,7 @@ impl ComponentMeta {
         }
     }
 
-    fn expand_take_state_dirty_body(&self) -> TokenStream {
+    fn impl_fn_take_state_dirty_body(&self) -> TokenStream {
         if self.state_meta.is_some() {
             quote! {
                 self.__status__.borrow_mut().take_state_dirty()
@@ -311,7 +341,7 @@ impl ComponentMeta {
         }
     }
 
-    fn expand_refresh_state_body(&self, idents: &[TokenStream]) -> TokenStream {
+    fn impl_fn_refresh_state_body(&self, idents: &[&Ident]) -> TokenStream {
         let idents2 = idents;
         let idents3 = idents;
         let idents4 = idents;
@@ -331,7 +361,7 @@ impl ComponentMeta {
         }
     }
 
-    fn expand_props_updation(&self, idents: &[TokenStream]) -> TokenStream {
+    fn impl_props_updation(&self, idents: &[&Ident]) -> TokenStream {
         let idents2 = idents;
         let idents3 = idents;
         let idents4 = idents;
@@ -356,7 +386,7 @@ impl ComponentMeta {
         }
     }
 
-    fn expand_updation_return_block(&self) -> TokenStream {
+    fn impl_return_block_after_updation(&self) -> TokenStream {
         if self.props_meta.is_some() {
             quote! {
                 if updated {
@@ -371,7 +401,7 @@ impl ComponentMeta {
         }
     }
 
-    fn expand_events_updation(&self) -> TokenStream {
+    fn impl_events_updation(&self) -> TokenStream {
         if let Some(ref events_meta) = self.events_meta {
             let ident = &events_meta.ident;
             quote! {
@@ -383,7 +413,7 @@ impl ComponentMeta {
         }
     }
 
-    fn expand_state_clone(&self) -> TokenStream {
+    fn impl_state_clone_from_status(&self) -> TokenStream {
         if self.state_meta.is_none() {
             quote!()
         } else {
@@ -409,7 +439,7 @@ impl ComponentMeta {
         }
     }
 
-    fn expand_status_assignment(&self) -> TokenStream {
+    fn impl_status_assignment(&self) -> TokenStream {
         if self.props_meta.is_none() && self.state_meta.is_none() {
             quote!()
         } else {
@@ -417,7 +447,7 @@ impl ComponentMeta {
         }
     }
 
-    fn expand_build_event(&self) -> TokenStream {
+    fn build_events_from_event_props(&self) -> TokenStream {
         if let Some(ref events_meta) = self.events_meta {
             let ident = &events_meta.ident;
             quote! {
@@ -426,33 +456,6 @@ impl ComponentMeta {
         } else {
             quote!()
         }
-    }
-
-    fn expand_props_ident(&self) -> TokenStream {
-        self.props_meta
-            .as_ref()
-            .map(|m| {
-                let ident = &m.ident;
-                quote!( #ident )
-            }).unwrap_or(quote!(()))
-    }
-
-    fn expand_state_ident(&self) -> TokenStream {
-        self.state_meta
-            .as_ref()
-            .map(|m| {
-                let ident = &m.ident;
-                quote!( #ident )
-            }).unwrap_or(quote!(()))
-    }
-
-    fn expand_events_ident(&self) -> TokenStream {
-        self.events_meta
-            .as_ref()
-            .map(|m| {
-                let ident = &m.ident;
-                quote!( #ident )
-            }).unwrap_or(quote!(()))
     }
 }
 
@@ -465,14 +468,14 @@ struct PropsMeta {
 }
 
 impl PropsMeta {
-    fn parse(
+    fn take_prop_fields(
         component_ident: &Ident,
         fields: Vec<Field>,
     ) -> ParseResult<(Option<PropsMeta>, Vec<Field>)> {
         let (rest, prop_fields): (Vec<_>, Vec<_>) = fields.into_iter().partition(is_state);
         let prop_fields: ParseResult<Vec<_>> = prop_fields
             .into_iter()
-            .map(ComponentField::parse_prop)
+            .map(ComponentField::parse_prop_field)
             .collect();
         let mut prop_fields = prop_fields?;
         prop_fields.sort_by(|l, r| l.ident.cmp(&r.ident));
@@ -480,7 +483,10 @@ impl PropsMeta {
             Ok((None, rest))
         } else {
             let meta = PropsMeta {
-                ident: Ident::new(&format!("{}Props", component_ident), Span::call_site()),
+                ident: Ident::new(
+                    &format!("{}{}", component_ident, PROPS_SUFFIX),
+                    Span::call_site(),
+                ),
                 fields: prop_fields,
             };
             Ok((Some(meta), rest))
@@ -494,12 +500,12 @@ impl PropsMeta {
         self.fields.iter().map(map_fn).collect()
     }
 
-    fn expand_struct(&self, comp_ident: &Ident, vis: &Visibility) -> TokenStream {
+    fn create_props_struct_and_macro(&self, comp_ident: &Ident, vis: &Visibility) -> TokenStream {
         let ident = &self.ident;
-        let fields = self.expand_fields_with(ComponentField::expand_as_struct_field);
-        let field_idents = self.expand_fields_with(ComponentField::expand_as_ident);
+        let fields = self.expand_fields_with(ComponentField::to_struct_field);
+        let field_idents = self.expand_fields_with(ComponentField::to_ident);
         let field_default_vals =
-            self.expand_fields_with(ComponentField::expand_default_fields_for_macro);
+            self.expand_fields_with(ComponentField::to_default_argument_for_macro);
         let mut next_idents = field_idents.clone();
         let first = next_idents.remove(0);
         next_idents.push(quote!(@finish));
@@ -572,8 +578,11 @@ impl PropsMeta {
         }
     }
 
-    fn expand_void_macro(comp_ident: &Ident, vis: &Visibility) -> TokenStream {
-        let prop_ident = Ident::new(&format!("{}Props", comp_ident), Span::call_site());
+    fn create_void_props_macro(comp_ident: &Ident, vis: &Visibility) -> TokenStream {
+        let prop_ident = Ident::new(
+            &format!("{}{}", comp_ident, PROPS_SUFFIX),
+            Span::call_site(),
+        );
         let internal_macro_ident = Ident::new(
             &format!("__new_{}_internal__", prop_ident),
             Span::call_site(),
@@ -611,21 +620,24 @@ struct StateMeta {
 }
 
 impl StateMeta {
-    fn parse(
+    fn take_state_fields(
         component_ident: &Ident,
         fields: Vec<Field>,
     ) -> ParseResult<(Option<StateMeta>, Vec<Field>)> {
         let (state_fields, rest): (Vec<_>, Vec<_>) = fields.into_iter().partition(is_state);
         let state_fields: ParseResult<Vec<_>> = state_fields
             .into_iter()
-            .map(ComponentField::parse_state)
+            .map(ComponentField::parse_state_field)
             .collect();
         let state_fields = state_fields?;
         if state_fields.is_empty() {
             Ok((None, rest))
         } else {
             let meta = StateMeta {
-                ident: Ident::new(&format!("{}State", component_ident), Span::call_site()),
+                ident: Ident::new(
+                    &format!("{}{}", component_ident, STATE_SUFFIX),
+                    Span::call_site(),
+                ),
                 fields: state_fields,
             };
             Ok((Some(meta), rest))
@@ -639,10 +651,10 @@ impl StateMeta {
         self.fields.iter().map(map_fn).collect()
     }
 
-    fn expand_struct(&self) -> TokenStream {
+    fn create_state_struct(&self) -> TokenStream {
         let ident = &self.ident;
-        let fields = self.expand_fields_with(ComponentField::expand_as_struct_field);
-        let def_fields = self.expand_fields_with(ComponentField::expand_as_default_field);
+        let fields = self.expand_fields_with(ComponentField::to_struct_field);
+        let def_fields = self.expand_fields_with(ComponentField::to_field_assignment_as_default);
 
         quote! {
             struct #ident {
@@ -722,7 +734,7 @@ impl ComponentField {
         }
     }
 
-    fn parse_prop(field: Field) -> ParseResult<ComponentField> {
+    fn parse_prop_field(field: Field) -> ParseResult<ComponentField> {
         let state_kind = Ident::new("state", Span::call_site()).into();
         let is_optional = Self::is_optional(&field)?;
 
@@ -747,7 +759,7 @@ impl ComponentField {
         })
     }
 
-    fn parse_state(field: Field) -> ParseResult<ComponentField> {
+    fn parse_state_field(field: Field) -> ParseResult<ComponentField> {
         let state_kind = Ident::new("state", Span::call_site()).into();
         let is_optional = Self::is_optional(&field)?;
 
@@ -768,7 +780,7 @@ impl ComponentField {
         })
     }
 
-    fn expand_as_struct_field(&self) -> TokenStream {
+    fn to_struct_field(&self) -> TokenStream {
         let attrs = &self.attrs;
         let vis = &self.vis;
         let ident = &self.ident;
@@ -779,7 +791,7 @@ impl ComponentField {
         }
     }
 
-    fn expand_as_default_field(&self) -> TokenStream {
+    fn to_field_assignment_as_default(&self) -> TokenStream {
         let ident = &self.ident;
         if let AttrArg {
             default: Some(ref default),
@@ -796,14 +808,14 @@ impl ComponentField {
         }
     }
 
-    fn expand_as_ident(&self) -> TokenStream {
+    fn to_ident(&self) -> TokenStream {
         let ident = &self.ident;
         quote! {
             #ident
         }
     }
 
-    fn expand_default_fields_for_macro(&self) -> TokenStream {
+    fn to_default_argument_for_macro(&self) -> TokenStream {
         let ident = &self.ident;
         if let AttrArg {
             default: Some(ref default),
@@ -905,13 +917,13 @@ struct EventsMeta {
     /// Ident of Event type which stores actual events passed from parent. It
     /// serves as an intermediate event type before converting it to the
     /// above event type.
-    gen_ident: Ident,
+    event_props_ident: Ident,
     /// All the event declarations on the component.
     events: Vec<EventMeta>,
 }
 
 impl EventsMeta {
-    fn parse(
+    fn take_events_attributes(
         component_ident: &Ident,
         attrs: Vec<Attribute>,
     ) -> ParseResult<(Option<EventsMeta>, Vec<Attribute>)> {
@@ -981,8 +993,14 @@ impl EventsMeta {
             Ok((None, rest))
         } else {
             let meta = EventsMeta {
-                ident: Ident::new(&format!("{}Events", component_ident), Span::call_site()),
-                gen_ident: Ident::new(&format!("{}EventsGen", component_ident), Span::call_site()),
+                ident: Ident::new(
+                    &format!("{}{}", component_ident, EVENT_SUFFIX),
+                    Span::call_site(),
+                ),
+                event_props_ident: Ident::new(
+                    &format!("{}{}", component_ident, EVENT_PROPS_SUFFIX),
+                    Span::call_site(),
+                ),
                 events: event_metas,
             };
             Ok((Some(meta), rest))
@@ -996,21 +1014,27 @@ impl EventsMeta {
         self.events.iter().map(map_fn).collect()
     }
 
-    fn expand_structs(&self, component_ident: &Ident, vis: &Visibility) -> TokenStream {
+    fn create_events_and_event_props_struct_and_macro(
+        &self,
+        component_ident: &Ident,
+        vis: &Visibility,
+    ) -> TokenStream {
         let ident = &self.ident;
-        let gen_ident = &self.gen_ident;
-        let fields = self.expand_events_with(EventMeta::expand_as_struct_field);
-        let gen_fields = self.expand_events_with(EventMeta::expand_as_gen_struct_field);
-        let event_names = &self.expand_events_with(EventMeta::expand_as_ident);
-        let event_conversion = self.expand_events_with(EventMeta::expand_event_conversion);
-        let event_wrappers = self.expand_events_with(|e| e.expand_event_wrapper(component_ident));
+        let event_props_ident = &self.event_props_ident;
+        let fields = self.expand_events_with(EventMeta::to_event_field);
+        let gen_fields = self.expand_events_with(EventMeta::to_event_prop_field);
+        let event_names = &self.expand_events_with(EventMeta::to_event_ident);
+        let event_conversion =
+            self.expand_events_with(EventMeta::impl_event_conversion_from_event_prop);
+        let event_wrappers = self.expand_events_with(|e| e.impl_event_wrapper(component_ident));
 
         let mut next_event_names = event_names.clone();
         let first = next_event_names.remove(0);
         next_event_names.push(quote!(@finish));
 
-        let events_assignment = self.expand_events_with(EventMeta::expand_event_assignment);
-        let events_default_val = self.expand_events_with(EventMeta::expand_event_default_value);
+        let events_assignment = self.expand_events_with(EventMeta::to_event_assignment_for_macro);
+        let events_default_val =
+            self.expand_events_with(EventMeta::to_event_assignment_as_default_value_for_macro);
 
         let macro_internal_ident =
             &Ident::new(&format!("__new_{}_internal__", ident), Span::call_site());
@@ -1066,12 +1090,12 @@ impl EventsMeta {
                 }
             }
 
-            #vis struct #gen_ident<RCTX: Render> {
+            #vis struct #event_props_ident<RCTX: Render> {
                 #(#gen_fields),*
             }
 
             impl<RCTX: Render> ruukh::component::EventsPair<RCTX> for #ident {
-                type Other = #gen_ident<RCTX>;
+                type Other = #event_props_ident<RCTX>;
             }
 
             #(#event_wrappers)*
@@ -1083,7 +1107,7 @@ impl EventsMeta {
                     arguments = [{ $([$key:ident = $val:expr])* }]
                     tokens = [{ }]
                 ) => {
-                    #gen_ident {
+                    #event_props_ident {
                         $($key: $val),*
                     }
                 },
@@ -1106,8 +1130,11 @@ impl EventsMeta {
         }
     }
 
-    fn expand_void_macro(comp_ident: &Ident, vis: &Visibility) -> TokenStream {
-        let event_ident = Ident::new(&format!("{}Events", comp_ident), Span::call_site());
+    fn create_void_events_macro(comp_ident: &Ident, vis: &Visibility) -> TokenStream {
+        let event_ident = Ident::new(
+            &format!("{}{}", comp_ident, EVENT_SUFFIX),
+            Span::call_site(),
+        );
         let internal_macro_ident = Ident::new(
             &format!("__new_{}_internal__", event_ident),
             Span::call_site(),
@@ -1173,7 +1200,7 @@ impl EventMeta {
         }
     }
 
-    fn gen_fn_type(&self) -> TokenStream {
+    fn prop_fn_type(&self) -> TokenStream {
         let arg_types = self.arg_types();
         let ret_type = &self.return_type;
         quote! {
@@ -1181,14 +1208,14 @@ impl EventMeta {
         }
     }
 
-    fn expand_as_ident(&self) -> TokenStream {
+    fn to_event_ident(&self) -> TokenStream {
         let ident = &self.ident;
         quote! {
             #ident
         }
     }
 
-    fn expand_as_struct_field(&self) -> TokenStream {
+    fn to_event_field(&self) -> TokenStream {
         let ident = &self.ident;
 
         let fn_type = if self.is_optional {
@@ -1201,9 +1228,9 @@ impl EventMeta {
         }
     }
 
-    fn expand_as_gen_struct_field(&self) -> TokenStream {
+    fn to_event_prop_field(&self) -> TokenStream {
         let ident = &self.ident;
-        let fn_type = self.gen_fn_type();
+        let fn_type = self.prop_fn_type();
         if self.is_optional {
             quote! {
                 #ident: Option<Box<#fn_type>>
@@ -1215,23 +1242,23 @@ impl EventMeta {
         }
     }
 
-    fn expand_as_arg_fields(&self) -> Vec<TokenStream> {
+    fn to_arg_fields(&self) -> Vec<TokenStream> {
         self.arguments
             .iter()
             .map(|(pat, ty)| quote!( #pat: #ty ))
             .collect()
     }
 
-    fn expand_as_arg_idents(&self) -> Vec<TokenStream> {
+    fn to_arg_idents(&self) -> Vec<TokenStream> {
         self.arguments
             .iter()
             .map(|(pat, _)| quote!( #pat ))
             .collect()
     }
 
-    fn expand_event_conversion(&self) -> TokenStream {
+    fn impl_event_conversion_from_event_prop(&self) -> TokenStream {
         let ident = &self.ident;
-        let event_arg_idents = &self.expand_as_arg_idents();
+        let event_arg_idents = &self.to_arg_idents();
 
         let converter = if self.is_optional {
             quote! {
@@ -1258,7 +1285,7 @@ impl EventMeta {
         }
     }
 
-    fn expand_as_return_type(&self) -> TokenStream {
+    fn to_return_type(&self) -> TokenStream {
         match self.return_type {
             ReturnType::Default => if self.is_optional {
                 quote! {
@@ -1279,11 +1306,11 @@ impl EventMeta {
         }
     }
 
-    fn expand_event_wrapper(&self, component_ident: &Ident) -> TokenStream {
+    fn impl_event_wrapper(&self, component_ident: &Ident) -> TokenStream {
         let ident = &self.ident;
-        let arg_fields = self.expand_as_arg_fields();
-        let arg_idents = self.expand_as_arg_idents();
-        let ret_type = self.expand_as_return_type();
+        let arg_fields = self.to_arg_fields();
+        let arg_idents = self.to_arg_idents();
+        let ret_type = self.to_return_type();
 
         quote! {
             impl #component_ident {
@@ -1294,7 +1321,7 @@ impl EventMeta {
         }
     }
 
-    fn expand_event_default_value(&self) -> TokenStream {
+    fn to_event_assignment_as_default_value_for_macro(&self) -> TokenStream {
         let ident = &self.ident;
         if self.is_optional {
             quote! {
@@ -1305,7 +1332,7 @@ impl EventMeta {
         }
     }
 
-    fn expand_event_assignment(&self) -> TokenStream {
+    fn to_event_assignment_for_macro(&self) -> TokenStream {
         let ident = &self.ident;
         if self.is_optional {
             quote! {

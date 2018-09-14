@@ -1,6 +1,7 @@
 use super::kw;
 use super::HtmlRoot;
 use heck::{CamelCase, KebabCase};
+use suffix::{EVENT_SUFFIX, PROPS_SUFFIX};
 use proc_macro2::{Span, TokenStream};
 use syn::parse::{Error, Parse, ParseStream, Result as ParseResult};
 use syn::punctuated::Punctuated;
@@ -14,7 +15,7 @@ pub enum HtmlElement {
 
 impl Parse for HtmlElement {
     fn parse(input: ParseStream) -> ParseResult<Self> {
-        if self_closing_tags::is_self_closing(&input) {
+        if kw::is_self_closing(&input) {
             Ok(HtmlElement::SelfClosing(input.parse()?))
         } else {
             Ok(HtmlElement::Normal(input.parse()?))
@@ -205,12 +206,12 @@ impl OpeningTag {
                     .map(|e| e.expand_as_named_arg())
                     .collect();
 
-                let prop_ident = Ident::new(&format!("{}Props", ident), ident.span());
-                let event_ident = Ident::new(&format!("{}Events", ident), ident.span());
+                let props_ident = Ident::new(&format!("{}{}", ident, PROPS_SUFFIX), ident.span());
+                let event_ident = Ident::new(&format!("{}{}", ident, EVENT_SUFFIX), ident.span());
                 let span = ident.span();
                 quote_spanned!{span=>
                     ruukh::vdom::vcomponent::VComponent::new::<#ident>(
-                        #prop_ident!(#(#prop_attributes),*),
+                        #props_ident!(#(#prop_attributes),*),
                         #event_ident!(#(#event_attributes),*),
                     )
                 }
@@ -472,38 +473,6 @@ impl Parse for AttributeName {
         }
 
         Ok(AttributeName { name })
-    }
-}
-
-mod self_closing_tags {
-    use syn::parse::ParseStream;
-
-    macro_rules! custom_keywords {
-        ($($ident:ident),*) => {
-            $(
-                custom_keyword!($ident);
-            )*
-        };
-    }
-
-    custom_keywords![
-        area, base, br, col, embed, hr, img, input, link, meta, param, source, track, wbr
-    ];
-
-    macro_rules! is_self_closing {
-        ($inp:ident is [$($ident:ident),*]) => {
-            $(
-                $inp.peek2($ident)
-            )|| *
-        };
-    }
-
-    pub fn is_self_closing(inp: ParseStream) -> bool {
-        inp.peek(Token![<])
-            && (is_self_closing!(
-                inp is
-                [area, base, br, col, embed, hr, img, input, link, meta, param, source, track, wbr]
-            ))
     }
 }
 
