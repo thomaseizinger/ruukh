@@ -62,38 +62,23 @@ impl Parse for NormalHtmlElement {
             ));
         }
 
-        let err_span = match (&opening_tag.tag_name, &closing_tag.tag_name) {
-            (
-                TagName::Tag {
-                    name: ref op,
-                    span: ref op_span,
-                },
-                TagName::Tag {
-                    name: ref cl,
-                    span: ref cl_span,
-                },
-            ) => {
-                if op != cl {
-                    op_span.join(cl_span.clone())
-                } else {
-                    None
-                }
-            }
+        let not_same = match (&opening_tag.tag_name, &closing_tag.tag_name) {
+            (TagName::Tag { name: ref op, .. }, TagName::Tag { name: ref cl, .. }) => op != cl,
             (TagName::Component { ident: ref op }, TagName::Component { ident: ref cl }) => {
-                if op != cl {
-                    op.span().join(cl.span())
-                } else {
-                    None
-                }
+                op != cl
             }
-            (TagName::Component { ref ident }, TagName::Tag { ref span, .. })
-            | (TagName::Tag { ref span, .. }, TagName::Component { ref ident }) => {
-                span.join(ident.span())
-            }
+            _ => true,
         };
 
-        if let Some(span) = err_span {
-            return Err(Error::new(span, "opening and closing tag must be same."));
+        if not_same {
+            return Err(Error::new(
+                opening_tag
+                    .tag_name
+                    .span()
+                    .join(closing_tag.tag_name.span())
+                    .unwrap(),
+                "Opening and closing tag must be same.",
+            ));
         }
 
         Ok(NormalHtmlElement {
