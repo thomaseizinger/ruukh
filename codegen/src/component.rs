@@ -5,7 +5,7 @@ use syn::parse::{Error, Parse, ParseStream, Result as ParseResult};
 use syn::spanned::Spanned;
 use syn::{
     Attribute, Expr, Field, Fields, FnArg, Ident, ItemStruct, Pat, ReturnType, Type, TypePath,
-    Visibility,
+    TypeReference, Visibility,
 };
 
 /// All the necessary metadata taken from the struct declaration to construct
@@ -739,6 +739,10 @@ impl ComponentField {
                 let tokens = quote! { #path };
                 let tokens = tokens.to_string().replace(' ', "");
                 Ok(tokens.starts_with("Option<") && tokens.ends_with('>'))
+            }
+            Type::Reference(TypeReference { ref lifetime, .. }) => {
+                let lifetime = lifetime.as_ref().expect("Lifetimes are always provided");
+                Ok(lifetime.ident == Ident::new("static", Span::call_site()))
             }
             _ => Err(Error::new(field.ty.span(), "Type not supported")),
         }
