@@ -1,6 +1,6 @@
 use super::kw;
 use super::HtmlRoot;
-use heck::{CamelCase, KebabCase};
+use heck::{CamelCase, KebabCase, SnakeCase};
 use proc_macro2::{Span, TokenStream};
 use suffix::{EVENT_SUFFIX, PROPS_SUFFIX};
 use syn::parse::{Error, Parse, ParseStream, Result as ParseResult};
@@ -392,7 +392,7 @@ impl HtmlAttribute {
     }
 
     fn expand_as_named_arg(&self) -> TokenStream {
-        let key = Ident::new(&self.key.name, Span::call_site());
+        let key = Ident::new(&self.key.name.to_snake_case(), Span::call_site());
         let value = &self.value;
 
         quote! {
