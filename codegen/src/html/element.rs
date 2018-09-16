@@ -48,8 +48,19 @@ pub struct NormalHtmlElement {
 impl Parse for NormalHtmlElement {
     fn parse(input: ParseStream) -> ParseResult<Self> {
         let opening_tag: OpeningTag = input.parse()?;
-        let child = input.parse()?;
+        let child: HtmlRoot = input.parse()?;
         let closing_tag: ClosingTag = input.parse()?;
+
+        if opening_tag.tag_name.is_component() && child.flat_len != 0 {
+            return Err(Error::new(
+                opening_tag
+                    .tag_name
+                    .span()
+                    .join(closing_tag.tag_name.span())
+                    .unwrap(),
+                "Component children are not supported right now.",
+            ));
+        }
 
         let err_span = match (&opening_tag.tag_name, &closing_tag.tag_name) {
             (
@@ -87,7 +98,7 @@ impl Parse for NormalHtmlElement {
 
         Ok(NormalHtmlElement {
             opening_tag,
-            child,
+            child: Box::new(child),
             closing_tag,
         })
     }
@@ -404,6 +415,22 @@ impl HtmlAttribute {
 pub enum TagName {
     Tag { name: String, span: Span },
     Component { ident: Ident },
+}
+
+impl TagName {
+    fn is_component(&self) -> bool {
+        match self {
+            TagName::Component { .. } => true,
+            _ => false,
+        }
+    }
+
+    fn span(&self) -> Span {
+        match self {
+            TagName::Tag { ref span, .. } => span.clone(),
+            TagName::Component { ref ident } => ident.span(),
+        }
+    }
 }
 
 impl Parse for TagName {
