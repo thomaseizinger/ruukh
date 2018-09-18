@@ -51,7 +51,7 @@
 //! Note: Docs on component macros are located
 //! [here](../../ruukh_codegen/index.html).
 
-use {Markup, MessageSender, Shared};
+use crate::{Markup, MessageSender, Shared};
 
 /// Trait to define a component. You do not need to implement this trait. Auto
 /// implement this trait by using `#[component]` on a component struct (which

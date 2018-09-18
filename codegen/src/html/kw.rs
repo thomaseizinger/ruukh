@@ -1,5 +1,5 @@
 //! Custom keywords used in the parser.
-use syn::parse::ParseStream;
+use syn::{custom_keyword, parse::ParseStream, Token};
 
 custom_keyword!(key);
 
@@ -21,7 +21,7 @@ macro_rules! is_self_closing {
     };
 }
 
-pub fn is_self_closing(inp: ParseStream) -> bool {
+pub fn is_self_closing(inp: ParseStream<'_>) -> bool {
     inp.peek(Token![<])
         && (is_self_closing!(
             inp is

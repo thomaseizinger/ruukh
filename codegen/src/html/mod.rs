@@ -31,9 +31,11 @@
 
 use self::element::{HtmlElement, KeyAttribute};
 use proc_macro2::{Span, TokenStream, TokenTree};
-use syn::parse::{Parse, ParseStream, Result as ParseResult};
-use syn::token;
-use syn::Block as RustExpressionBlock;
+use quote::quote;
+use syn::{
+    parse::{Parse, ParseStream, Result as ParseResult},
+    token, Block as RustExpressionBlock, Token,
+};
 
 mod element;
 mod kw;
@@ -45,7 +47,7 @@ pub struct HtmlRoot {
 }
 
 impl Parse for HtmlRoot {
-    fn parse(input: ParseStream) -> ParseResult<Self> {
+    fn parse(input: ParseStream<'_>) -> ParseResult<Self> {
         let mut ungrouped_items: Vec<HtmlItem> = vec![];
         while !input.is_empty() {
             // Encounters an end tag.
@@ -162,7 +164,7 @@ pub enum HtmlItem {
 }
 
 impl Parse for HtmlItem {
-    fn parse(input: ParseStream) -> ParseResult<Self> {
+    fn parse(input: ParseStream<'_>) -> ParseResult<Self> {
         if input.peek(Token![<]) {
             Ok(HtmlItem::Element(Box::new(input.parse()?)))
         } else if input.peek(token::Brace) {
@@ -218,7 +220,7 @@ pub struct Text {
 }
 
 impl Parse for Text {
-    fn parse(input: ParseStream) -> ParseResult<Self> {
+    fn parse(input: ParseStream<'_>) -> ParseResult<Self> {
         let content = input.step(|cursor| {
             let mut content = String::new();
             let mut rest = *cursor;
@@ -266,7 +268,6 @@ fn add_space_to(string: &mut String, left: &Span, right: &Span) {
 #[cfg(test)]
 mod test {
     use super::*;
-    use syn;
 
     #[test]
     fn should_parse_html() {

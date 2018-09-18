@@ -1,11 +1,12 @@
+use crate::suffix::{EVENT_PROPS_SUFFIX, EVENT_SUFFIX, PROPS_SUFFIX, STATE_SUFFIX};
 use proc_macro2::{Span, TokenStream};
-use suffix::{EVENT_PROPS_SUFFIX, EVENT_SUFFIX, PROPS_SUFFIX, STATE_SUFFIX};
-use syn;
-use syn::parse::{Error, Parse, ParseStream, Result as ParseResult};
-use syn::spanned::Spanned;
+use quote::quote;
 use syn::{
-    Attribute, Expr, Field, Fields, FnArg, Ident, ItemStruct, Pat, ReturnType, Type, TypePath,
-    TypeReference, Visibility,
+    custom_keyword, parenthesized,
+    parse::{Error, Parse, ParseStream, Result as ParseResult},
+    spanned::Spanned,
+    Attribute, Expr, Field, Fields, FnArg, Ident, ItemStruct, Pat, ReturnType, Token, Type,
+    TypePath, TypeReference, Visibility,
 };
 
 /// All the necessary metadata taken from the struct declaration to construct
@@ -683,7 +684,7 @@ struct AttrArg {
 }
 
 impl Parse for AttrArg {
-    fn parse(input: ParseStream) -> ParseResult<Self> {
+    fn parse(input: ParseStream<'_>) -> ParseResult<Self> {
         if input.is_empty() {
             return Ok(AttrArg::default());
         }
@@ -710,7 +711,7 @@ enum DefaultArg {
 }
 
 impl Parse for DefaultArg {
-    fn parse(input: ParseStream) -> ParseResult<Self> {
+    fn parse(input: ParseStream<'_>) -> ParseResult<Self> {
         input.parse::<default>()?;
         if input.peek(Token![=]) {
             input.parse::<Token![=]>()?;
@@ -864,7 +865,7 @@ struct EventsSyntax {
 }
 
 impl Parse for EventsSyntax {
-    fn parse(input: ParseStream) -> ParseResult<Self> {
+    fn parse(input: ParseStream<'_>) -> ParseResult<Self> {
         let content;
         parenthesized!(content in input);
 
@@ -891,7 +892,7 @@ struct EventSyntax {
 }
 
 impl Parse for EventSyntax {
-    fn parse(input: ParseStream) -> ParseResult<Self> {
+    fn parse(input: ParseStream<'_>) -> ParseResult<Self> {
         let attrs = input.call(Attribute::parse_outer)?;
         input.parse::<Token![fn]>()?;
         let ident = input.parse()?;

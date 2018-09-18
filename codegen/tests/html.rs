@@ -1,10 +1,6 @@
 #![feature(proc_macro_non_items)]
 
-extern crate ruukh;
-extern crate ruukh_codegen;
-
-use ruukh::prelude::*;
-use ruukh::web_api::Event;
+use ruukh::{prelude::*, web_api::Event};
 
 #[test]
 fn should_expand_single_element() {

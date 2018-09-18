@@ -1,9 +1,8 @@
-extern crate ruukh;
-extern crate ruukh_codegen;
-
-use ruukh::component::{EventsPair, Status};
-use ruukh::prelude::*;
-use ruukh::Shared;
+use ruukh::{
+    component::{EventsPair, Status},
+    prelude::*,
+    Shared,
+};
 
 #[test]
 fn should_impl_lifecycle() {

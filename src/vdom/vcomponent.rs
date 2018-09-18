@@ -1,17 +1,21 @@
 //! Component representation in a VDOM.
 
-use component::{EventsPair, Render, Status};
-use dom::{DOMInfo, DOMPatch, DOMRemove, DOMReorder};
-use std::any::Any;
-use std::fmt::{self, Display, Formatter};
-use std::marker::PhantomData;
-use vdom::{Shared, VNode};
+use crate::{
+    component::{EventsPair, Render, Status},
+    dom::{DOMInfo, DOMPatch, DOMRemove, DOMReorder},
+    vdom::{Shared, VNode},
+    web_api::*,
+    MessageSender,
+};
+use std::{
+    any::Any,
+    fmt::{self, Display, Formatter},
+    marker::PhantomData,
+};
 use wasm_bindgen::prelude::JsValue;
-use web_api::*;
-use MessageSender;
 
 /// The representation of a component in a Virtual DOM.
-pub struct VComponent<RCTX: Render>(Box<ComponentManager<RCTX>>);
+pub struct VComponent<RCTX: Render>(Box<dyn ComponentManager<RCTX>>);
 
 impl<RCTX: Render> VComponent<RCTX> {
     /// Create a new VComponent.
@@ -112,7 +116,7 @@ pub(crate) trait ComponentManager<RCTX: Render>: Display + 'static {
 
     fn patch(
         &mut self,
-        old: Option<&mut ComponentManager<RCTX>>,
+        old: Option<&mut dyn ComponentManager<RCTX>>,
         parent: &Node,
         next: Option<&Node>,
         render_ctx: Shared<RCTX>,
@@ -124,7 +128,7 @@ pub(crate) trait ComponentManager<RCTX: Render>: Display + 'static {
 
     fn node(&self) -> Option<&Node>;
 
-    fn as_any_mut(&mut self) -> &mut Any;
+    fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
 impl<COMP: Render, RCTX: Render> ComponentManager<RCTX> for ComponentWrapper<COMP, RCTX>
@@ -194,7 +198,7 @@ where
 
     fn patch(
         &mut self,
-        old: Option<&mut ComponentManager<RCTX>>,
+        old: Option<&mut dyn ComponentManager<RCTX>>,
         parent: &Node,
         _: Option<&Node>,
         render_ctx: Shared<RCTX>,
@@ -251,7 +255,7 @@ where
         self.cached_render.as_ref().and_then(|inner| inner.node())
     }
 
-    fn as_any_mut(&mut self) -> &mut Any {
+    fn as_any_mut(&mut self) -> &mut dyn Any {
         self
     }
 }
@@ -263,7 +267,7 @@ impl<RCTX: Render> From<VComponent<RCTX>> for VNode<RCTX> {
 }
 
 impl<RCTX: Render> Display for VComponent<RCTX> {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
     }
 }
@@ -272,7 +276,7 @@ impl<COMP: Render, RCTX: Render> Display for ComponentWrapper<COMP, RCTX>
 where
     COMP::Events: EventsPair<RCTX>,
 {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "{}",
@@ -286,11 +290,11 @@ where
 #[cfg(test)]
 pub mod test {
     use super::*;
-    use component::*;
-    use prelude::*;
-    use vdom::{velement::*, vtext::*, VNode};
+    use crate::component::*;
+    use crate::prelude::*;
+    use crate::vdom::{velement::*, vtext::*, VNode};
+    use crate::Shared;
     use wasm_bindgen_test::*;
-    use Shared;
 
     struct Button {
         disabled: bool,
@@ -373,8 +377,12 @@ pub mod test {
         let mut vcomp = VComponent::new::<Button>(ButtonProps { disabled: false }, ());
         let div = container();
         vcomp
-            .render_walk(div.as_ref(), None, root_render_ctx(), ::message_sender())
-            .expect("To patch div");
+            .render_walk(
+                div.as_ref(),
+                None,
+                root_render_ctx(),
+                crate::message_sender(),
+            ).expect("To patch div");
 
         assert_eq!(
             div.inner_html(),
@@ -387,8 +395,12 @@ pub mod test {
         let mut vcomp = VComponent::new::<Button>(ButtonProps { disabled: false }, ());
         let div = container();
         vcomp
-            .render_walk(div.as_ref(), None, root_render_ctx(), ::message_sender())
-            .expect("To patch div");
+            .render_walk(
+                div.as_ref(),
+                None,
+                root_render_ctx(),
+                crate::message_sender(),
+            ).expect("To patch div");
 
         assert_eq!(
             div.inner_html(),
@@ -402,11 +414,15 @@ pub mod test {
                 div.as_ref(),
                 None,
                 root_render_ctx(),
-                ::message_sender(),
+                crate::message_sender(),
             ).unwrap();
         patched
-            .render_walk(div.as_ref(), None, root_render_ctx(), ::message_sender())
-            .expect("To patch div");
+            .render_walk(
+                div.as_ref(),
+                None,
+                root_render_ctx(),
+                crate::message_sender(),
+            ).expect("To patch div");
 
         assert_eq!(
             div.inner_html(),

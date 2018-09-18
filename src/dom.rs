@@ -1,8 +1,5 @@
-use component::Render;
+use crate::{component::Render, web_api::Node, MessageSender, Shared};
 use wasm_bindgen::prelude::JsValue;
-use web_api::Node;
-use MessageSender;
-use Shared;
 
 /// Trait to patch the DOM to reflect the VDOM structure.
 pub(crate) trait DOMPatch<RCTX: Render>

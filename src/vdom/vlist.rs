@@ -1,17 +1,19 @@
 //! Representation of a list of nodes in VDOM.
 
-use component::Render;
-use dom::{DOMInfo, DOMPatch, DOMRemove, DOMReorder};
+use crate::{
+    component::Render,
+    dom::{DOMInfo, DOMPatch, DOMRemove, DOMReorder},
+    vdom::{Key, VNode},
+    web_api::*,
+    MessageSender, Shared,
+};
 use fnv::FnvBuildHasher;
 use indexmap::IndexMap;
-use std::collections::HashSet;
-use std::fmt::{self, Display, Formatter};
-use vdom::Key;
-use vdom::VNode;
+use std::{
+    collections::HashSet,
+    fmt::{self, Display, Formatter},
+};
 use wasm_bindgen::prelude::JsValue;
-use web_api::*;
-use MessageSender;
-use Shared;
 
 /// The representation of a list of vnodes in the vtree.
 pub struct VList<RCTX: Render>(IndexMap<Key, VNode<RCTX>, FnvBuildHasher>);
@@ -48,7 +50,7 @@ impl<RCTX: Render> From<IndexMap<Key, VNode<RCTX>, FnvBuildHasher>> for VList<RC
 }
 
 impl<RCTX: Render> Display for VList<RCTX> {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         for (_, vnode) in self.0.iter() {
             write!(f, "{}", vnode)?;
         }
@@ -156,10 +158,10 @@ impl<RCTX: Render> DOMInfo for VList<RCTX> {
 #[cfg(test)]
 pub mod test {
     use super::*;
-    use component::root_render_ctx;
-    use vdom::velement::VElement;
-    use vdom::vtext::VText;
-    use vdom::VNode;
+    use crate::component::root_render_ctx;
+    use crate::vdom::velement::VElement;
+    use crate::vdom::vtext::VText;
+    use crate::vdom::VNode;
     use wasm_bindgen_test::*;
 
     #[test]
@@ -187,7 +189,7 @@ pub mod test {
             div.as_ref(),
             None,
             root_render_ctx(),
-            ::message_sender(),
+            crate::message_sender(),
         ).expect("To patch div");
 
         assert_eq!(div.inner_html(), "Hello World!<div></div>");
@@ -205,7 +207,7 @@ pub mod test {
             div.as_ref(),
             None,
             root_render_ctx(),
-            ::message_sender(),
+            crate::message_sender(),
         ).expect("To patch div");
 
         assert_eq!(div.inner_html(), "Hello World!<div></div>");
@@ -221,7 +223,7 @@ pub mod test {
                 div.as_ref(),
                 None,
                 root_render_ctx(),
-                ::message_sender(),
+                crate::message_sender(),
             ).expect("To patch div");
 
         assert_eq!(div.inner_html(), "<div></div>Hello World!How are you?");

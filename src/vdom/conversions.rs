@@ -2,11 +2,11 @@
 //! expression blocks. Allows the user to use basic types such as string and
 //! number types ergonomically within html! expression blocks.
 
-use component::Render;
+use crate::{
+    component::Render,
+    vdom::{vlist::VList, vtext::VText, VNode},
+};
 use std::borrow::Cow;
-use vdom::vlist::VList;
-use vdom::vtext::VText;
-use vdom::VNode;
 
 impl<RCTX: Render> From<String> for VNode<RCTX> {
     fn from(value: String) -> VNode<RCTX> {

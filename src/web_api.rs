@@ -47,14 +47,14 @@ extern "C" {
     pub fn add_event_listener(
         this: &Element,
         type_: &str,
-        listener: &Closure<Fn(Event)>,
+        listener: &Closure<dyn Fn(Event)>,
     ) -> Result<(), JsValue>;
 
     #[wasm_bindgen(method, catch, js_name = removeEventListener)]
     pub fn remove_event_listener(
         this: &Element,
         type_: &str,
-        listener: &Closure<Fn(Event)>,
+        listener: &Closure<dyn Fn(Event)>,
     ) -> Result<(), JsValue>;
 
     #[wasm_bindgen(method, catch, js_name = dispatchEvent)]
@@ -115,7 +115,7 @@ extern "C" {
     pub fn post_message(this: &MessagePort, any: &JsValue) -> Result<(), JsValue>;
 
     #[wasm_bindgen(method, setter = onmessage)]
-    pub fn on_message(this: &MessagePort, handler: &Closure<FnMut(JsValue)>);
+    pub fn on_message(this: &MessagePort, handler: &Closure<dyn FnMut(JsValue)>);
 
     #[wasm_bindgen(js_namespace = console, js_name = log)]
     pub fn console_log(s: &str);

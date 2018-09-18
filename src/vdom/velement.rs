@@ -1,15 +1,16 @@
 //! Element representation in a VDOM.
 
-use component::Render;
-use dom::{DOMInfo, DOMPatch, DOMRemove, DOMReorder};
+use crate::{
+    component::Render,
+    dom::{DOMInfo, DOMPatch, DOMRemove, DOMReorder},
+    vdom::VNode,
+    web_api::*,
+    MessageSender, Shared,
+};
 use indexmap::IndexMap;
 use std::borrow::Cow;
 use std::fmt::{self, Display, Formatter};
-use vdom::VNode;
 use wasm_bindgen::prelude::*;
-use web_api::*;
-use MessageSender;
-use Shared;
 
 /// The representation of an element in virtual DOM.
 pub struct VElement<RCTX: Render> {
@@ -44,13 +45,13 @@ pub enum AttributeValue {
     Bool(bool),
 }
 
-struct EventListeners<RCTX: Render>(Vec<Box<EventManager<RCTX>>>);
+struct EventListeners<RCTX: Render>(Vec<Box<dyn EventManager<RCTX>>>);
 
 /// Event listener to be invoked on a DOM event.
 pub struct EventListener<RCTX: Render> {
     type_: &'static str,
-    listener: Option<Box<Fn(&RCTX, Event)>>,
-    dom_listener: Option<Closure<Fn(Event)>>,
+    listener: Option<Box<dyn Fn(&RCTX, Event)>>,
+    dom_listener: Option<Closure<dyn Fn(Event)>>,
 }
 
 impl<RCTX: Render> VElement<RCTX> {
@@ -68,7 +69,7 @@ impl<RCTX: Render> VElement<RCTX> {
                 event_listeners
                     .into_iter()
                     .map(|listener| {
-                        let listener: Box<EventManager<RCTX>> = Box::new(listener);
+                        let listener: Box<dyn EventManager<RCTX>> = Box::new(listener);
                         listener
                     }).collect(),
             ),
@@ -90,7 +91,7 @@ impl<RCTX: Render> VElement<RCTX> {
                 event_listeners
                     .into_iter()
                     .map(|listener| {
-                        let listener: Box<EventManager<RCTX>> = Box::new(listener);
+                        let listener: Box<dyn EventManager<RCTX>> = Box::new(listener);
                         listener
                     }).collect(),
             ),
@@ -112,7 +113,7 @@ impl Attribute {
 
 impl<RCTX: Render> EventListener<RCTX> {
     /// Create a EventListener.
-    pub fn new(type_: &'static str, listener: Box<Fn(&RCTX, Event)>) -> EventListener<RCTX> {
+    pub fn new(type_: &'static str, listener: Box<dyn Fn(&RCTX, Event)>) -> EventListener<RCTX> {
         EventListener {
             type_,
             listener: Some(listener),
@@ -133,7 +134,7 @@ const VOID_TAGS: [&str; 14] = [
 ];
 
 impl<RCTX: Render> Display for VElement<RCTX> {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         if VOID_TAGS.contains(&self.tag) {
             write!(f, "<{}{}>", self.tag, self.attributes)?;
             if !self.child.is_none() {
@@ -157,7 +158,7 @@ impl<RCTX: Render> Display for VElement<RCTX> {
 }
 
 impl Display for Attributes {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         for (k, v) in self.0.iter() {
             match v {
                 AttributeValue::String(ref v) => {
@@ -416,7 +417,7 @@ impl<RCTX: Render> EventManager<RCTX> for EventListener<RCTX> {
         render_ctx: Shared<RCTX>,
     ) -> Result<(), JsValue> {
         let listener = self.listener.take().unwrap();
-        let js_closure: Closure<Fn(Event)> = Closure::wrap(Box::new(move |event| {
+        let js_closure: Closure<dyn Fn(Event)> = Closure::wrap(Box::new(move |event| {
             listener(&*render_ctx.borrow(), event)
         }));
         parent.add_event_listener(&self.type_, &js_closure)?;
@@ -466,10 +467,9 @@ impl From<Vec<Attribute>> for Attributes {
 #[cfg(test)]
 pub mod test {
     use super::*;
-    use vdom::vtext::VText;
-    use component::root_render_ctx;
+    use crate::component::root_render_ctx;
+    use crate::vdom::vtext::VText;
     use wasm_bindgen_test::*;
-
 
     #[test]
     fn should_display_a_div() {
@@ -514,7 +514,7 @@ pub mod test {
                 div.as_ref(),
                 None,
                 root_render_ctx(),
-                ::message_sender(),
+                crate::message_sender(),
             ).expect("To patch div");
 
         assert_eq!(div.inner_html(), "<button></button>");
@@ -537,7 +537,7 @@ pub mod test {
                 div.as_ref(),
                 None,
                 root_render_ctx(),
-                ::message_sender(),
+                crate::message_sender(),
             ).expect("To patch div");
 
         assert_eq!(
@@ -565,7 +565,7 @@ pub mod test {
                 div.as_ref(),
                 None,
                 root_render_ctx(),
-                ::message_sender(),
+                crate::message_sender(),
             ).expect("To patch div");
 
         assert_eq!(
@@ -584,7 +584,7 @@ pub mod test {
                 div.as_ref(),
                 None,
                 root_render_ctx(),
-                ::message_sender(),
+                crate::message_sender(),
             ).expect("To patch div");
 
         assert_eq!(div.inner_html(), "<div></div>");
@@ -596,7 +596,7 @@ pub mod test {
                 div.as_ref(),
                 None,
                 root_render_ctx(),
-                ::message_sender(),
+                crate::message_sender(),
             ).expect("To patch div");
 
         assert_eq!(div.inner_html(), "<button></button>");
@@ -613,7 +613,7 @@ pub mod test {
                 div.as_ref(),
                 None,
                 root_render_ctx(),
-                ::message_sender(),
+                crate::message_sender(),
             ).expect("To patch div");
 
         assert_eq!(div.inner_html(), r#"<div class="bg-white"></div>"#);
@@ -632,7 +632,7 @@ pub mod test {
                 div.as_ref(),
                 None,
                 root_render_ctx(),
-                ::message_sender(),
+                crate::message_sender(),
             ).expect("To patch div");
 
         assert_eq!(

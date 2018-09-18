@@ -1,17 +1,23 @@
 //! The Virtual DOM library which backs the `ruukh` frontend framework.
 
-use component::Render;
-use dom::{DOMInfo, DOMPatch, DOMRemove, DOMReorder};
-use std::borrow::Cow;
-use std::fmt::{self, Display, Formatter};
-use vdom::vcomponent::VComponent;
-use vdom::velement::VElement;
-use vdom::vlist::VList;
-use vdom::vtext::VText;
+use crate::{
+    component::Render,
+    dom::{DOMInfo, DOMPatch, DOMRemove, DOMReorder},
+    vdom::{
+        vcomponent::VComponent,
+        velement::VElement,
+        vlist::VList,
+        vtext::VText
+    },
+    web_api::*,
+    MessageSender,
+    Shared
+};
+use std::{
+    borrow::Cow, 
+    fmt::{self, Display, Formatter}
+};
 use wasm_bindgen::prelude::JsValue;
-use web_api::*;
-use MessageSender;
-use Shared;
 
 pub mod vcomponent;
 pub mod velement;
@@ -49,7 +55,7 @@ impl<RCTX: Render> VNode<RCTX> {
 }
 
 impl<RCTX: Render> Display for VNode<RCTX> {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             VNode::Text(inner) => write!(f, "{}", inner),
             VNode::Element(inner) => write!(f, "{}", inner),
@@ -257,7 +263,7 @@ impl From<String> for Key {
 
 #[cfg(test)]
 mod test {
-    use vdom::vtext::VText;
+    use crate::vdom::vtext::VText;
     use super::VNode;
 
     #[test]

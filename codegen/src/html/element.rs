@@ -1,12 +1,14 @@
 use super::kw;
 use super::HtmlRoot;
+use crate::suffix::{EVENT_SUFFIX, PROPS_SUFFIX};
 use heck::{CamelCase, KebabCase, SnakeCase};
 use proc_macro2::{Span, TokenStream};
-use suffix::{EVENT_SUFFIX, PROPS_SUFFIX};
-use syn::parse::{Error, Parse, ParseStream, Result as ParseResult};
-use syn::punctuated::Punctuated;
-use syn::token;
-use syn::{Expr, Ident};
+use quote::{quote, quote_spanned};
+use syn::{
+    parse::{Error, Parse, ParseStream, Result as ParseResult},
+    punctuated::Punctuated,
+    token, Token, {Expr, Ident}, braced
+};
 
 pub enum HtmlElement {
     Normal(NormalHtmlElement),
@@ -14,7 +16,7 @@ pub enum HtmlElement {
 }
 
 impl Parse for HtmlElement {
-    fn parse(input: ParseStream) -> ParseResult<Self> {
+    fn parse(input: ParseStream<'_>) -> ParseResult<Self> {
         if kw::is_self_closing(&input) {
             Ok(HtmlElement::SelfClosing(input.parse()?))
         } else {
@@ -46,7 +48,7 @@ pub struct NormalHtmlElement {
 }
 
 impl Parse for NormalHtmlElement {
-    fn parse(input: ParseStream) -> ParseResult<Self> {
+    fn parse(input: ParseStream<'_>) -> ParseResult<Self> {
         let opening_tag: OpeningTag = input.parse()?;
         let child: HtmlRoot = input.parse()?;
         let closing_tag: ClosingTag = input.parse()?;
@@ -105,7 +107,7 @@ pub struct SelfClosingHtmlElement {
 }
 
 impl Parse for SelfClosingHtmlElement {
-    fn parse(input: ParseStream) -> ParseResult<Self> {
+    fn parse(input: ParseStream<'_>) -> ParseResult<Self> {
         Ok(SelfClosingHtmlElement {
             tag: input.parse()?,
         })
@@ -132,7 +134,7 @@ pub struct OpeningTag {
 }
 
 impl Parse for OpeningTag {
-    fn parse(input: ParseStream) -> ParseResult<Self> {
+    fn parse(input: ParseStream<'_>) -> ParseResult<Self> {
         let lt = input.parse()?;
         let tag_name = input.parse()?;
         let mut key = None;
@@ -225,7 +227,7 @@ pub struct ClosingTag {
 }
 
 impl Parse for ClosingTag {
-    fn parse(input: ParseStream) -> ParseResult<Self> {
+    fn parse(input: ParseStream<'_>) -> ParseResult<Self> {
         Ok(ClosingTag {
             lt: input.parse()?,
             slash: input.parse()?,
@@ -246,7 +248,7 @@ pub struct SelfClosingTag {
 }
 
 impl Parse for SelfClosingTag {
-    fn parse(input: ParseStream) -> ParseResult<Self> {
+    fn parse(input: ParseStream<'_>) -> ParseResult<Self> {
         let lt = input.parse()?;
         let tag_name = input.parse()?;
         let mut key = None;
@@ -314,7 +316,7 @@ pub struct KeyAttribute {
 }
 
 impl Parse for KeyAttribute {
-    fn parse(input: ParseStream) -> ParseResult<Self> {
+    fn parse(input: ParseStream<'_>) -> ParseResult<Self> {
         let key = input.parse()?;
         let eq = input.parse()?;
         let content;
@@ -347,7 +349,7 @@ pub struct HtmlAttribute {
 }
 
 impl Parse for HtmlAttribute {
-    fn parse(input: ParseStream) -> ParseResult<Self> {
+    fn parse(input: ParseStream<'_>) -> ParseResult<Self> {
         let at = input.parse()?;
         let key = input.parse()?;
         let eq = input.parse()?;
@@ -419,7 +421,7 @@ impl TagName {
 }
 
 impl Parse for TagName {
-    fn parse(input: ParseStream) -> ParseResult<Self> {
+    fn parse(input: ParseStream<'_>) -> ParseResult<Self> {
         let first_span = input.cursor().span();
         let idents = input.call(Punctuated::<Ident, Token![-]>::parse_separated_nonempty)?;
         let span = idents
@@ -464,7 +466,7 @@ pub struct AttributeName {
 }
 
 impl Parse for AttributeName {
-    fn parse(input: ParseStream) -> ParseResult<Self> {
+    fn parse(input: ParseStream<'_>) -> ParseResult<Self> {
         let first_span = input.cursor().span();
         let idents = input.call(Punctuated::<Ident, Token![-]>::parse_separated_nonempty)?;
         let span = idents
@@ -492,7 +494,6 @@ impl Parse for AttributeName {
 #[cfg(test)]
 mod test {
     use super::*;
-    use syn;
 
     #[test]
     fn should_parse_an_html_element() {

@@ -1,8 +1,5 @@
 #![feature(proc_macro_gen, decl_macro)]
 
-extern crate ruukh;
-extern crate ruukh_codegen;
-
 use ruukh::prelude::*;
 
 #[test]

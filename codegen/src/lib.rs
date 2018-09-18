@@ -5,18 +5,11 @@
 //!
 //! This lib defines `#[component]`, `#[derive(Lifecycle)]` and `html!` macros.
 
-extern crate proc_macro;
-extern crate proc_macro2;
-#[macro_use]
-extern crate syn;
-#[macro_use]
-extern crate quote;
-extern crate heck;
-
-use component::ComponentMeta;
-use html::HtmlRoot;
+use crate::{component::ComponentMeta, html::HtmlRoot};
+use proc_macro;
 use proc_macro2::Span;
-use syn::{parse::Error, spanned::Spanned, DeriveInput, Item};
+use quote::quote;
+use syn::{parse::Error, parse_macro_input, spanned::Spanned, DeriveInput, Item};
 
 mod component;
 mod html;
@@ -134,7 +127,7 @@ pub fn component(
 ///
 /// ## Self-closing tags
 /// Only html specified self-closing tags can be self-closing tags.
-/// 
+///
 /// ```ignore,compile_fail
 /// html! {
 ///     <br>

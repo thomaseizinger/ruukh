@@ -41,24 +41,20 @@
 //!
 //! Note: Docs on macros are located [here](../../ruukh_codegen/index.html).
 
-extern crate fnv;
-extern crate indexmap;
-extern crate ruukh_codegen;
-extern crate wasm_bindgen;
-#[cfg(test)]
-extern crate wasm_bindgen_test;
 #[cfg(test)]
 use wasm_bindgen_test::*;
 
 #[cfg(test)]
 wasm_bindgen_test_configure!(run_in_browser);
 
-use component::{Render, RootParent};
+use crate::{
+    component::{Render, RootParent},
+    vdom::vcomponent::{ComponentManager, ComponentWrapper},
+    web_api::*,
+};
 use std::cell::{Ref, RefCell, RefMut};
 use std::rc::Rc;
-use vdom::vcomponent::{ComponentManager, ComponentWrapper};
 use wasm_bindgen::prelude::*;
-use web_api::*;
 
 pub mod component;
 mod dom;
@@ -72,10 +68,10 @@ pub type Markup<RCTX> = vdom::VNode<RCTX>;
 /// Things you'll require to build the next great App. Just glob import the
 /// prelude and start building your app.
 pub mod prelude {
-    pub use component::{Component, Lifecycle, Render};
+    pub use crate::component::{Component, Lifecycle, Render};
+    pub use crate::Markup;
+    pub use crate::{App, ReactiveApp};
     pub use ruukh_codegen::*;
-    pub use Markup;
-    pub use {App, ReactiveApp};
 }
 
 /// Things the proc-macro uses without bugging the using to import them.
@@ -172,7 +168,7 @@ where
 #[wasm_bindgen]
 pub struct ReactiveApp {
     rx: MessagePort,
-    on_message: Option<Closure<FnMut(JsValue)>>,
+    on_message: Option<Closure<dyn FnMut(JsValue)>>,
 }
 
 impl ReactiveApp {
@@ -192,7 +188,7 @@ impl ReactiveApp {
 
     /// Invokes the handler, when it receives a message.
     fn on_message<F: FnMut() + 'static>(&mut self, mut handler: F) {
-        let closure: Closure<FnMut(JsValue)> = Closure::wrap(Box::new(move |_| handler()));
+        let closure: Closure<dyn FnMut(JsValue)> = Closure::wrap(Box::new(move |_| handler()));
         self.rx.on_message(&closure);
         self.on_message = Some(closure);
     }
@@ -231,12 +227,12 @@ impl<T> Shared<T> {
     }
 
     /// Borrows the inner value.
-    pub fn borrow(&self) -> Ref<T> {
+    pub fn borrow(&self) -> Ref<'_, T> {
         self.0.borrow()
     }
 
     /// Borrows the inner value mutably.
-    pub fn borrow_mut(&self) -> RefMut<T> {
+    pub fn borrow_mut(&self) -> RefMut<'_, T> {
         self.0.borrow_mut()
     }
 }
