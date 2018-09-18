@@ -15,7 +15,7 @@
 //! node like so:
 //!
 //! # Example
-//! ```
+//! ```ignore,compile_fail
 //! use ruukh::prelude::*;
 //! use wasm_bindgen::prelude::*;
 //!
@@ -102,7 +102,7 @@ where
     /// events declared onto it.
     ///
     /// # Example
-    /// ```ignore
+    /// ```ignore,compile_fail
     /// let my_app = App::<MyApp>::new();
     /// ```
     pub fn new() -> App<COMP> {
@@ -116,7 +116,7 @@ where
     /// or an element node itself.
     ///
     /// # Example
-    /// ```ignore
+    /// ```ignore,compile_fail
     /// App::<MyApp>::new().mount("app")
     /// ```
     ///

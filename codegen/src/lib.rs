@@ -27,7 +27,7 @@ mod suffix;
 /// You may use it like:
 ///
 /// # Example
-/// ```
+/// ```ignore,compile_fail
 /// #[derive(Lifecycle)]
 /// struct Button;
 /// ```
@@ -58,7 +58,7 @@ pub fn derive_lifecycle(input: proc_macro::TokenStream) -> proc_macro::TokenStre
 /// You may declare events available on the component by placing `#[events]`
 /// attribute. Like:
 /// # Example
-/// ```
+/// ```ignore,compile_fail
 /// #[component]
 /// #[events(
 ///     fn event_name(&self, arg: type) -> return_type;  
@@ -121,28 +121,28 @@ pub fn component(
 /// The basics of using html! macro:
 ///
 /// ## Text
-/// ```
+/// ```ignore,compile_fail
 /// html! {
 ///     This is a sample text.
 /// }
 /// ```
 ///
 /// ## Empty Markup
-/// ```
+/// ```ignore,compile_fail
 /// html!()
 /// ```
 ///
 /// ## Self-closing tags
 /// Only html specified self-closing tags can be self-closing tags.
 /// 
-/// ```
+/// ```ignore,compile_fail
 /// html! {
 ///     <br>
 /// }
 /// ```
 ///
 /// ## Normal tags
-/// ```
+/// ```ignore,compile_fail
 /// html! {
 ///     <div></div>
 ///     <my-custom-tag></my-custom-tag>
@@ -150,14 +150,14 @@ pub fn component(
 /// ```
 ///
 /// ## Component tags
-/// ```
+/// ```ignore,compile_fail
 /// html! {
 ///     <MyComponent></MyComponent>
 /// }
 /// ```
 ///
 /// ## List of tags
-/// ```
+/// ```ignore,compile_fail
 /// html! {
 ///     <div></div>
 ///     <span></span>
@@ -166,7 +166,7 @@ pub fn component(
 /// ```
 ///
 /// ## Nested markup
-/// ```
+/// ```ignore,compile_fail
 /// html! {
 ///     <div>
 ///         <span></span>
@@ -175,7 +175,7 @@ pub fn component(
 /// ```
 ///
 /// ## Expressions in between
-/// ```
+/// ```ignore,compile_fail
 /// html! {
 ///     There are { count } people.
 /// }

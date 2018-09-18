@@ -14,7 +14,7 @@
 //! write `#[derive(Lifecycle)]` on your component struct.
 //!
 //! # Example
-//! ```
+//! ```ignore,compile_fail
 //! #[component]
 //! struct Help;
 //!
@@ -40,7 +40,7 @@
 //! implement its methods.
 //!
 //! # Example
-//! ```
+//! ```ignore,compile_fail
 //! impl Lifecycle for Help {
 //!     fn created(&self) {
 //!         println!("It got created just now!");
@@ -155,7 +155,7 @@ pub trait Component: 'static {
     /// accepts the current state.
     ///
     /// # Example
-    /// ```ignore
+    /// ```ignore,compile_fail
     /// self.set_state(|state| {
     ///     state.disabled = !state.disabled;
     ///     state.count += 1;
