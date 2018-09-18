@@ -1,7 +1,9 @@
 #![recursion_limit = "256"]
 #![cfg_attr(feature = "cargo-clippy", feature(tool_lints))]
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::all))]
-//! The crate which removes all the boilerplate from `ruukh` apps.
+//! The crate which removes most of the boilerplate from Ruukh apps.
+//!
+//! This lib defines `#[component]`, `#[derive(Lifecycle)]` and `html!` macros.
 
 extern crate proc_macro;
 extern crate proc_macro2;
@@ -22,6 +24,13 @@ mod suffix;
 
 /// A convenient auto derive for `Lifecycle` trait. It could be simply written
 /// as `impl Lifecycle for MyComponent {}` instead, but why not save some chars.
+/// You may use it like:
+///
+/// # Example
+/// ```
+/// #[derive(Lifecycle)]
+/// struct Button;
+/// ```
 #[proc_macro_derive(Lifecycle)]
 pub fn derive_lifecycle(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -45,6 +54,37 @@ pub fn derive_lifecycle(input: proc_macro::TokenStream) -> proc_macro::TokenStre
 ///     disabled: bool,
 /// }
 /// ```
+///
+/// You may declare events available on the component by placing `#[events]`
+/// attribute. Like:
+/// # Example
+/// ```
+/// #[component]
+/// #[events(
+///     fn event_name(&self, arg: type) -> return_type;  
+/// )]
+/// struct MyButton {
+///     disabled: bool,
+/// }
+/// ```
+/// You may place multiple event declarations. Also, these event declarations
+/// require that the event handlers be passed compulsorily.
+///
+/// `#[component]` also allows to annotate the struct fields with additional
+/// attributes. Such as:
+///
+/// 1. `#[prop]` attribute: This attribute defines that a field is a prop
+/// field, though this attribute is optional. This attribute allows passing a
+/// default value for the prop field. Like `#[prop(default)]` which delegates
+/// it to the types `Default` implementation or `#[prop(default = val)]` which
+/// uses the `val` as its default value.
+/// Any fields which has a given `default` value or any `Option` type is
+/// optional while passing props.
+///
+/// 2. `#[state]` attribute: This attributes is required to define a field as a
+/// state field. If a `#[state]` or `#[state(default)]` is specified then the
+/// `Default` value of the field is used. If you want to provide a more
+/// specific value, then pass it by using `#[state(default = val)]` attribute.
 #[proc_macro_attribute]
 #[cfg_attr(
     feature = "cargo-clippy",
@@ -76,7 +116,70 @@ pub fn component(
     expanded.into()
 }
 
-/// `html!` macro to parse `vue`-inspired syntax to generate VNodes.
+/// `html!` macro to parse `vue`-inspired syntax to generate Markup.
+///
+/// The basics of using html! macro:
+///
+/// ## Text
+/// ```
+/// html! {
+///     This is a sample text.
+/// }
+/// ```
+///
+/// ## Empty Markup
+/// ```
+/// html!()
+/// ```
+///
+/// ## Self-closing tags
+/// Only html specified self-closing tags can be self-closing tags.
+/// 
+/// ```
+/// html! {
+///     <br>
+/// }
+/// ```
+///
+/// ## Normal tags
+/// ```
+/// html! {
+///     <div></div>
+///     <my-custom-tag></my-custom-tag>
+/// }
+/// ```
+///
+/// ## Component tags
+/// ```
+/// html! {
+///     <MyComponent></MyComponent>
+/// }
+/// ```
+///
+/// ## List of tags
+/// ```
+/// html! {
+///     <div></div>
+///     <span></span>
+///     <button></button>
+/// }
+/// ```
+///
+/// ## Nested markup
+/// ```
+/// html! {
+///     <div>
+///         <span></span>
+///     </div>
+/// }
+/// ```
+///
+/// ## Expressions in between
+/// ```
+/// html! {
+///     There are { count } people.
+/// }
+/// ```
 #[proc_macro]
 pub fn html(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let parsed = parse_macro_input!(input as HtmlRoot);

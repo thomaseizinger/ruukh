@@ -54,7 +54,7 @@ pub struct EventListener<RCTX: Render> {
 }
 
 impl<RCTX: Render> VElement<RCTX> {
-    /// Constructor to create a VElement.
+    /// Create a VElement.
     pub fn new(
         tag: &'static str,
         attributes: Vec<Attribute>,
@@ -77,7 +77,7 @@ impl<RCTX: Render> VElement<RCTX> {
         }
     }
 
-    /// Constructor to create a VElement without a child.
+    /// Create a VElement without a child.
     pub fn childless(
         tag: &'static str,
         attributes: Vec<Attribute>,
@@ -101,7 +101,7 @@ impl<RCTX: Render> VElement<RCTX> {
 }
 
 impl Attribute {
-    /// Constructor to create an Attribute for a VElement.
+    /// Create an Attribute for a VElement.
     pub fn new<V: Into<AttributeValue>>(key: &'static str, value: V) -> Attribute {
         Attribute {
             key,
@@ -111,7 +111,7 @@ impl Attribute {
 }
 
 impl<RCTX: Render> EventListener<RCTX> {
-    /// Initializer for EventListener
+    /// Create a EventListener.
     pub fn new(type_: &'static str, listener: Box<Fn(&RCTX, Event)>) -> EventListener<RCTX> {
         EventListener {
             type_,

@@ -23,7 +23,7 @@ pub struct VText<RCTX: Render> {
 }
 
 impl<RCTX: Render> VText<RCTX> {
-    /// Constructor to create a textual VNode.
+    /// Create a textual VText.
     pub fn text<T: Into<String>>(content: T) -> VText<RCTX> {
         VText {
             content: content.into(),
@@ -33,7 +33,7 @@ impl<RCTX: Render> VText<RCTX> {
         }
     }
 
-    /// Constructor to create a comment VNode.
+    /// Create a comment VText.
     pub fn comment<T: Into<String>>(content: T) -> VText<RCTX> {
         VText {
             content: content.into(),

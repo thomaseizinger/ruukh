@@ -17,7 +17,7 @@ use Shared;
 pub struct VList<RCTX: Render>(IndexMap<Key, VNode<RCTX>, FnvBuildHasher>);
 
 impl<RCTX: Render> VList<RCTX> {
-    /// Constructor to create a list of VNodes.
+    /// Create a VList from a list/map of VNodes.
     pub fn new<T: Into<VList<RCTX>>>(list: T) -> VList<RCTX> {
         list.into()
     }

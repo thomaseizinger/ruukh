@@ -12,8 +12,9 @@ where
     /// The type of the Node the VDOM works upon.
     type Node;
 
-    /// Walks through the VDOM till an uninitialized or a dirty Component is
-    /// found and renders it recursively.
+    /// Walks through the VDOM till it has finished walking or an uninitialized
+    /// or a dirty component is found and does the lifecycle bits, renders
+    /// and invokes the patches on DOM.
     fn render_walk(
         &mut self,
         parent: &Self::Node,
@@ -33,7 +34,9 @@ where
     ) -> Result<(), JsValue>;
 }
 
-/// Trait to reorder the VNode in the DOM.
+/// Trait to reorder the VNode in the DOM. Why is this needed? It is required
+/// when a VDOM changes its position in a VList. We need to reorder that DOM
+/// node accordingly to reflect the current state.
 pub(crate) trait DOMReorder {
     /// Reappends already existing Node in its correct place to reflect the
     /// current VDOM.

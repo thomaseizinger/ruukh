@@ -34,7 +34,7 @@ pub enum VNode<RCTX: Render> {
 }
 
 impl<RCTX: Render> VNode<RCTX> {
-    /// Construct a new VNode from one of its constituent Node types.
+    /// Creates a new VNode from one of its constituent Node types.
     pub fn new<T: Into<VNode<RCTX>>>(node: T) -> VNode<RCTX> {
         node.into()
     }
@@ -71,9 +71,11 @@ macro_rules! patch {
     ) => {
         match $old {
             Some(VNode::$variant(old)) => {
+                // If the variant is same patch it.
                 $this.patch(Some(old), $parent, $next, $render_ctx, $rx_sender)
             }
             Some(old) => {
+                // If it is a different variant, remove the old one.
                 old.remove($parent)?;
                 $this.patch(None, $parent, $next, $render_ctx, $rx_sender)
             }
@@ -96,6 +98,7 @@ impl<RCTX: Render> DOMPatch<RCTX> for VNode<RCTX> {
             VNode::Element(ref mut el) => el.render_walk(parent, next, render_ctx, rx_sender),
             VNode::List(ref mut list) => list.render_walk(parent, next, render_ctx, rx_sender),
             VNode::Component(ref mut comp) => comp.render_walk(parent, next, render_ctx, rx_sender),
+            // There is nothing to walk on.
             VNode::Text(_) => Ok(()),
             VNode::None => Ok(())
         }
@@ -171,7 +174,12 @@ impl<RCTX: Render> DOMInfo for VNode<RCTX> {
 }
 
 /// Keys to identify a VNode in VDOM.
-/// Only the basic types are supported.
+/// 
+/// Users don't need to explicitly use the `Key` type in html! macro. Any 
+/// supported type is automatically converted to it.
+/// 
+/// Note:
+/// WASM only supported 32-bit and 64-bit of the integers.
 #[derive(Clone, Eq, PartialEq, Hash)]
 pub enum Key {
     /// An `i32` key

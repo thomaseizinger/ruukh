@@ -14,7 +14,7 @@ use MessageSender;
 pub struct VComponent<RCTX: Render>(Box<ComponentManager<RCTX>>);
 
 impl<RCTX: Render> VComponent<RCTX> {
-    #[allow(missing_docs)]
+    /// Create a new VComponent.
     pub fn new<COMP: Render>(
         props: COMP::Props,
         events: <COMP::Events as EventsPair<RCTX>>::Other,
