@@ -15,7 +15,10 @@ wasm-bindgen-test = "0.2.21"
 
 [workspace]
 members = [
-    "codegen"
+    "codegen",
+    "examples/hello_world",
+    "examples/counter",
+    "examples/counter_alt"
 ]
 
 [patch.crates-io]
