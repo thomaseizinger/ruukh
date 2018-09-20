@@ -4,9 +4,9 @@
 //! The crate which removes most of the boilerplate from Ruukh apps.
 //!
 //! This lib defines `#[component]`, `#[derive(Lifecycle)]` and `html!` macros.
+extern crate proc_macro;
 
 use crate::{component::ComponentMeta, html::HtmlRoot};
-use proc_macro;
 use proc_macro2::Span;
 use quote::quote;
 use syn::{parse::Error, parse_macro_input, spanned::Spanned, DeriveInput, Item};
