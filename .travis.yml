@@ -19,7 +19,7 @@ matrix:
         - rustup target add wasm32-unknown-unknown
         - *INSTALL_GECKODRIVER
         - *INSTALL_CHROMEDRIVER
-        - cargo install wasm-bindgen-cli
+        - cargo install wasm-bindgen-cli -f
 
       script:
         - export RUST_LOG=wasm_bindgen_test_runner
