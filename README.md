@@ -15,7 +15,7 @@ Create a new library project as binary projects are not supported to run on WASM
 Add the following dependencies in your `Cargo.toml`:
 ```toml
 [dependencies]
-ruukh = "*"
+ruukh = { git = "https://github.com/csharad/cargo-ruukh" }
 wasm-bindgen = "0.2.21"
 
 [patch.crates-io]
@@ -35,7 +35,7 @@ to build and run Ruukh projects. It supports running your webapp in a developmen
 
 To install it:
 ```shell
-cargo install cargo-ruukh
+cargo install cargo-ruukh --git https://github.com/csharad/cargo-ruukh
 ```
 
 For more information: read up the [README](https://github.com/csharad/cargo-ruukh) at its own repo.
