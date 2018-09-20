@@ -480,7 +480,7 @@ pub mod test {
     #[test]
     fn should_display_a_button_with_text() {
         let button =
-            VElement::<()>::new("button", vec![], vec![], VNode::new(VText::text("Click")));
+            VElement::<()>::new("button", vec![], vec![], VNode::from(VText::text("Click")));
         assert_eq!(format!("{}", button), "<button>Click</button>");
     }
 
@@ -552,7 +552,7 @@ pub mod test {
             "div",
             vec![],
             vec![],
-            VNode::new(VElement::childless(
+            VNode::from(VElement::childless(
                 "a",
                 vec![Attribute::new("href", "http://www.rust-lang.org/")],
                 vec![],

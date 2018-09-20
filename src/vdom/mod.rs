@@ -40,11 +40,6 @@ pub enum VNode<RCTX: Render> {
 }
 
 impl<RCTX: Render> VNode<RCTX> {
-    /// Creates a new VNode from one of its constituent Node types.
-    pub fn new<T: Into<VNode<RCTX>>>(node: T) -> VNode<RCTX> {
-        node.into()
-    }
-
     /// Whether the VNode is of `None` variant. 
     pub fn is_none(&self) -> bool {
         match self {
@@ -268,7 +263,7 @@ mod test {
 
     #[test]
     fn should_display_vnode() {
-        let node = VNode::<()>::new(VText::text("Hello World!"));
+        let node = VNode::<()>::from(VText::text("Hello World!"));
         assert_eq!(format!("{}", node), "Hello World!");
     }
 }

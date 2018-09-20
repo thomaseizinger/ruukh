@@ -117,7 +117,7 @@ impl HtmlRoot {
             }
         } else {
             quote! {
-                ruukh::vdom::VNode::new(ruukh::vdom::vlist::VList::new(vec![
+                ruukh::vdom::VNode::from(ruukh::vdom::vlist::VList::from(vec![
                     #(#expanded),*
                 ]))
             }
@@ -137,7 +137,7 @@ impl HtmlItems {
                 let expanded: Vec<_> = items.iter().map(HtmlItem::expand).collect();
                 let capacity = expanded.len();
                 quote! {
-                    ruukh::vdom::VNode::new(ruukh::vdom::vlist::VList::new({
+                    ruukh::vdom::VNode::from(ruukh::vdom::vlist::VList::from({
                         let mut map = ruukh::reexports::IndexMap::with_capacity_and_hasher(
                             #capacity,
                             ruukh::reexports::FnvBuildHasher::default()
@@ -181,18 +181,18 @@ impl HtmlItem {
             HtmlItem::Element(ref element) => {
                 let expanded = element.expand();
                 quote! {
-                    ruukh::vdom::VNode::new(#expanded)
+                    ruukh::vdom::VNode::from(#expanded)
                 }
             }
             HtmlItem::ExpressionBlock(ref block) => {
                 quote! {
-                    ruukh::vdom::VNode::new(#block)
+                    ruukh::vdom::VNode::from(#block)
                 }
             }
             HtmlItem::Text(ref text) => {
                 let string = &text.content;
                 quote! {
-                    ruukh::vdom::VNode::new(ruukh::vdom::vtext::VText::text(#string))
+                    ruukh::vdom::VNode::from(ruukh::vdom::vtext::VText::text(#string))
                 }
             }
         };

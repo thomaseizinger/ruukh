@@ -10,31 +10,31 @@ use std::borrow::Cow;
 
 impl<RCTX: Render> From<String> for VNode<RCTX> {
     fn from(value: String) -> VNode<RCTX> {
-        VNode::new(VText::text(value))
+        VNode::from(VText::text(value))
     }
 }
 
 impl<'a, RCTX: Render> From<&'a String> for VNode<RCTX> {
     fn from(value: &'a String) -> VNode<RCTX> {
-        VNode::new(VText::text(value.as_str()))
+        VNode::from(VText::text(value.as_str()))
     }
 }
 
 impl<'a, RCTX: Render> From<&'a str> for VNode<RCTX> {
     fn from(value: &'a str) -> VNode<RCTX> {
-        VNode::new(VText::text(value))
+        VNode::from(VText::text(value))
     }
 }
 
 impl<'a, RCTX: Render> From<Cow<'a, str>> for VNode<RCTX> {
     fn from(value: Cow<'a, str>) -> VNode<RCTX> {
-        VNode::new(VText::text(value))
+        VNode::from(VText::text(value))
     }
 }
 
 impl<'a, RCTX: Render> From<&'a Cow<'a, str>> for VNode<RCTX> {
     fn from(value: &'a Cow<'a, str>) -> VNode<RCTX> {
-        VNode::new(VText::text(value.as_ref()))
+        VNode::from(VText::text(value.as_ref()))
     }
 }
 
@@ -43,7 +43,7 @@ macro_rules! impl_with_to_string {
         $(
             impl<RCTX: Render> From<$t> for VNode<RCTX> {
                 fn from(value: $t) -> VNode<RCTX> {
-                    VNode::new(VText::text(value.to_string()))
+                    VNode::from(VText::text(value.to_string()))
                 }
             }
         )*
@@ -56,6 +56,6 @@ impl_with_to_string!(
 
 impl<RCTX: Render> From<Vec<VNode<RCTX>>> for VNode<RCTX> {
     fn from(value: Vec<VNode<RCTX>>) -> VNode<RCTX> {
-        VNode::new(VList::new(value))
+        VNode::from(VList::from(value))
     }
 }

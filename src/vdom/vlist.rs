@@ -18,13 +18,6 @@ use wasm_bindgen::prelude::JsValue;
 /// The representation of a list of vnodes in the vtree.
 pub struct VList<RCTX: Render>(IndexMap<Key, VNode<RCTX>, FnvBuildHasher>);
 
-impl<RCTX: Render> VList<RCTX> {
-    /// Create a VList from a list/map of VNodes.
-    pub fn new<T: Into<VList<RCTX>>>(list: T) -> VList<RCTX> {
-        list.into()
-    }
-}
-
 impl<RCTX: Render> From<VList<RCTX>> for VNode<RCTX> {
     fn from(list: VList<RCTX>) -> VNode<RCTX> {
         VNode::List(list)
@@ -166,9 +159,9 @@ pub mod test {
 
     #[test]
     fn should_display_a_list_of_vnodes() {
-        let list = VList::<()>::new(vec![
-            VNode::new(VText::text("First of the node")),
-            VNode::new(VElement::childless("input", vec![], vec![])),
+        let list = VList::<()>::from(vec![
+            VNode::from(VText::text("First of the node")),
+            VNode::from(VElement::childless("input", vec![], vec![])),
         ]);
         assert_eq!(format!("{}", list), "First of the node<input>");
     }
@@ -179,9 +172,9 @@ pub mod test {
 
     #[wasm_bindgen_test]
     fn should_patch_container_with_list_of_vnodes() {
-        let mut list = VList::new(vec![
-            VNode::new(VText::text("Hello World!")),
-            VNode::new(VElement::childless("div", vec![], vec![])),
+        let mut list = VList::from(vec![
+            VNode::from(VText::text("Hello World!")),
+            VNode::from(VElement::childless("div", vec![], vec![])),
         ]);
         let div = container();
         list.patch(
@@ -197,9 +190,9 @@ pub mod test {
 
     #[wasm_bindgen_test]
     fn should_patch_container_with_updated_list() {
-        let mut list = VList::new(vec![
-            VNode::new(VText::text("Hello World!")),
-            VNode::new(VElement::childless("div", vec![], vec![])),
+        let mut list = VList::from(vec![
+            VNode::from(VText::text("Hello World!")),
+            VNode::from(VElement::childless("div", vec![], vec![])),
         ]);
         let div = container();
         list.patch(
@@ -212,10 +205,10 @@ pub mod test {
 
         assert_eq!(div.inner_html(), "Hello World!<div></div>");
 
-        let mut new_list = VList::new(vec![
-            VNode::new(VElement::childless("div", vec![], vec![])),
-            VNode::new(VText::text("Hello World!")),
-            VNode::new(VText::text("How are you?")),
+        let mut new_list = VList::from(vec![
+            VNode::from(VElement::childless("div", vec![], vec![])),
+            VNode::from(VText::text("Hello World!")),
+            VNode::from(VText::text("How are you?")),
         ]);
         new_list
             .patch(

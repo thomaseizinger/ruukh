@@ -359,11 +359,11 @@ pub mod test {
 
     impl Render for Button {
         fn render(&self) -> Markup<Self> {
-            VNode::new(VElement::new(
+            VNode::from(VElement::new(
                 "button",
                 vec![Attribute::new("disabled", self.disabled.to_string())],
                 vec![],
-                VNode::new(VText::text("Click")),
+                VNode::from(VText::text("Click")),
             ))
         }
     }
