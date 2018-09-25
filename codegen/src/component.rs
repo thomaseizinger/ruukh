@@ -210,7 +210,7 @@ impl ComponentMeta {
         let state_type = &self.get_state_type();
         let events_type = &self.get_events_type();
         let state_clone = self.impl_state_clone_from_status();
-        let build_event = self.build_events_from_event_props();
+        let event_assignment = self.impl_event_assignment();
         let state_field_idents = &self
             .state_meta
             .as_ref()
@@ -237,35 +237,26 @@ impl ComponentMeta {
                 type State = #state_type;
                 type Events = #events_type;
 
-                fn init<RCTX: Render>(
+                fn init(
                     __props__: Self::Props,
-                    __events__: <Self::Events as ruukh::component::EventsPair<RCTX>>::Other,
+                    __events__: Self::Events,
                     __status__: std::rc::Rc<std::cell::RefCell<ruukh::component::Status<Self::State>>>,
-                    __render_ctx__: std::rc::Rc<std::cell::RefCell<RCTX>>,
-                ) -> Self
-                where
-                    Self::Events: ruukh::component::EventsPair<RCTX>
-                {
+                ) -> Self {
                     #state_clone
 
                     #ident {
                         #(#props_field_idents: __props__.#props_field_idents2 ,)*
                         #(#state_field_idents ,)*
-                        #build_event
+                        #event_assignment
                         #status_assignment
                     }
                 }
 
-                fn update<RCTX: Render>(
+                fn update(
                     &mut self,
                     mut __props__: Self::Props,
-                    __events__: <Self::Events as ruukh::component::EventsPair<RCTX>>::Other,
-                    __render_ctx__: std::rc::Rc<std::cell::RefCell<RCTX>>,
-                ) -> Option<Self::Props>
-                where
-                    Self::Events: ruukh::component::EventsPair<RCTX>
-                {
-
+                    __events__: Self::Events,
+                ) -> Option<Self::Props> {
                     #props_updation
 
                     #events_updation
@@ -403,11 +394,10 @@ impl ComponentMeta {
     }
 
     fn impl_events_updation(&self) -> TokenStream {
-        if let Some(ref events_meta) = self.events_meta {
-            let ident = &events_meta.ident;
+        if self.events_meta.is_some() {
             quote! {
                 // The events need to be updated regardless, there is no checking them.
-                self.__events__ = #ident::build(__events__, __render_ctx__);
+                self.__events__ = __events__;
             }
         } else {
             quote!()
@@ -448,11 +438,10 @@ impl ComponentMeta {
         }
     }
 
-    fn build_events_from_event_props(&self) -> TokenStream {
-        if let Some(ref events_meta) = self.events_meta {
-            let ident = &events_meta.ident;
+    fn impl_event_assignment(&self) -> TokenStream {
+        if self.events_meta.is_some() {
             quote! {
-                __events__: #ident::build(__events__, __render_ctx__),
+                __events__,
             }
         } else {
             quote!()
@@ -1094,26 +1083,23 @@ impl EventsMeta {
                 #(#fields),*
             }
 
-            impl #ident {
-                fn build<RCTX: Render>(
-                    __rctx_events__: <Self as ruukh::component::EventsPair<RCTX>>::Other,
-                    __render_ctx__: std::rc::Rc<std::cell::RefCell<RCTX>>,
-                ) -> Self
-                {
+            #vis struct #event_props_ident<RCTX: Render> {
+                #(#gen_fields),*
+            }
+
+            impl<RCTX: Render> ruukh::component::FromEventProps<RCTX> for #ident {
+                type From = #event_props_ident<RCTX>;
+
+                fn from(
+                    __rctx_events__: Self::From,
+                    __render_ctx__: std::rc::Rc<std::cell::RefCell<RCTX>>
+                ) -> Self {
                     #(#event_conversion)*
 
                     #ident {
                         #(#event_names),*
                     }
                 }
-            }
-
-            #vis struct #event_props_ident<RCTX: Render> {
-                #(#gen_fields),*
-            }
-
-            impl<RCTX: Render> ruukh::component::EventsPair<RCTX> for #ident {
-                type Other = #event_props_ident<RCTX>;
             }
 
             #(#event_wrappers)*

@@ -106,14 +106,7 @@ pub trait Component: 'static {
     ///
     /// It also creates a `Default::default()` state along with wiring up
     /// change notifying mechanism into `status`.
-    fn init<RCTX: Render>(
-        props: Self::Props,
-        events: <Self::Events as EventsPair<RCTX>>::Other,
-        status: Shared<Status<Self::State>>,
-        render_ctx: Shared<RCTX>,
-    ) -> Self
-    where
-        Self::Events: EventsPair<RCTX>;
+    fn init(props: Self::Props, events: Self::Events, status: Shared<Status<Self::State>>) -> Self;
 
     /// Updates the component with newer props and returns older props (if
     /// changed).
@@ -123,14 +116,7 @@ pub trait Component: 'static {
     /// When updating the component with newer props, it compares each prop if
     /// they changed. Also, it updates the events blindly as their is not point
     /// in comparing closures.
-    fn update<RCTX: Render>(
-        &mut self,
-        props: Self::Props,
-        events: <Self::Events as EventsPair<RCTX>>::Other,
-        render_ctx: Shared<RCTX>,
-    ) -> Option<Self::Props>
-    where
-        Self::Events: EventsPair<RCTX>;
+    fn update(&mut self, props: Self::Props, events: Self::Events) -> Option<Self::Props>;
 
     /// Updates the state fields if the status is mutated.
     fn refresh_state(&mut self);
@@ -264,38 +250,16 @@ pub trait Render: Lifecycle + Sized {
     fn render(&self) -> Markup<Self>;
 }
 
-/// ## Internals
-///
-/// Since the events passed on to the component need to run in the context of
-/// their parent, the events type needs to be generic over the Render Context.
-/// But, Rust does not allowed generics associated type to be specified in a
-/// trait which prohibits us to use a generic events type in `Component` trait.
-///
-/// So, this is a workaround to get the Generics Events type (the event props)
-/// from the normal event type associated to the Component.
-///
-/// # Example
-/// ```ignore,compile_fail
-/// struct ButtonEventProps<RCTX: Render> {
-///     ...
-/// }
-///
-/// struct ButtonEvents {
-///     ...
-/// }
-///
-/// impl<RCTX: Render> EventsPair<RCTX> for ButtonEvents {
-///     type Other = ButtonEventProps<RCTX>;
-/// }
-/// ```
-pub trait EventsPair<T> {
-    /// The generics pair of the `Self`.
-    ///
-    /// This other half of event is used as props type for the component's
-    /// events. That is, it is used to pass event handlers from parent to child.
-    /// Which within the component is converted to `Self` (a generic-less
-    /// events type).
-    type Other;
+/// Trait to convert from a event props to a events type.
+/// 
+/// Used to convert a (render) contextual events type to a wrapped one.
+/// i.e. `EventProps<RCTX>` to `Events`.
+pub trait FromEventProps<RCTX: Render>: Sized {
+    /// A contextual events type.
+    type From;
+
+    /// Convert to a context wrapped events type.
+    fn from(from: Self::From, render_ctx: Shared<RCTX>) -> Self;
 }
 
 /// A void component to be used as a render context for a root component.
@@ -307,30 +271,14 @@ impl Component for RootParent {
     type Events = ();
     type State = ();
 
-    fn init<RCTX: Render>(
-        _: Self::Props,
-        _: <Self::Events as EventsPair<RCTX>>::Other,
-        _: Shared<Status<()>>,
-        _: Shared<RCTX>,
-    ) -> RootParent
-    where
-        Self::Events: EventsPair<RCTX>,
-    {
+    fn init(_: Self::Props, _: Self::Events, _: Shared<Status<()>>) -> RootParent {
         unreachable!(
             "It is a void component to be used as a render context for a root \
              component. Not to be used as a component itself."
         )
     }
 
-    fn update<RCTX: Render>(
-        &mut self,
-        _: Self::Props,
-        _: <Self::Events as EventsPair<RCTX>>::Other,
-        _: Shared<RCTX>,
-    ) -> Option<Self::Props>
-    where
-        Self::Events: EventsPair<RCTX>,
-    {
+    fn update(&mut self, _: Self::Props, _: Self::Events) -> Option<Self::Props> {
         unreachable!(
             "It is a void component to be used as a render context for a root \
              component. Not to be used as a component itself."
@@ -405,8 +353,12 @@ impl Render for RootParent {
     }
 }
 
-impl<RCTX: Render> EventsPair<RCTX> for () {
-    type Other = ();
+impl<RCTX: Render> FromEventProps<RCTX> for () {
+    type From = ();
+
+    fn from(from: Self::From, _: Shared<RCTX>) -> Self {
+        from
+    }
 }
 
 #[cfg(test)]
