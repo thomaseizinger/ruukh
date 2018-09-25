@@ -9,8 +9,10 @@ use crate::{
 };
 use std::{
     any::Any,
+    cell::RefCell,
     fmt::{self, Display, Formatter},
     marker::PhantomData,
+    rc::Rc,
 };
 use wasm_bindgen::prelude::JsValue;
 
@@ -148,12 +150,15 @@ where
             let instance = COMP::init(
                 props,
                 events,
-                Shared::new(Status::new(COMP::State::default(), rx_sender.clone())),
+                Rc::new(RefCell::new(Status::new(
+                    COMP::State::default(),
+                    rx_sender.clone(),
+                ))),
                 render_ctx,
             );
             instance.created();
             let mut initial_render = instance.render();
-            let shared_instance = Shared::new(instance);
+            let shared_instance = Rc::new(RefCell::new(instance));
             initial_render.patch(
                 None,
                 parent,

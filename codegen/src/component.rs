@@ -154,7 +154,7 @@ impl ComponentMeta {
                 quote! { () }
             };
             quote! {
-                __status__: ruukh::Shared<ruukh::component::Status<#ident>>,
+                __status__: std::rc::Rc<std::cell::RefCell<ruukh::component::Status<#ident>>>,
             }
         }
     }
@@ -240,8 +240,8 @@ impl ComponentMeta {
                 fn init<RCTX: Render>(
                     __props__: Self::Props,
                     __events__: <Self::Events as ruukh::component::EventsPair<RCTX>>::Other,
-                    __status__: ruukh::Shared<ruukh::component::Status<Self::State>>,
-                    __render_ctx__: ruukh::Shared<RCTX>,
+                    __status__: std::rc::Rc<std::cell::RefCell<ruukh::component::Status<Self::State>>>,
+                    __render_ctx__: std::rc::Rc<std::cell::RefCell<RCTX>>,
                 ) -> Self
                 where
                     Self::Events: ruukh::component::EventsPair<RCTX>
@@ -260,7 +260,7 @@ impl ComponentMeta {
                     &mut self,
                     mut __props__: Self::Props,
                     __events__: <Self::Events as ruukh::component::EventsPair<RCTX>>::Other,
-                    __render_ctx__: ruukh::Shared<RCTX>,
+                    __render_ctx__: std::rc::Rc<std::cell::RefCell<RCTX>>,
                 ) -> Option<Self::Props>
                 where
                     Self::Events: ruukh::component::EventsPair<RCTX>
@@ -1097,7 +1097,7 @@ impl EventsMeta {
             impl #ident {
                 fn build<RCTX: Render>(
                     __rctx_events__: <Self as ruukh::component::EventsPair<RCTX>>::Other,
-                    __render_ctx__: ruukh::Shared<RCTX>,
+                    __render_ctx__: std::rc::Rc<std::cell::RefCell<RCTX>>,
                 ) -> Self
                 {
                     #(#event_conversion)*

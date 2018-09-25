@@ -52,8 +52,7 @@ use crate::{
     vdom::vcomponent::{ComponentManager, ComponentWrapper},
     web_api::*,
 };
-use std::cell::{Ref, RefCell, RefMut};
-use std::rc::Rc;
+use std::{cell::RefCell, rc::Rc};
 use wasm_bindgen::prelude::*;
 
 pub mod component;
@@ -125,7 +124,7 @@ where
         let (mut channel, sender) = ReactiveApp::new();
 
         // Every component requires a render context, so provided a void context.
-        let root_parent = Shared::new(());
+        let root_parent = Rc::new(RefCell::new(()));
 
         // The first render
         self.manager
@@ -214,34 +213,7 @@ impl MessageSender {
 }
 
 /// A Shared Value.
-///
-/// ## Internals
-///
-/// Writing `Rc::new(RefCell::new(val))` is tedious.
-pub struct Shared<T>(Rc<RefCell<T>>);
-
-impl<T> Shared<T> {
-    /// Create a new Shared value.
-    fn new(val: T) -> Shared<T> {
-        Shared(Rc::new(RefCell::new(val)))
-    }
-
-    /// Borrows the inner value.
-    pub fn borrow(&self) -> Ref<'_, T> {
-        self.0.borrow()
-    }
-
-    /// Borrows the inner value mutably.
-    pub fn borrow_mut(&self) -> RefMut<'_, T> {
-        self.0.borrow_mut()
-    }
-}
-
-impl<T> Clone for Shared<T> {
-    fn clone(&self) -> Self {
-        Shared(self.0.clone())
-    }
-}
+pub type Shared<T> = Rc<RefCell<T>>;
 
 /// Trait to get an element on which the App is going to be mounted.
 pub trait AppMount {
