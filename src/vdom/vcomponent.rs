@@ -150,10 +150,7 @@ where
             let instance = COMP::init(
                 props,
                 FromEventProps::from(events, render_ctx),
-                Rc::new(RefCell::new(Status::new(
-                    COMP::State::default(),
-                    rx_sender.clone(),
-                ))),
+                Status::new(COMP::State::default(), rx_sender.clone()),
             );
             instance.created();
             let mut initial_render = instance.render();
@@ -318,10 +315,10 @@ pub mod test {
         type Events = ();
         type State = ();
 
-        fn init(props: Self::Props, _: Self::Events, status: Shared<Status<Self::State>>) -> Self {
+        fn init(props: Self::Props, _: Self::Events, status: Status<Self::State>) -> Self {
             Button {
                 disabled: props.disabled,
-                __status: status,
+                __status: Rc::new(RefCell::new(status)),
             }
         }
         fn update(&mut self, props: Self::Props, _: Self::Events) -> Option<Self::Props> {

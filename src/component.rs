@@ -106,7 +106,7 @@ pub trait Component: 'static {
     ///
     /// It also creates a `Default::default()` state along with wiring up
     /// change notifying mechanism into `status`.
-    fn init(props: Self::Props, events: Self::Events, status: Shared<Status<Self::State>>) -> Self;
+    fn init(props: Self::Props, events: Self::Events, status: Status<Self::State>) -> Self;
 
     /// Updates the component with newer props and returns older props (if
     /// changed).
@@ -271,7 +271,7 @@ impl Component for RootParent {
     type Events = ();
     type State = ();
 
-    fn init(_: Self::Props, _: Self::Events, _: Shared<Status<()>>) -> RootParent {
+    fn init(_: Self::Props, _: Self::Events, _: Status<()>) -> RootParent {
         unreachable!(
             "It is a void component to be used as a render context for a root \
              component. Not to be used as a component itself."

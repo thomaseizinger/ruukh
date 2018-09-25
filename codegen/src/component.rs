@@ -240,7 +240,7 @@ impl ComponentMeta {
                 fn init(
                     __props__: Self::Props,
                     __events__: Self::Events,
-                    __status__: std::rc::Rc<std::cell::RefCell<ruukh::component::Status<Self::State>>>,
+                    __status__: ruukh::component::Status<Self::State>,
                 ) -> Self {
                     #state_clone
 
@@ -413,16 +413,14 @@ impl ComponentMeta {
             if state_field_idents.len() == 1 {
                 quote! {
                     let #(#state_field_idents)* = {
-                        let status = __status__.borrow();
-                        let state = status.state_as_ref();
+                        let state = __status__.state_as_ref();
                         #(state.#state_field_idents.clone())*
                     };
                 }
             } else {
                 quote! {
                     let (#(#state_field_idents),*) = {
-                        let status = __status__.borrow();
-                        let state = status.state_as_ref();
+                        let state = __status__.state_as_ref();
                         (#(state.#state_field_idents.clone()),*)
                     };
                 }
@@ -434,7 +432,7 @@ impl ComponentMeta {
         if self.props_meta.is_none() && self.state_meta.is_none() {
             quote!()
         } else {
-            quote!(__status__: __status__,)
+            quote!(__status__: std::rc::Rc::new(std::cell::RefCell::new(__status__)),)
         }
     }
 
