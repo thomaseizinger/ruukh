@@ -1,7 +1,7 @@
 //! Component representation in a VDOM.
 
 use crate::{
-    component::{EventsPair, Render, Status},
+    component::{FromEventProps, Render, Status},
     dom::{DOMInfo, DOMPatch, DOMRemove, DOMReorder},
     vdom::{Shared, VNode},
     web_api::*,
@@ -23,10 +23,10 @@ impl<RCTX: Render> VComponent<RCTX> {
     /// Create a new VComponent.
     pub fn new<COMP: Render>(
         props: COMP::Props,
-        events: <COMP::Events as EventsPair<RCTX>>::Other,
+        events: <COMP::Events as FromEventProps<RCTX>>::From,
     ) -> VComponent<RCTX>
     where
-        COMP::Events: EventsPair<RCTX>,
+        COMP::Events: FromEventProps<RCTX>,
     {
         VComponent(Box::new(ComponentWrapper::<COMP, RCTX>::new(props, events)))
     }
@@ -34,22 +34,22 @@ impl<RCTX: Render> VComponent<RCTX> {
 
 pub(crate) struct ComponentWrapper<COMP: Render, RCTX: Render>
 where
-    COMP::Events: EventsPair<RCTX>,
+    COMP::Events: FromEventProps<RCTX>,
 {
     component: Option<Shared<COMP>>,
     props: Option<COMP::Props>,
-    events: Option<<COMP::Events as EventsPair<RCTX>>::Other>,
+    events: Option<<COMP::Events as FromEventProps<RCTX>>::From>,
     cached_render: Option<VNode<COMP>>,
     _phantom: PhantomData<RCTX>,
 }
 
 impl<COMP: Render, RCTX: Render> ComponentWrapper<COMP, RCTX>
 where
-    COMP::Events: EventsPair<RCTX>,
+    COMP::Events: FromEventProps<RCTX>,
 {
     pub(crate) fn new(
         props: COMP::Props,
-        events: <COMP::Events as EventsPair<RCTX>>::Other,
+        events: <COMP::Events as FromEventProps<RCTX>>::From,
     ) -> ComponentWrapper<COMP, RCTX> {
         ComponentWrapper {
             component: None,
@@ -135,7 +135,7 @@ pub(crate) trait ComponentManager<RCTX: Render>: Display + 'static {
 
 impl<COMP: Render, RCTX: Render> ComponentManager<RCTX> for ComponentWrapper<COMP, RCTX>
 where
-    COMP::Events: EventsPair<RCTX>,
+    COMP::Events: FromEventProps<RCTX>,
 {
     fn render_walk(
         &mut self,
@@ -149,12 +149,11 @@ where
             let events = self.events.take().unwrap();
             let instance = COMP::init(
                 props,
-                events,
+                FromEventProps::from(events, render_ctx),
                 Rc::new(RefCell::new(Status::new(
                     COMP::State::default(),
                     rx_sender.clone(),
                 ))),
-                render_ctx,
             );
             instance.created();
             let mut initial_render = instance.render();
@@ -219,7 +218,9 @@ where
                     let events = self.events.take().unwrap();
 
                     // Reuse the older component by passing in the newer props.
-                    let old_props = comp.borrow_mut().update(props, events, render_ctx);
+                    let old_props = comp
+                        .borrow_mut()
+                        .update(props, FromEventProps::from(events, render_ctx));
                     if let Some(old_props) = old_props {
                         comp.borrow().updated(old_props);
                     }
@@ -279,7 +280,7 @@ impl<RCTX: Render> Display for VComponent<RCTX> {
 
 impl<COMP: Render, RCTX: Render> Display for ComponentWrapper<COMP, RCTX>
 where
-    COMP::Events: EventsPair<RCTX>,
+    COMP::Events: FromEventProps<RCTX>,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(
@@ -319,7 +320,7 @@ pub mod test {
 
         fn init<RCTX: Render>(
             props: Self::Props,
-            _: <Self::Events as EventsPair<RCTX>>::Other,
+            _: <Self::Events as FromEventProps<RCTX>>::From,
             status: Shared<Status<Self::State>>,
             _: Shared<RCTX>,
         ) -> Self {
@@ -331,7 +332,7 @@ pub mod test {
         fn update<RCTX: Render>(
             &mut self,
             props: Self::Props,
-            _: <Self::Events as EventsPair<RCTX>>::Other,
+            _: <Self::Events as FromEventProps<RCTX>>::From,
             _: Shared<RCTX>,
         ) -> Option<Self::Props> {
             if self.disabled != props.disabled {
