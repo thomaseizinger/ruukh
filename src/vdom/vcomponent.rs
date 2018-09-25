@@ -318,23 +318,13 @@ pub mod test {
         type Events = ();
         type State = ();
 
-        fn init<RCTX: Render>(
-            props: Self::Props,
-            _: <Self::Events as FromEventProps<RCTX>>::From,
-            status: Shared<Status<Self::State>>,
-            _: Shared<RCTX>,
-        ) -> Self {
+        fn init(props: Self::Props, _: Self::Events, status: Shared<Status<Self::State>>) -> Self {
             Button {
                 disabled: props.disabled,
                 __status: status,
             }
         }
-        fn update<RCTX: Render>(
-            &mut self,
-            props: Self::Props,
-            _: <Self::Events as FromEventProps<RCTX>>::From,
-            _: Shared<RCTX>,
-        ) -> Option<Self::Props> {
+        fn update(&mut self, props: Self::Props, _: Self::Events) -> Option<Self::Props> {
             if self.disabled != props.disabled {
                 self.disabled = props.disabled;
                 self.__status.borrow_mut().mark_props_dirty();

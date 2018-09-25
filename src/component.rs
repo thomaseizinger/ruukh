@@ -251,7 +251,7 @@ pub trait Render: Lifecycle + Sized {
 }
 
 /// Trait to convert from a event props to a events type.
-/// 
+///
 /// Used to convert a (render) contextual events type to a wrapped one.
 /// i.e. `EventProps<RCTX>` to `Events`.
 pub trait FromEventProps<RCTX: Render>: Sized {
@@ -363,5 +363,7 @@ impl<RCTX: Render> FromEventProps<RCTX> for () {
 
 #[cfg(test)]
 pub fn root_render_ctx() -> Shared<()> {
-    Shared::new(())
+    use std::{cell::RefCell, rc::Rc};
+
+    Rc::new(RefCell::new(()))
 }
