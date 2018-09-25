@@ -1,8 +1,4 @@
-use ruukh::{
-    component::{EventsPair, Status},
-    prelude::*,
-    Shared,
-};
+use ruukh::{component::Status, prelude::*};
 
 #[test]
 fn should_impl_lifecycle() {
@@ -11,27 +7,11 @@ fn should_impl_lifecycle() {
         type Events = ();
         type State = ();
 
-        fn init<RCTX: Render>(
-            _: Self::Props,
-            _: <Self::Events as EventsPair<RCTX>>::Other,
-            _: Shared<Status<Self::State>>,
-            _: Shared<RCTX>,
-        ) -> Self
-        where
-            Self::Events: EventsPair<RCTX>,
-        {
+        fn init(_: Self::Props, _: Self::Events, _: Status<Self::State>) -> Self {
             unimplemented!()
         }
 
-        fn update<RCTX: Render>(
-            &mut self,
-            _: Self::Props,
-            _: <Self::Events as EventsPair<RCTX>>::Other,
-            _: Shared<RCTX>,
-        ) -> Option<Self::Props>
-        where
-            Self::Events: EventsPair<RCTX>,
-        {
+        fn update(&mut self, _: Self::Props, _: Self::Events) -> Option<Self::Props> {
             unimplemented!()
         }
 
