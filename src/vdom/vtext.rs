@@ -1,12 +1,6 @@
 //! Representation of text/comment in virtual dom tree.
 
-use crate::{
-    component::Render,
-    dom::{DOMInfo, DOMPatch, DOMRemove, DOMReorder},
-    vdom::VNode,
-    web_api::*,
-    MessageSender, Shared,
-};
+use crate::{component::Render, dom::DOMPatch, vdom::VNode, web_api::*, MessageSender, Shared};
 use std::{
     fmt::{self, Display, Formatter},
     marker::PhantomData,
@@ -122,9 +116,7 @@ impl<RCTX: Render> DOMPatch for VText<RCTX> {
             self.patch_new(parent, next)
         }
     }
-}
 
-impl<RCTX: Render> DOMReorder for VText<RCTX> {
     fn reorder(&self, parent: &Node, next: Option<&Node>) -> Result<(), JsValue> {
         let node = self.node.as_ref().unwrap();
         if let Some(next) = next {
@@ -134,10 +126,6 @@ impl<RCTX: Render> DOMReorder for VText<RCTX> {
         }
         Ok(())
     }
-}
-
-impl<RCTX: Render> DOMRemove for VText<RCTX> {
-    type Node = Node;
 
     fn remove(&self, parent: &Node) -> Result<(), JsValue> {
         parent.remove_child(
@@ -147,9 +135,7 @@ impl<RCTX: Render> DOMRemove for VText<RCTX> {
         )?;
         Ok(())
     }
-}
 
-impl<RCTX: Render> DOMInfo for VText<RCTX> {
     fn node(&self) -> Option<&Node> {
         self.node.as_ref()
     }

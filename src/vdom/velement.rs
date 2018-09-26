@@ -1,12 +1,6 @@
 //! Element representation in a VDOM.
 
-use crate::{
-    component::Render,
-    dom::{DOMInfo, DOMPatch, DOMRemove, DOMReorder},
-    vdom::VNode,
-    web_api::*,
-    MessageSender, Shared,
-};
+use crate::{component::Render, dom::DOMPatch, vdom::VNode, web_api::*, MessageSender, Shared};
 use indexmap::IndexMap;
 use std::borrow::Cow;
 use std::cell::RefCell;
@@ -274,9 +268,7 @@ impl<RCTX: Render> DOMPatch for VElement<RCTX> {
             self.patch_new(parent, next, render_ctx, rx_sender)
         }
     }
-}
 
-impl<RCTX: Render> DOMReorder for VElement<RCTX> {
     fn reorder(&self, parent: &Node, next: Option<&Node>) -> Result<(), JsValue> {
         let el = self.node.as_ref().unwrap();
         if let Some(next) = next {
@@ -286,10 +278,6 @@ impl<RCTX: Render> DOMReorder for VElement<RCTX> {
         }
         Ok(())
     }
-}
-
-impl<RCTX: Render> DOMRemove for VElement<RCTX> {
-    type Node = Node;
 
     fn remove(&self, parent: &Node) -> Result<(), JsValue> {
         let el = self
@@ -301,9 +289,7 @@ impl<RCTX: Render> DOMRemove for VElement<RCTX> {
         parent.remove_child(el.as_ref())?;
         Ok(())
     }
-}
 
-impl<RCTX: Render> DOMInfo for VElement<RCTX> {
     fn node(&self) -> Option<&Node> {
         self.node.as_ref().map(|el| el.as_ref())
     }
@@ -358,16 +344,20 @@ impl DOMPatch for Attributes {
         }
         Ok(())
     }
-}
 
-impl DOMRemove for Attributes {
-    type Node = Element;
+    fn reorder(&self, _: &Self::Node, _: Option<&Self::Node>) -> Result<(), JsValue> {
+        unreachable!("Cannot reorder Attributes");
+    }
 
     fn remove(&self, parent: &Element) -> Result<(), JsValue> {
         for (k, _) in self.0.iter() {
             parent.remove_attribute(&k)?;
         }
         Ok(())
+    }
+
+    fn node(&self) -> Option<&Node> {
+        unreachable!("Attributes have no nodes");
     }
 }
 
@@ -401,16 +391,20 @@ impl<RCTX: Render> DOMPatch for EventListeners<RCTX> {
         }
         Ok(())
     }
-}
 
-impl<RCTX: Render> DOMRemove for EventListeners<RCTX> {
-    type Node = Element;
+    fn reorder(&self, _: &Self::Node, _: Option<&Self::Node>) -> Result<(), JsValue> {
+        unreachable!("Cannot reorder EventListeners");
+    }
 
     fn remove(&self, parent: &Element) -> Result<(), JsValue> {
         for listener in self.0.iter() {
             listener.stop_listening(parent)?;
         }
         Ok(())
+    }
+
+    fn node(&self) -> Option<&Node> {
+        unreachable!("EventListeners have no nodes");
     }
 }
 

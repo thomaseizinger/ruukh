@@ -2,7 +2,7 @@
 
 use crate::{
     component::Render,
-    dom::{DOMInfo, DOMPatch, DOMRemove, DOMReorder},
+    dom::DOMPatch,
     vdom::{Key, VNode},
     web_api::*,
     MessageSender, Shared,
@@ -121,19 +121,13 @@ impl<RCTX: Render> DOMPatch for VList<RCTX> {
         }
         Ok(())
     }
-}
 
-impl<RCTX: Render> DOMReorder for VList<RCTX> {
     fn reorder(&self, parent: &Node, next: Option<&Node>) -> Result<(), JsValue> {
         for (_, node) in self.0.iter() {
             node.reorder(parent, next)?;
         }
         Ok(())
     }
-}
-
-impl<RCTX: Render> DOMRemove for VList<RCTX> {
-    type Node = Node;
 
     fn remove(&self, parent: &Self::Node) -> Result<(), JsValue> {
         for (_, vnode) in self.0.iter() {
@@ -141,9 +135,7 @@ impl<RCTX: Render> DOMRemove for VList<RCTX> {
         }
         Ok(())
     }
-}
 
-impl<RCTX: Render> DOMInfo for VList<RCTX> {
     fn node(&self) -> Option<&Node> {
         self.0.get_index(0).and_then(|(_, first)| first.node())
     }

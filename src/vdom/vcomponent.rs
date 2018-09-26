@@ -2,7 +2,7 @@
 
 use crate::{
     component::{FromEventProps, Render, Status},
-    dom::{DOMInfo, DOMPatch, DOMRemove, DOMReorder},
+    dom::DOMPatch,
     vdom::{Shared, VNode},
     web_api::*,
     MessageSender,
@@ -86,23 +86,15 @@ impl<RCTX: Render> DOMPatch for VComponent<RCTX> {
         self.0
             .patch(old.map(|old| &mut *old.0), parent, next, render_ctx)
     }
-}
 
-impl<RCTX: Render> DOMReorder for VComponent<RCTX> {
     fn reorder(&self, parent: &Node, next: Option<&Node>) -> Result<(), JsValue> {
         self.0.reorder(parent, next)
     }
-}
-
-impl<RCTX: Render> DOMRemove for VComponent<RCTX> {
-    type Node = Node;
 
     fn remove(&self, parent: &Self::Node) -> Result<(), JsValue> {
         self.0.remove(parent)
     }
-}
 
-impl<RCTX: Render> DOMInfo for VComponent<RCTX> {
     fn node(&self) -> Option<&Node> {
         self.0.node()
     }

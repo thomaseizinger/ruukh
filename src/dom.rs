@@ -31,27 +31,14 @@ where
         render_ctx: Shared<Self::RenderContext>,
         rx_sender: MessageSender,
     ) -> Result<(), JsValue>;
-}
 
-/// Trait to reorder the VNode in the DOM. Why is this needed? It is required
-/// when a VDOM changes its position in a VList. We need to reorder that DOM
-/// node accordingly to reflect the current state.
-pub(crate) trait DOMReorder {
     /// Reappends already existing Node in its correct place to reflect the
     /// current VDOM.
-    fn reorder(&self, parent: &Node, next: Option<&Node>) -> Result<(), JsValue>;
-}
-
-/// Trait to remove the VNode from the DOM.
-pub(crate) trait DOMRemove {
-    type Node;
+    fn reorder(&self, parent: &Self::Node, next: Option<&Self::Node>) -> Result<(), JsValue>;
 
     /// Removes the VDOM from the actual DOM.
     fn remove(&self, parent: &Self::Node) -> Result<(), JsValue>;
-}
 
-/// Glean out the info from the DOM attached VDOM.
-pub(crate) trait DOMInfo {
     /// Gets the node value of the DOM attached VDOM.
     fn node(&self) -> Option<&Node>;
 }

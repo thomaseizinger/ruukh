@@ -2,7 +2,7 @@
 
 use crate::{
     component::Render,
-    dom::{DOMInfo, DOMPatch, DOMRemove, DOMReorder},
+    dom::DOMPatch,
     vdom::{
         vcomponent::VComponent,
         velement::VElement,
@@ -135,9 +135,7 @@ impl<RCTX: Render> DOMPatch for VNode<RCTX> {
             }
         }
     }
-}
 
-impl<RCTX: Render> DOMReorder for VNode<RCTX> {
     fn reorder(&self, parent: &Node, next: Option<&Node>) -> Result<(), JsValue> {
         match self {
             VNode::Text(txt) => txt.reorder(parent, next),
@@ -147,10 +145,6 @@ impl<RCTX: Render> DOMReorder for VNode<RCTX> {
             VNode::None => Ok(())
         }
     }
-}
-
-impl<RCTX: Render> DOMRemove for VNode<RCTX> {
-    type Node = Node;
 
     fn remove(&self, parent: &Self::Node) -> Result<(), JsValue> {
         match self {
@@ -161,9 +155,7 @@ impl<RCTX: Render> DOMRemove for VNode<RCTX> {
             VNode::None => Ok(())
         }
     }
-}
-
-impl<RCTX: Render> DOMInfo for VNode<RCTX> {
+    
     fn node(&self) -> Option<&Node> {
         match self {
             VNode::Text(txt) => txt.node(),
