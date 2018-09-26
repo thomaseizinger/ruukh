@@ -85,14 +85,15 @@ macro_rules! patch {
     };
 }
 
-impl<RCTX: Render> DOMPatch<RCTX> for VNode<RCTX> {
+impl<RCTX: Render> DOMPatch for VNode<RCTX> {
+    type RenderContext = RCTX;
     type Node = Node;
 
     fn render_walk(
         &mut self,
         parent: &Self::Node,
         next: Option<&Self::Node>,
-        render_ctx: Shared<RCTX>,
+        render_ctx: Shared<Self::RenderContext>,
         rx_sender: MessageSender,
     ) -> Result<(), JsValue> {
         match self {
@@ -110,7 +111,7 @@ impl<RCTX: Render> DOMPatch<RCTX> for VNode<RCTX> {
         old: Option<&mut Self>,
         parent: &Self::Node,
         next: Option<&Self::Node>,
-        render_ctx: Shared<RCTX>,
+        render_ctx: Shared<Self::RenderContext>,
         rx_sender: MessageSender,
     ) -> Result<(), JsValue> {
         match self {

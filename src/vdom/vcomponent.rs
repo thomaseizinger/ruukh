@@ -17,7 +17,7 @@ use std::{
 use wasm_bindgen::prelude::JsValue;
 
 /// The representation of a component in a Virtual DOM.
-pub struct VComponent<RCTX: Render>(Box<dyn ComponentManager<RCTX>>);
+pub struct VComponent<RCTX: Render>(Box<dyn ComponentManager<RenderContext = RCTX>>);
 
 impl<RCTX: Render> VComponent<RCTX> {
     /// Create a new VComponent.
@@ -61,14 +61,15 @@ where
     }
 }
 
-impl<RCTX: Render> DOMPatch<RCTX> for VComponent<RCTX> {
+impl<RCTX: Render> DOMPatch for VComponent<RCTX> {
+    type RenderContext = RCTX;
     type Node = Node;
 
     fn render_walk(
         &mut self,
         parent: &Self::Node,
         next: Option<&Self::Node>,
-        render_ctx: Shared<RCTX>,
+        render_ctx: Shared<Self::RenderContext>,
         rx_sender: MessageSender,
     ) -> Result<(), JsValue> {
         self.0.render_walk(parent, next, render_ctx, rx_sender)
@@ -79,7 +80,7 @@ impl<RCTX: Render> DOMPatch<RCTX> for VComponent<RCTX> {
         old: Option<&mut Self>,
         parent: &Self::Node,
         next: Option<&Self::Node>,
-        render_ctx: Shared<RCTX>,
+        render_ctx: Shared<Self::RenderContext>,
         _: MessageSender,
     ) -> Result<(), JsValue> {
         self.0
@@ -107,21 +108,23 @@ impl<RCTX: Render> DOMInfo for VComponent<RCTX> {
     }
 }
 
-pub(crate) trait ComponentManager<RCTX: Render>: Display + 'static {
+pub(crate) trait ComponentManager: Display + 'static {
+    type RenderContext;
+
     fn render_walk(
         &mut self,
         parent: &Node,
         next: Option<&Node>,
-        render_ctx: Shared<RCTX>,
+        render_ctx: Shared<Self::RenderContext>,
         rx_sender: MessageSender,
     ) -> Result<(), JsValue>;
 
     fn patch(
         &mut self,
-        old: Option<&mut dyn ComponentManager<RCTX>>,
+        old: Option<&mut dyn ComponentManager<RenderContext = Self::RenderContext>>,
         parent: &Node,
         next: Option<&Node>,
-        render_ctx: Shared<RCTX>,
+        render_ctx: Shared<Self::RenderContext>,
     ) -> Result<(), JsValue>;
 
     fn reorder(&self, parent: &Node, next: Option<&Node>) -> Result<(), JsValue>;
@@ -133,15 +136,17 @@ pub(crate) trait ComponentManager<RCTX: Render>: Display + 'static {
     fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
-impl<COMP: Render, RCTX: Render> ComponentManager<RCTX> for ComponentWrapper<COMP, RCTX>
+impl<COMP: Render, RCTX: Render> ComponentManager for ComponentWrapper<COMP, RCTX>
 where
     COMP::Events: FromEventProps<RCTX>,
 {
+    type RenderContext = RCTX;
+
     fn render_walk(
         &mut self,
         parent: &Node,
         next: Option<&Node>,
-        render_ctx: Shared<RCTX>,
+        render_ctx: Shared<Self::RenderContext>,
         rx_sender: MessageSender,
     ) -> Result<(), JsValue> {
         if self.component.is_none() {
@@ -199,10 +204,10 @@ where
 
     fn patch(
         &mut self,
-        old: Option<&mut dyn ComponentManager<RCTX>>,
+        old: Option<&mut dyn ComponentManager<RenderContext = Self::RenderContext>>,
         parent: &Node,
         _: Option<&Node>,
-        render_ctx: Shared<RCTX>,
+        render_ctx: Shared<Self::RenderContext>,
     ) -> Result<(), JsValue> {
         if let Some(old) = old {
             let is_same = match old
