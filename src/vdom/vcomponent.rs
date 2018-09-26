@@ -11,7 +11,6 @@ use std::{
     any::Any,
     cell::RefCell,
     fmt::{self, Display, Formatter},
-    marker::PhantomData,
     rc::Rc,
 };
 use wasm_bindgen::prelude::JsValue;
@@ -40,7 +39,6 @@ where
     props: Option<COMP::Props>,
     events: Option<<COMP::Events as FromEventProps<RCTX>>::From>,
     cached_render: Option<VNode<COMP>>,
-    _phantom: PhantomData<RCTX>,
 }
 
 impl<COMP: Render, RCTX: Render> ComponentWrapper<COMP, RCTX>
@@ -56,7 +54,6 @@ where
             props: Some(props),
             events: Some(events),
             cached_render: None,
-            _phantom: PhantomData,
         }
     }
 }
