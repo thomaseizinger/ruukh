@@ -81,14 +81,15 @@ impl<RCTX: Render> VText<RCTX> {
     }
 }
 
-impl<RCTX: Render> DOMPatch<RCTX> for VText<RCTX> {
+impl<RCTX: Render> DOMPatch for VText<RCTX> {
+    type RenderContext = RCTX;
     type Node = Node;
 
     fn render_walk(
         &mut self,
         _: &Node,
         _: Option<&Node>,
-        _: Shared<RCTX>,
+        _: Shared<Self::RenderContext>,
         _: MessageSender,
     ) -> Result<(), JsValue> {
         unreachable!("There is nothing to render in a VText");
@@ -99,7 +100,7 @@ impl<RCTX: Render> DOMPatch<RCTX> for VText<RCTX> {
         old: Option<&mut Self>,
         parent: &Node,
         next: Option<&Node>,
-        _: Shared<RCTX>,
+        _: Shared<Self::RenderContext>,
         _: MessageSender,
     ) -> Result<(), JsValue> {
         if let Some(old) = old {

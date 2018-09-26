@@ -1,11 +1,13 @@
-use crate::{component::Render, web_api::Node, MessageSender, Shared};
+use crate::{web_api::Node, MessageSender, Shared};
 use wasm_bindgen::prelude::JsValue;
 
 /// Trait to patch the DOM to reflect the VDOM structure.
-pub(crate) trait DOMPatch<RCTX: Render>
+pub(crate) trait DOMPatch
 where
     Self: Sized,
 {
+    /// The render context of this Patch.
+    type RenderContext;
     /// The type of the Node the VDOM works upon.
     type Node;
 
@@ -16,7 +18,7 @@ where
         &mut self,
         parent: &Self::Node,
         next: Option<&Self::Node>,
-        render_ctx: Shared<RCTX>,
+        render_ctx: Shared<Self::RenderContext>,
         rx_sender: MessageSender,
     ) -> Result<(), JsValue>;
 
@@ -26,7 +28,7 @@ where
         old: Option<&mut Self>,
         parent: &Self::Node,
         next: Option<&Self::Node>,
-        render_ctx: Shared<RCTX>,
+        render_ctx: Shared<Self::RenderContext>,
         rx_sender: MessageSender,
     ) -> Result<(), JsValue>;
 }

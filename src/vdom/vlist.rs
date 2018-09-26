@@ -51,14 +51,15 @@ impl<RCTX: Render> Display for VList<RCTX> {
     }
 }
 
-impl<RCTX: Render> DOMPatch<RCTX> for VList<RCTX> {
+impl<RCTX: Render> DOMPatch for VList<RCTX> {
+    type RenderContext = RCTX;
     type Node = Node;
 
     fn render_walk(
         &mut self,
         parent: &Self::Node,
         next: Option<&Self::Node>,
-        render_ctx: Shared<RCTX>,
+        render_ctx: Shared<Self::RenderContext>,
         rx_sender: MessageSender,
     ) -> Result<(), JsValue> {
         let mut next = next;
@@ -74,7 +75,7 @@ impl<RCTX: Render> DOMPatch<RCTX> for VList<RCTX> {
         old: Option<&mut Self>,
         parent: &Self::Node,
         next: Option<&Self::Node>,
-        render_ctx: Shared<RCTX>,
+        render_ctx: Shared<Self::RenderContext>,
         rx_sender: MessageSender,
     ) -> Result<(), JsValue> {
         let mut next = next;

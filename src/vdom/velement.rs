@@ -9,7 +9,9 @@ use crate::{
 };
 use indexmap::IndexMap;
 use std::borrow::Cow;
+use std::cell::RefCell;
 use std::fmt::{self, Display, Formatter};
+use std::rc::Rc;
 use wasm_bindgen::prelude::*;
 
 /// The representation of an element in virtual DOM.
@@ -45,7 +47,7 @@ pub enum AttributeValue {
     Bool(bool),
 }
 
-struct EventListeners<RCTX: Render>(Vec<Box<dyn EventManager<RCTX>>>);
+struct EventListeners<RCTX: Render>(Vec<Box<dyn EventManager<RenderContext = RCTX>>>);
 
 /// Event listener to be invoked on a DOM event.
 pub struct EventListener<RCTX: Render> {
@@ -69,7 +71,9 @@ impl<RCTX: Render> VElement<RCTX> {
                 event_listeners
                     .into_iter()
                     .map(|listener| {
-                        let listener: Box<dyn EventManager<RCTX>> = Box::new(listener);
+                        let listener: Box<
+                            dyn EventManager<RenderContext = RCTX>,
+                        > = Box::new(listener);
                         listener
                     }).collect(),
             ),
@@ -91,7 +95,9 @@ impl<RCTX: Render> VElement<RCTX> {
                 event_listeners
                     .into_iter()
                     .map(|listener| {
-                        let listener: Box<dyn EventManager<RCTX>> = Box::new(listener);
+                        let listener: Box<
+                            dyn EventManager<RenderContext = RCTX>,
+                        > = Box::new(listener);
                         listener
                     }).collect(),
             ),
@@ -182,8 +188,13 @@ impl<RCTX: Render> VElement<RCTX> {
         rx_sender: MessageSender,
     ) -> Result<(), JsValue> {
         let el = document.create_element(&self.tag)?;
-        self.attributes
-            .patch(None, &el, None, render_ctx.clone(), rx_sender.clone())?;
+        self.attributes.patch(
+            None,
+            &el,
+            None,
+            Rc::new(RefCell::new(())),
+            rx_sender.clone(),
+        )?;
         self.event_listeners
             .patch(None, &el, None, render_ctx.clone(), rx_sender.clone())?;
         self.child
@@ -198,14 +209,15 @@ impl<RCTX: Render> VElement<RCTX> {
     }
 }
 
-impl<RCTX: Render> DOMPatch<RCTX> for VElement<RCTX> {
+impl<RCTX: Render> DOMPatch for VElement<RCTX> {
+    type RenderContext = RCTX;
     type Node = Node;
 
     fn render_walk(
         &mut self,
         _: &Node,
         _: Option<&Node>,
-        render_ctx: Shared<RCTX>,
+        render_ctx: Shared<Self::RenderContext>,
         rx_sender: MessageSender,
     ) -> Result<(), JsValue> {
         let node = self
@@ -221,7 +233,7 @@ impl<RCTX: Render> DOMPatch<RCTX> for VElement<RCTX> {
         old: Option<&mut Self>,
         parent: &Node,
         next: Option<&Node>,
-        render_ctx: Shared<RCTX>,
+        render_ctx: Shared<Self::RenderContext>,
         rx_sender: MessageSender,
     ) -> Result<(), JsValue> {
         if let Some(old) = old {
@@ -234,7 +246,7 @@ impl<RCTX: Render> DOMPatch<RCTX> for VElement<RCTX> {
                     Some(&mut old.attributes),
                     &old_el,
                     None,
-                    render_ctx.clone(),
+                    Rc::new(RefCell::new(())),
                     rx_sender.clone(),
                 )?;
                 self.event_listeners.patch(
@@ -297,14 +309,15 @@ impl<RCTX: Render> DOMInfo for VElement<RCTX> {
     }
 }
 
-impl<RCTX: Render> DOMPatch<RCTX> for Attributes {
+impl DOMPatch for Attributes {
+    type RenderContext = ();
     type Node = Element;
 
     fn render_walk(
         &mut self,
         _: &Element,
         _: Option<&Element>,
-        _: Shared<RCTX>,
+        _: Shared<Self::RenderContext>,
         _: MessageSender,
     ) -> Result<(), JsValue> {
         unreachable!("Attributes do not have nested Components");
@@ -315,7 +328,7 @@ impl<RCTX: Render> DOMPatch<RCTX> for Attributes {
         mut old: Option<&mut Self>,
         parent: &Element,
         next: Option<&Element>,
-        _: Shared<RCTX>,
+        _: Shared<Self::RenderContext>,
         _: MessageSender,
     ) -> Result<(), JsValue> {
         debug_assert!(next.is_none());
@@ -358,14 +371,15 @@ impl DOMRemove for Attributes {
     }
 }
 
-impl<RCTX: Render> DOMPatch<RCTX> for EventListeners<RCTX> {
+impl<RCTX: Render> DOMPatch for EventListeners<RCTX> {
+    type RenderContext = RCTX;
     type Node = Element;
 
     fn render_walk(
         &mut self,
         _: &Element,
         _: Option<&Element>,
-        _: Shared<RCTX>,
+        _: Shared<Self::RenderContext>,
         _: MessageSender,
     ) -> Result<(), JsValue> {
         unreachable!("EventListeners does not have nested Components");
@@ -376,7 +390,7 @@ impl<RCTX: Render> DOMPatch<RCTX> for EventListeners<RCTX> {
         old: Option<&mut Self>,
         parent: &Element,
         _: Option<&Element>,
-        render_ctx: Shared<RCTX>,
+        render_ctx: Shared<Self::RenderContext>,
         _: MessageSender,
     ) -> Result<(), JsValue> {
         if let Some(old) = old {
@@ -400,21 +414,25 @@ impl<RCTX: Render> DOMRemove for EventListeners<RCTX> {
     }
 }
 
-trait EventManager<RCTX: Render> {
+trait EventManager {
+    type RenderContext;
+
     fn start_listening(
         &mut self,
         parent: &Element,
-        render_ctx: Shared<RCTX>,
+        render_ctx: Shared<Self::RenderContext>,
     ) -> Result<(), JsValue>;
 
     fn stop_listening(&self, parent: &Element) -> Result<(), JsValue>;
 }
 
-impl<RCTX: Render> EventManager<RCTX> for EventListener<RCTX> {
+impl<RCTX: Render> EventManager for EventListener<RCTX> {
+    type RenderContext = RCTX;
+
     fn start_listening(
         &mut self,
         parent: &Element,
-        render_ctx: Shared<RCTX>,
+        render_ctx: Shared<Self::RenderContext>,
     ) -> Result<(), JsValue> {
         let listener = self.listener.take().unwrap();
         let js_closure: Closure<dyn Fn(Event)> = Closure::wrap(Box::new(move |event| {
