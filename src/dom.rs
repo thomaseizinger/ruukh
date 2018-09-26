@@ -1,4 +1,4 @@
-use crate::{web_api::Node, MessageSender, Shared};
+use crate::{component::Render, web_api::Node, MessageSender, Shared};
 use wasm_bindgen::prelude::JsValue;
 
 /// Trait to patch the DOM to reflect the VDOM structure.
@@ -7,7 +7,7 @@ where
     Self: Sized,
 {
     /// The render context of this Patch.
-    type RenderContext;
+    type RenderContext: Render;
     /// The type of the Node the VDOM works upon.
     type Node;
 
