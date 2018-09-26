@@ -181,7 +181,7 @@ impl<RCTX: Render> VElement<RCTX> {
         render_ctx: Shared<RCTX>,
         rx_sender: MessageSender,
     ) -> Result<(), JsValue> {
-        let el = html_document.create_element(&self.tag)?;
+        let el = document.create_element(&self.tag)?;
         self.attributes
             .patch(None, &el, None, render_ctx.clone(), rx_sender.clone())?;
         self.event_listeners

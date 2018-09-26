@@ -10,8 +10,7 @@ use wasm_bindgen::prelude::*;
 extern "C" {
     #[derive(Debug)]
     pub type HtmlDocument;
-    #[wasm_bindgen(js_name = document)]
-    pub static html_document: HtmlDocument;
+    pub static document: HtmlDocument;
 
     #[wasm_bindgen(method, catch, js_name = createElement, structural)]
     pub fn create_element(this: &HtmlDocument, tag: &str) -> Result<Element, JsValue>;
@@ -129,44 +128,44 @@ pub mod test {
 
     #[wasm_bindgen_test]
     fn should_create_a_div_element() {
-        let div = html_document.create_element("div");
+        let div = document.create_element("div");
         assert!(div.is_ok());
     }
 
     #[wasm_bindgen_test]
     fn should_find_element_with_id() {
-        let div = html_document.create_element("div").unwrap();
+        let div = document.create_element("div").unwrap();
         div.set_attribute("id", "app").unwrap();
-        let body: Node = html_document.body().unwrap().into();
+        let body: Node = document.body().unwrap().into();
         body.append_child(div.as_ref()).unwrap();
-        let el = html_document.get_element_by_id("app");
+        let el = document.get_element_by_id("app");
         assert!(el.is_some());
     }
 
     #[wasm_bindgen_test]
     fn should_append_element_to_document() {
-        let body: Node = html_document.body().unwrap().into();
-        let el = html_document.create_element("div").unwrap();
+        let body: Node = document.body().unwrap().into();
+        let el = document.create_element("div").unwrap();
         body.append_child(el.as_ref()).expect("To append element");
     }
 
     #[wasm_bindgen_test]
     fn should_create_text_node() {
-        let txt_node = html_document.create_text_node("Hello World!");
+        let txt_node = document.create_text_node("Hello World!");
         let node: &Node = txt_node.as_ref();
         assert_eq!(node.text_content(), "Hello World!");
     }
 
     #[wasm_bindgen_test]
     fn should_create_comment_node() {
-        let cmnt = html_document.create_comment("This is a comment");
+        let cmnt = document.create_comment("This is a comment");
         let node: &Node = cmnt.as_ref();
         assert_eq!(node.text_content(), "This is a comment");
     }
 
     #[wasm_bindgen_test]
     fn should_set_attribute() {
-        let div = html_document.create_element("div").unwrap();
+        let div = document.create_element("div").unwrap();
         div.set_attribute("class", "bg-white txt-black").unwrap();
         let class = div.get_attribute("class").unwrap();
         assert_eq!(class, "bg-white txt-black");
@@ -174,7 +173,7 @@ pub mod test {
 
     #[wasm_bindgen_test]
     fn should_delete_attribute() {
-        let div = html_document.create_element("div").unwrap();
+        let div = document.create_element("div").unwrap();
         div.set_attribute("class", "bg-white txt-black").unwrap();
         let class = div.get_attribute("class").unwrap();
         assert_eq!(class, "bg-white txt-black");
@@ -185,29 +184,29 @@ pub mod test {
 
     #[wasm_bindgen_test]
     fn should_append_element() {
-        let div = html_document.create_element("div").unwrap();
-        let span = html_document.create_element("span").unwrap();
+        let div = document.create_element("div").unwrap();
+        let span = document.create_element("span").unwrap();
         let div: &Node = div.as_ref();
         div.append_child(span.as_ref()).expect("To append span");
     }
 
     #[wasm_bindgen_test]
     fn should_insert_before_element() {
-        let div = html_document.create_element("div").unwrap();
-        let span = html_document.create_element("span").unwrap();
+        let div = document.create_element("div").unwrap();
+        let span = document.create_element("span").unwrap();
         let div: &Node = div.as_ref();
         div.append_child(span.as_ref()).unwrap();
-        let anchor = html_document.create_text_node("Hello World!");
+        let anchor = document.create_text_node("Hello World!");
         div.insert_before(anchor.as_ref(), span.as_ref())
             .expect("To insert anchor before span");
     }
 
     #[wasm_bindgen_test]
     fn should_remove_inserted_child() {
-        let div = html_document
+        let div = document
             .create_element("div")
             .expect("To create div element");
-        let span = html_document
+        let span = document
             .create_element("span")
             .expect("To create span element");
         let div: &Node = div.as_ref();
@@ -217,15 +216,15 @@ pub mod test {
 
     #[wasm_bindgen_test]
     fn should_set_text_content() {
-        let txt: Node = html_document.create_text_node("Hello World!").into();
+        let txt: Node = document.create_text_node("Hello World!").into();
         txt.set_text_content("Hi World!");
         assert_eq!(txt.text_content(), "Hi World!");
     }
 
     #[wasm_bindgen_test]
     fn should_get_inner_html() {
-        let div = html_document.create_element("div").unwrap();
-        let span = html_document.create_element("span").unwrap();
+        let div = document.create_element("div").unwrap();
+        let span = document.create_element("span").unwrap();
         let div_node: &Node = div.as_ref();
         div_node.append_child(span.as_ref()).unwrap();
         assert_eq!(div.inner_html(), "<span></span>");

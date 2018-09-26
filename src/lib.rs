@@ -225,7 +225,7 @@ pub trait AppMount {
 
 impl<'a> AppMount for &'a str {
     fn app_mount(self) -> Element {
-        html_document.get_element_by_id(self).unwrap_or_else(|| {
+        document.get_element_by_id(self).unwrap_or_else(|| {
             panic!(
                 "Could not find element with id `{}` to mount the App.",
                 self

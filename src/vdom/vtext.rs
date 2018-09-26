@@ -66,9 +66,9 @@ impl<RCTX: Render> Display for VText<RCTX> {
 impl<RCTX: Render> VText<RCTX> {
     fn patch_new(&mut self, parent: &Node, next: Option<&Node>) -> Result<(), JsValue> {
         let node: Node = if self.is_comment {
-            html_document.create_comment(&self.content).into()
+            document.create_comment(&self.content).into()
         } else {
-            html_document.create_text_node(&self.content).into()
+            document.create_text_node(&self.content).into()
         };
 
         if let Some(next) = next {
