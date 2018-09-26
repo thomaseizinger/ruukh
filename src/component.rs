@@ -153,9 +153,7 @@ pub trait Component: 'static {
     /// It mutates the state in the `status` field and checks whether it
     /// differs from the state fields of the component. If they are different
     /// it then marks the state as dirty.
-    fn set_state<F>(&self, mutator: F)
-    where
-        F: FnMut(&mut Self::State);
+    fn set_state(&self, mutator: impl FnMut(&mut Self::State));
 }
 
 /// Stores the state of the component along with the flags to identify whether
@@ -306,7 +304,7 @@ impl Component for RootParent {
         )
     }
 
-    fn set_state<F>(&self, _: F) {
+    fn set_state(&self, _: impl FnMut(&mut Self::State)) {
         unreachable!(
             "It is a void component to be used as a render context for a root \
              component. Not to be used as a component itself."

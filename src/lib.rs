@@ -118,7 +118,7 @@ where
     /// Be sure to return the [ReactiveApp](struct.ReactiveApp.html) to the
     /// JS side because we want our app to live for 'static lifetimes (i.e.
     /// As long as the browser/tab runs).
-    pub fn mount<E: AppMount>(mut self, element: E) -> ReactiveApp {
+    pub fn mount(mut self, element: impl AppMount) -> ReactiveApp {
         let parent = element.app_mount();
         let (mut channel, sender) = ReactiveApp::new();
 
@@ -185,7 +185,7 @@ impl ReactiveApp {
     }
 
     /// Invokes the handler, when it receives a message.
-    fn on_message<F: FnMut() + 'static>(&mut self, mut handler: F) {
+    fn on_message(&mut self, mut handler: impl FnMut() + 'static) {
         let closure: Closure<dyn FnMut(JsValue)> = Closure::wrap(Box::new(move |_| handler()));
         self.rx.on_message(&closure);
         self.on_message = Some(closure);

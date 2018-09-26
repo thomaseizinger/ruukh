@@ -27,7 +27,7 @@ fn should_impl_lifecycle() {
             unimplemented!()
         }
 
-        fn set_state<F>(&self, _: F) {
+        fn set_state(&self, _: impl FnMut(&mut Self::State)) {
             unimplemented!()
         }
     }

@@ -276,10 +276,7 @@ impl ComponentMeta {
                     #take_props_dirty_body
                 }
 
-                fn set_state<F>(&self, mut mutator: F)
-                where
-                    F: FnMut(&mut Self::State)
-                {
+                fn set_state(&self, mut mutator: impl FnMut(&mut Self::State)) {
                     #set_state_body
                 }
             }

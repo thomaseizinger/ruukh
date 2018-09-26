@@ -103,7 +103,7 @@ impl<RCTX: Render> VElement<RCTX> {
 
 impl Attribute {
     /// Create an Attribute for a VElement.
-    pub fn new<V: Into<AttributeValue>>(key: &'static str, value: V) -> Attribute {
+    pub fn new(key: &'static str, value: impl Into<AttributeValue>) -> Attribute {
         Attribute {
             key,
             value: value.into(),

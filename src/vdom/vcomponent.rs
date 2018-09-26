@@ -345,7 +345,7 @@ pub mod test {
             self.__status.borrow_mut().take_props_dirty()
         }
 
-        fn set_state<F>(&self, _: F) {
+        fn set_state(&self, _: impl FnMut(&mut Self::State)) {
             unreachable!()
         }
     }

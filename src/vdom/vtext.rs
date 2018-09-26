@@ -27,7 +27,7 @@ pub struct VText<RCTX: Render> {
 
 impl<RCTX: Render> VText<RCTX> {
     /// Create a textual VText.
-    pub fn text<T: Into<String>>(content: T) -> VText<RCTX> {
+    pub fn text(content: impl Into<String>) -> VText<RCTX> {
         VText {
             content: content.into(),
             is_comment: false,
@@ -37,7 +37,7 @@ impl<RCTX: Render> VText<RCTX> {
     }
 
     /// Create a comment VText.
-    pub fn comment<T: Into<String>>(content: T) -> VText<RCTX> {
+    pub fn comment(content: impl Into<String>) -> VText<RCTX> {
         VText {
             content: content.into(),
             is_comment: true,
