@@ -178,7 +178,7 @@ pub mod test {
     #[wasm_bindgen_test]
     fn should_patch_container_with_new_text() {
         let mut vtext = VText::text("Hello World! It is nice to render.");
-        let div = html_document.create_element("div").unwrap();
+        let div = document.create_element("div").unwrap();
         vtext
             .patch(
                 None,
@@ -194,7 +194,7 @@ pub mod test {
     #[wasm_bindgen_test]
     fn should_patch_container_with_text_update() {
         let mut vtext = VText::text("Hello World! It is nice to render.");
-        let div = html_document.create_element("div").unwrap();
+        let div = document.create_element("div").unwrap();
         vtext
             .patch(
                 None,
@@ -222,7 +222,7 @@ pub mod test {
     #[wasm_bindgen_test]
     fn should_patch_container_with_new_comment() {
         let mut comment = VText::comment("This is a comment");
-        let div = html_document.create_element("div").unwrap();
+        let div = document.create_element("div").unwrap();
         comment
             .patch(
                 None,
@@ -238,7 +238,7 @@ pub mod test {
     #[wasm_bindgen_test]
     fn should_patch_container_with_new_text_on_comment() {
         let mut comment = VText::comment("This is a comment");
-        let div = html_document.create_element("div").unwrap();
+        let div = document.create_element("div").unwrap();
         comment
             .patch(
                 None,

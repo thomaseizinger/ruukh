@@ -501,7 +501,7 @@ pub mod test {
     }
 
     fn container() -> Element {
-        html_document.create_element("div").unwrap()
+        document.create_element("div").unwrap()
     }
 
     #[wasm_bindgen_test]
