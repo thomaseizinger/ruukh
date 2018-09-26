@@ -108,13 +108,13 @@ pub trait Component: 'static {
     /// change notifying mechanism into `status`.
     fn init(props: Self::Props, events: Self::Events, status: Status<Self::State>) -> Self;
 
-    /// Updates the component with newer props and returns older props (if
-    /// changed).
+    /// Updates the component with newer props & events and returns older props
+    /// (if changed).
     ///
     /// ## Internals
     ///
     /// When updating the component with newer props, it compares each prop if
-    /// they changed. Also, it updates the events blindly as their is not point
+    /// they changed. Also, it updates the events blindly as their is no point
     /// in comparing closures.
     fn update(&mut self, props: Self::Props, events: Self::Events) -> Option<Self::Props>;
 
