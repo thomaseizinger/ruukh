@@ -8,7 +8,7 @@ pub type SlotIndex = usize;
 
 /// Slot representation in a VNode.
 pub struct VSlot<RCTX: Render> {
-    index: SlotIndex,
+    index: Option<SlotIndex>,
     slot_link: Box<SlotLink>,
     _phantom: PhantomData<RCTX>,
 }
@@ -24,7 +24,7 @@ impl<RCTX: Render> VSlot<RCTX> {
     }
 
     /// Create a new VSlot.
-    fn new(index: SlotIndex, slot_link: Box<SlotLink>) -> VSlot<RCTX> {
+    fn new(index: Option<SlotIndex>, slot_link: Box<SlotLink>) -> VSlot<RCTX> {
         VSlot {
             index,
             slot_link,
@@ -55,14 +55,18 @@ impl<RCTX: Render> DOMPatch for VSlot<RCTX> {
         _: Shared<Self::RenderContext>,
         _: MessageSender,
     ) -> Result<(), JsValue> {
-        self.slot_link
-            .set_parent_and_next_of(self.index, parent.clone(), next.cloned());
+        if let Some(index) = self.index {
+            self.slot_link
+                .set_parent_and_next_of(index, parent.clone(), next.cloned());
+        }
         Ok(())
     }
 
     fn reorder(&self, parent: &Self::Node, next: Option<&Self::Node>) -> Result<(), JsValue> {
-        self.slot_link
-            .set_parent_and_next_of(self.index, parent.clone(), next.cloned());
+        if let Some(index) = self.index {
+            self.slot_link
+                .set_parent_and_next_of(index, parent.clone(), next.cloned());
+        }
         Ok(())
     }
 
@@ -345,18 +349,28 @@ impl<RCTX: Render, ARGS> SlotRenderer<RCTX, ARGS> {
 /// Trait to invoke slot usage.
 pub trait SlotUse<ARGS>: SlotLink {
     /// Use the slot with the given arguments.
-    fn slot_use(&self, args: ARGS) -> SlotIndex;
+    fn slot_use(&self, args: ARGS) -> Option<SlotIndex>;
 }
 
 impl<RCTX: Render, ARGS> SlotUse<ARGS> for SlotRenderer<RCTX, ARGS> {
-    fn slot_use(&self, args: ARGS) -> SlotIndex {
+    fn slot_use(&self, args: ARGS) -> Option<SlotIndex> {
         let rendered = (self.slot_fn)(args);
         self.cache.0.borrow_mut().push(ResolvedSlot {
             parent: None,
             next: None,
             vnode: rendered,
         });
-        self.cache.0.borrow().len()
+        Some(self.cache.0.borrow().len())
+    }
+}
+
+impl<RCTX: Render, ARGS> SlotUse<ARGS> for Option<SlotRenderer<RCTX, ARGS>> {
+    fn slot_use(&self, args: ARGS) -> Option<SlotIndex> {
+        if let Some(ref this) = self {
+            this.slot_use(args)
+        } else {
+            None
+        }
     }
 }
 
@@ -372,6 +386,14 @@ impl<RCTX: Render, ARGS> SlotLink for SlotRenderer<RCTX, ARGS> {
         if let Some(resolved_slot) = cache.get_mut(slot_index) {
             resolved_slot.parent = Some(parent);
             resolved_slot.next = next;
+        }
+    }
+}
+
+impl<RCTX: Render, ARGS> SlotLink for Option<SlotRenderer<RCTX, ARGS>> {
+    fn set_parent_and_next_of(&self, slot_index: SlotIndex, parent: Node, next: Option<Node>) {
+        if let Some(ref this) = self {
+            this.set_parent_and_next_of(slot_index, parent, next);
         }
     }
 }
