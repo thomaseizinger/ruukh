@@ -70,6 +70,7 @@ use crate::{Markup, MessageSender, Shared};
 /// 4. Status field: The field which stores the state metadata i.e. stores the
 /// mutable state itself, whether state/props are dirty as well as state change
 /// notifying mechanism.
+/// 5. Slot field: The field which stores the `Self::Slots`.
 pub trait Component: 'static {
     /// The prop type of a Component.
     ///
@@ -79,6 +80,8 @@ pub trait Component: 'static {
     /// `#[component]` struct. This type is named by concatenating component
     /// name with `Props`.
     type Props;
+    /// The slot type of a Component.
+    type Slots;
     /// The event type of a Component.
     ///
     /// ## Internals
@@ -106,7 +109,12 @@ pub trait Component: 'static {
     ///
     /// It also creates a `Default::default()` state along with wiring up
     /// change notifying mechanism into `status`.
-    fn init(props: Self::Props, events: Self::Events, status: Status<Self::State>) -> Self;
+    fn init(
+        props: Self::Props,
+        slots: Self::Slots,
+        events: Self::Events,
+        status: Status<Self::State>,
+    ) -> Self;
 
     /// Updates the component with newer props & events and returns older props
     /// (if changed).
@@ -116,7 +124,12 @@ pub trait Component: 'static {
     /// When updating the component with newer props, it compares each prop if
     /// they changed. Also, it updates the events blindly as their is no point
     /// in comparing closures.
-    fn update(&mut self, props: Self::Props, events: Self::Events) -> Option<Self::Props>;
+    fn update(
+        &mut self,
+        props: Self::Props,
+        slots: Self::Slots,
+        events: Self::Events,
+    ) -> Option<Self::Props>;
 
     /// Updates the state fields if the status is mutated.
     fn refresh_state(&mut self);
@@ -266,17 +279,18 @@ pub type RootParent = ();
 
 impl Component for RootParent {
     type Props = ();
+    type Slots = ();
     type Events = ();
     type State = ();
 
-    fn init(_: Self::Props, _: Self::Events, _: Status<()>) -> RootParent {
+    fn init(_: Self::Props, _: Self::Slots, _: Self::Events, _: Status<()>) -> RootParent {
         unreachable!(
             "It is a void component to be used as a render context for a root \
              component. Not to be used as a component itself."
         )
     }
 
-    fn update(&mut self, _: Self::Props, _: Self::Events) -> Option<Self::Props> {
+    fn update(&mut self, _: Self::Props, _: Self::Slots, _: Self::Events) -> Option<Self::Props> {
         unreachable!(
             "It is a void component to be used as a render context for a root \
              component. Not to be used as a component itself."
