@@ -2,6 +2,7 @@ use self::{
     events::EventsMeta,
     fields::{check_supported_attributes, ComponentField},
     props::PropsMeta,
+    slots::SlotsMeta,
     state::StateMeta,
 };
 use proc_macro2::{Span, TokenStream};
@@ -32,6 +33,8 @@ pub struct ComponentMeta {
     state_meta: Option<StateMeta>,
     /// Events metadata if any events declaration.
     events_meta: Option<EventsMeta>,
+    /// Slots metadata if any slots declaration.
+    slots_meta: Option<SlotsMeta>,
 }
 
 impl ComponentMeta {
@@ -68,6 +71,7 @@ impl ComponentMeta {
         }?;
         let attrs = Self::filter_out_component_attributes(item.attrs);
         let (events_meta, attrs) = EventsMeta::take_events_attributes(&item.ident, attrs)?;
+        let (slots_meta, attrs) = SlotsMeta::take_slots_attributes(&item.ident, attrs)?;
 
         Ok(ComponentMeta {
             attrs,
@@ -76,6 +80,7 @@ impl ComponentMeta {
             props_meta,
             state_meta,
             events_meta,
+            slots_meta,
         })
     }
 

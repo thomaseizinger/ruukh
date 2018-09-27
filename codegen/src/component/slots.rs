@@ -1,9 +1,87 @@
+use crate::suffix::SLOTS_SUFFIX;
+use proc_macro2::Span;
 use syn::{
     custom_keyword, parenthesized,
     parse::{Error, Parse, ParseStream, Result as ParseResult},
     punctuated::Punctuated,
-    token, FnArg, Ident, Token,
+    spanned::Spanned,
+    token, Attribute, FnArg, Ident, Pat, Token, Type,
 };
+
+/// Stores all the slotes declared on a component.
+pub struct SlotsMeta {
+    /// Ident of the slots type.
+    pub ident: Ident,
+    /// List of slot descriptions.
+    pub slots: Vec<SlotMeta>,
+}
+
+impl SlotsMeta {
+    pub fn take_slots_attributes(
+        component_ident: &Ident,
+        attrs: Vec<Attribute>,
+    ) -> ParseResult<(Option<SlotsMeta>, Vec<Attribute>)> {
+        // Separate the attributes from `slots` attributes.
+        let slots = Ident::new("slots", Span::call_site()).into();
+        let (slots_attrs, rest): (Vec<Attribute>, Vec<Attribute>) =
+            attrs.into_iter().partition(|attr| attr.path == slots);
+
+        let slot_metas: ParseResult<Vec<Vec<SlotMeta>>> = slots_attrs
+            .into_iter()
+            .map(Self::take_one_slots_attribute)
+            .collect();
+
+        let mut slot_metas: Vec<SlotMeta> = slot_metas?.into_iter().flatten().collect();
+        slot_metas.sort_by(|l, r| l.ident.cmp(&r.ident));
+
+        if slot_metas.is_empty() {
+            Ok((None, rest))
+        } else {
+            let slots_ident = Ident::new(
+                &format!("{}{}", component_ident, SLOTS_SUFFIX),
+                Span::call_site(),
+            );
+            let slots_meta = SlotsMeta {
+                ident: slots_ident,
+                slots: slot_metas,
+            };
+            Ok((Some(slots_meta), rest))
+        }
+    }
+
+    fn take_one_slots_attribute(attr: Attribute) -> ParseResult<Vec<SlotMeta>> {
+        let slots_args: SlotsAttributeArgs = syn::parse2(attr.tts)?;
+        let slot_metas = slots_args
+            .arguments
+            .into_iter()
+            .map(|decl| {
+                let arguments: Vec<_> = decl
+                    .arguments
+                    .map(|args| {
+                        args.into_iter()
+                            .map(|arg| match arg {
+                                FnArg::Captured(captured) => (captured.pat, captured.ty),
+                                _ => unreachable!(),
+                            }).collect()
+                    }).unwrap_or_default();
+
+                SlotMeta {
+                    ident: decl.ident,
+                    arguments,
+                }
+            }).collect();
+
+        Ok(slot_metas)
+    }
+}
+
+/// A single slot description.
+pub struct SlotMeta {
+    /// Name of the slot.
+    pub ident: Ident,
+    /// Arguments of the slot.
+    pub arguments: Vec<(Pat, Type)>,
+}
 
 /// Parses the arguments provided to the `#[slots]` attribute.
 ///
@@ -64,6 +142,16 @@ impl Parse for SlotDeclaration {
             let content;
             let paren_token = parenthesized!(content in input);
             let arguments = content.parse_terminated(FnArg::parse)?;
+
+            for arg in arguments.iter() {
+                match arg {
+                    FnArg::Captured(_) => {}
+                    _ => {
+                        return Err(Error::new(arg.span(), "Only `var: type` argument allowed."));
+                    }
+                }
+            }
+
             (Some(paren_token), Some(arguments))
         } else {
             (None, None)
