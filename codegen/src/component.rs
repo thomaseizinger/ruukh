@@ -14,6 +14,7 @@ use syn::{
 mod events;
 mod fields;
 mod props;
+mod slots;
 mod state;
 
 /// All the necessary metadata taken from the struct declaration to construct
