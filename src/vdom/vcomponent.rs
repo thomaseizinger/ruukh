@@ -3,7 +3,7 @@
 use crate::{
     component::{FromEventProps, Render, Status},
     dom::DOMPatch,
-    vdom::{Shared, VNode},
+    vdom::{vslot::SlotRegistry, Shared, VNode},
     web_api::*,
     MessageSender,
 };
@@ -22,12 +22,17 @@ impl<RCTX: Render> VComponent<RCTX> {
     /// Create a new VComponent.
     pub fn new<COMP: Render>(
         props: COMP::Props,
+        slot_registry: SlotRegistry<COMP, RCTX>,
         events: <COMP::Events as FromEventProps<RCTX>>::From,
     ) -> VComponent<RCTX>
     where
         COMP::Events: FromEventProps<RCTX>,
     {
-        VComponent(Box::new(ComponentWrapper::<COMP, RCTX>::new(props, events)))
+        VComponent(Box::new(ComponentWrapper::<COMP, RCTX>::new(
+            props,
+            slot_registry,
+            events,
+        )))
     }
 }
 
@@ -37,6 +42,7 @@ where
 {
     component: Option<Shared<COMP>>,
     props: Option<COMP::Props>,
+    slot_registry: SlotRegistry<COMP, RCTX>,
     events: Option<<COMP::Events as FromEventProps<RCTX>>::From>,
     cached_render: Option<VNode<COMP>>,
 }
@@ -47,11 +53,13 @@ where
 {
     pub(crate) fn new(
         props: COMP::Props,
+        slot_registry: SlotRegistry<COMP, RCTX>,
         events: <COMP::Events as FromEventProps<RCTX>>::From,
     ) -> ComponentWrapper<COMP, RCTX> {
         ComponentWrapper {
             component: None,
             props: Some(props),
+            slot_registry,
             events: Some(events),
             cached_render: None,
         }
@@ -78,10 +86,15 @@ impl<RCTX: Render> DOMPatch for VComponent<RCTX> {
         parent: &Self::Node,
         next: Option<&Self::Node>,
         render_ctx: Shared<Self::RenderContext>,
-        _: MessageSender,
+        rx_sender: MessageSender,
     ) -> Result<(), JsValue> {
-        self.0
-            .patch(old.map(|old| &mut *old.0), parent, next, render_ctx)
+        self.0.patch(
+            old.map(|old| &mut *old.0),
+            parent,
+            next,
+            render_ctx,
+            rx_sender,
+        )
     }
 
     fn reorder(&self, parent: &Node, next: Option<&Node>) -> Result<(), JsValue> {
@@ -114,6 +127,7 @@ pub(crate) trait ComponentManager: Display + 'static {
         parent: &Node,
         next: Option<&Node>,
         render_ctx: Shared<Self::RenderContext>,
+        rx_sender: MessageSender,
     ) -> Result<(), JsValue>;
 
     fn reorder(&self, parent: &Node, next: Option<&Node>) -> Result<(), JsValue>;
@@ -140,9 +154,11 @@ where
     ) -> Result<(), JsValue> {
         if self.component.is_none() {
             let props = self.props.take().unwrap();
+            let slots = self.slot_registry.take_slots();
             let events = self.events.take().unwrap();
             let instance = COMP::init(
                 props,
+                slots,
                 FromEventProps::from(events, render_ctx),
                 Status::new(COMP::State::default(), rx_sender.clone()),
             );
@@ -180,14 +196,6 @@ where
                 self.cached_render = Some(rerender);
             }
         }
-        if let Some(ref mut cached) = self.cached_render {
-            cached.render_walk(
-                parent,
-                next,
-                self.component.as_ref().unwrap().clone(),
-                rx_sender,
-            )?;
-        }
         Ok(())
     }
 
@@ -195,40 +203,52 @@ where
         &mut self,
         old: Option<&mut dyn ComponentManager<RenderContext = Self::RenderContext>>,
         parent: &Node,
-        _: Option<&Node>,
+        next: Option<&Node>,
         render_ctx: Shared<Self::RenderContext>,
+        rx_sender: MessageSender,
     ) -> Result<(), JsValue> {
         if let Some(old) = old {
-            let is_same = match old
+            if let Some(old) = old
                 .as_any_mut()
                 .downcast_mut::<ComponentWrapper<COMP, RCTX>>()
             {
-                Some(old) => {
-                    let comp = old.component.take().unwrap();
-                    let props = self.props.take().unwrap();
-                    let events = self.events.take().unwrap();
+                let comp = old.component.take().unwrap();
+                let props = self.props.take().unwrap();
+                let slots = self.slot_registry.take_slots();
+                let events = self.events.take().unwrap();
 
-                    // Reuse the older component by passing in the newer props.
-                    let old_props = comp
-                        .borrow_mut()
-                        .update(props, FromEventProps::from(events, render_ctx));
-                    if let Some(old_props) = old_props {
-                        comp.borrow().updated(old_props);
-                    }
-                    self.component = Some(comp);
-
-                    // Reuse the cached render too to do patches on.
-                    self.cached_render = old.cached_render.take();
-
-                    true
+                // Reuse the older component by passing in the newer props.
+                let old_props = comp.borrow_mut().update(
+                    props,
+                    slots,
+                    FromEventProps::from(events, render_ctx.clone()),
+                );
+                if let Some(old_props) = old_props {
+                    comp.borrow().updated(old_props);
                 }
-                None => false,
-            };
-            if !is_same {
-                // The component is not the same, remove it from the DOM tree.
-                old.remove(parent)?;
+                self.component = Some(comp);
+
+                // Reuse the cached render too to do patches on.
+                self.cached_render = old.cached_render.take();
+
+                self.render_walk(parent, next, render_ctx.clone(), rx_sender.clone())?;
+
+                self.slot_registry.patch(
+                    Some(&mut old.slot_registry),
+                    &(),
+                    None,
+                    render_ctx,
+                    rx_sender,
+                )?;
+
+                return Ok(());
             }
+            // The component is not the same, remove it from the DOM tree.
+            old.remove(parent)?;
         }
+        self.render_walk(parent, next, render_ctx.clone(), rx_sender.clone())?;
+        self.slot_registry
+            .patch(None, &(), None, render_ctx, rx_sender)?;
         Ok(())
     }
 

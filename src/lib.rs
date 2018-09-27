@@ -81,14 +81,14 @@ pub mod reexports {
 /// The main entry point to use your component and run it on the browser.
 pub struct App<COMP>
 where
-    COMP: Render<Props = (), Events = ()>,
+    COMP: Render<Props = (), Slots = (), Events = ()>,
 {
     manager: ComponentWrapper<COMP, RootParent>,
 }
 
 impl<COMP> App<COMP>
 where
-    COMP: Render<Props = (), Events = ()>,
+    COMP: Render<Props = (), Slots = (), Events = ()>,
 {
     /// Create a new App with a `Component` struct passed as its type parameter.
     ///
@@ -143,12 +143,12 @@ where
 
 impl<COMP> Default for App<COMP>
 where
-    COMP: Render<Props = (), Events = ()>,
+    COMP: Render<Props = (), Slots = (), Events = ()>,
 {
     /// Create a new App with a component `COMP` that has void props and events.
     fn default() -> Self {
         App {
-            manager: ComponentWrapper::new((), ()),
+            manager: ComponentWrapper::new((), Default::default(), ()),
         }
     }
 }

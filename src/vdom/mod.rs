@@ -7,7 +7,8 @@ use crate::{
         vcomponent::VComponent,
         velement::VElement,
         vlist::VList,
-        vtext::VText
+        vtext::VText,
+        vslot::VSlot,
     },
     web_api::*,
     MessageSender,
@@ -24,6 +25,7 @@ pub mod velement;
 pub mod vlist;
 pub mod vtext;
 mod conversions;
+pub mod vslot;
 
 /// A virtual node in a virtual DOM tree.
 pub enum VNode<RCTX: Render> {
@@ -35,6 +37,8 @@ pub enum VNode<RCTX: Render> {
     List(VList<RCTX>),
     /// A component vnode
     Component(VComponent<RCTX>),
+    /// A slot vnode
+    Slot(VSlot<RCTX>),
     /// The empty variant
     None
 }
@@ -56,6 +60,7 @@ impl<RCTX: Render> Display for VNode<RCTX> {
             VNode::Element(inner) => write!(f, "{}", inner),
             VNode::List(inner) => write!(f, "{}", inner),
             VNode::Component(inner) => write!(f, "{}", inner),
+            VNode::Slot(_) => unimplemented!(),
             VNode::None => Ok(())
         }
     }
@@ -100,9 +105,7 @@ impl<RCTX: Render> DOMPatch for VNode<RCTX> {
             VNode::Element(ref mut el) => el.render_walk(parent, next, render_ctx, rx_sender),
             VNode::List(ref mut list) => list.render_walk(parent, next, render_ctx, rx_sender),
             VNode::Component(ref mut comp) => comp.render_walk(parent, next, render_ctx, rx_sender),
-            // There is nothing to walk on.
-            VNode::Text(_) => Ok(()),
-            VNode::None => Ok(())
+            _ => Ok(())
         }
     }
 
@@ -127,6 +130,9 @@ impl<RCTX: Render> DOMPatch for VNode<RCTX> {
             VNode::Component(ref mut new_comp) => {
                 patch!(Component => new_comp, old, parent, next, render_ctx, rx_sender)
             }
+            VNode::Slot(ref mut new_slot) => {
+                patch!(Slot => new_slot, old, parent, next, render_ctx, rx_sender)
+            }
             VNode::None => {
                 if let Some(old) = old {
                     old.remove(parent)?;
@@ -142,6 +148,7 @@ impl<RCTX: Render> DOMPatch for VNode<RCTX> {
             VNode::Element(el) => el.reorder(parent, next),
             VNode::List(li) => li.reorder(parent, next),
             VNode::Component(comp) => comp.reorder(parent, next),
+            VNode::Slot(slot) => slot.reorder(parent, next),
             VNode::None => Ok(())
         }
     }
@@ -152,7 +159,7 @@ impl<RCTX: Render> DOMPatch for VNode<RCTX> {
             VNode::Element(el) => el.remove(parent),
             VNode::List(li) => li.remove(parent),
             VNode::Component(comp) => comp.remove(parent),
-            VNode::None => Ok(())
+            _ => Ok(())
         }
     }
     
@@ -162,7 +169,7 @@ impl<RCTX: Render> DOMPatch for VNode<RCTX> {
             VNode::Element(el) => el.node(),
             VNode::List(li) => li.node(),
             VNode::Component(comp) => comp.node(),
-            VNode::None => None
+            _ => None
         }
     }
 }
