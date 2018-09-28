@@ -1,11 +1,12 @@
 use crate::suffix::SLOTS_SUFFIX;
-use proc_macro2::Span;
+use proc_macro2::{Span, TokenStream};
+use quote::quote;
 use syn::{
     custom_keyword, parenthesized,
     parse::{Error, Parse, ParseStream, Result as ParseResult},
     punctuated::Punctuated,
     spanned::Spanned,
-    token, Attribute, FnArg, Ident, Pat, Token, Type,
+    token, Attribute, FnArg, Ident, Pat, Token, Type, Visibility,
 };
 
 /// Stores all the slotes declared on a component.
@@ -73,6 +74,133 @@ impl SlotsMeta {
 
         Ok(slot_metas)
     }
+
+    fn expand_slots_with(&self, map_fn: impl Fn(&SlotMeta) -> TokenStream) -> Vec<TokenStream> {
+        self.slots.iter().map(map_fn).collect()
+    }
+
+    pub fn create_slots_struct_and_macro(
+        &self,
+        component_ident: &Ident,
+        vis: &Visibility,
+    ) -> TokenStream {
+        let ident = &self.ident;
+        let internal_macro_ident =
+            Ident::new(&format!("__new_{}_internal__", ident), Span::call_site());
+
+        let fields = self.expand_slots_with(SlotMeta::to_struct_field);
+        let slot_names = self.expand_slots_with(SlotMeta::to_slot_ident);
+        let mut next_slot_names = slot_names.clone();
+        let first = next_slot_names.remove(0);
+        next_slot_names.push(quote!(@finish));
+
+        let match_hands = slot_names
+            .iter()
+            .zip(next_slot_names.iter())
+            .map(|(cur, next)| {
+                quote! {
+                    (
+                        @#cur
+                        arguments = [{ $($args:tt)* }]
+                        tokens = [{ [#cur = $val:expr] $($rest:tt)* }]
+                    ) => {
+                        #internal_macro_ident!(
+                            @#next
+                            arguments = [{
+                                $($args)*
+                                [ #cur = std::rc::Rc::new(std::cell::RefCell::new(Some($val))) ]
+                            }]
+                            tokens = [{ $($rest)* }]
+                        );
+                    },
+                    (
+                        @#cur
+                        arguments = [{ $($args:tt)* }]
+                        tokens = [{ $($rest:tt)* }]
+                    ) => {
+                        #internal_macro_ident!(
+                            @#next
+                            arguments = [{
+                                $($args)*
+                                [ #cur = std::rc::Rc::new(std::cell::RefCell::new(None)) ]
+                            }]
+                            tokens = [{ $($rest)* }]
+                        );
+                    },
+                }
+            });
+
+        quote! {
+            #vis struct #ident {
+                #(#fields),*
+            }
+
+            macro #internal_macro_ident {
+                #(#match_hands)*
+                (
+                    @@finish
+                    arguments = [{ $([$key:ident = $val:expr])* }]
+                    tokens = [{ }]
+                ) => {
+                    #ident {
+                        $($key: $val),*
+                    }
+                },
+                (
+                    @@finish
+                    arguments = [{ $($tt:tt)* }]
+                    tokens = [{ [$key:ident = $val:expr] $($rem:tt)* }]
+                ) => {
+                    compile_error!(concat!(
+                        "There is no slot `",
+                        stringify!($key),
+                        "` on `",
+                        stringify!(#component_ident), "`."
+                    ));
+                }
+            }
+
+            #vis macro #ident($($key:ident : $val:expr),*) {
+                #internal_macro_ident!(
+                    @#first
+                    arguments = [{ }]
+                    tokens = [{ $([$key = $val])* }]
+                )
+            }
+        }
+    }
+
+    pub fn create_void_slots_macro(component_ident: &Ident, vis: &Visibility) -> TokenStream {
+        let slots_ident = Ident::new(
+            &format!("{}{}", component_ident, SLOTS_SUFFIX),
+            Span::call_site(),
+        );
+        let internal_macro_ident = Ident::new(
+            &format!("__new_{}_internal__", slots_ident),
+            Span::call_site(),
+        );
+        quote! {
+            macro #internal_macro_ident {
+                (
+                    tokens = [{ }]
+                ) => {
+                    // A void event.
+                    ()
+                },
+                (
+                    tokens = [{ $($tt:tt)+ }]
+                ) => {
+                    compile_error!(concat!("`", stringify!(#component_ident), "` has no slots."));
+                }
+            }
+
+            #vis macro #slots_ident($($key:ident: $val:expr),*) {
+                #internal_macro_ident!(
+                    tokens = [{ $([$key = $val])* }]
+                );
+            }
+        }
+    }
 }
 
 /// A single slot description.
@@ -81,6 +209,30 @@ pub struct SlotMeta {
     pub ident: Ident,
     /// Arguments of the slot.
     pub arguments: Vec<(Pat, Type)>,
+}
+
+impl SlotMeta {
+    fn to_struct_field(&self) -> TokenStream {
+        let ident = &self.ident;
+        let args_types = self.args_type_tuple_form();
+
+        quote! {
+            #ident: std::rc::Rc<std::cell::RefCell<ruukh::vdom::vslot::SlotUse<#args_types>>>
+        }
+    }
+
+    fn args_type_tuple_form(&self) -> TokenStream {
+        let types: Vec<_> = self.arguments.iter().map(|(_, ty)| quote!(#ty)).collect();
+
+        quote! {
+            (#(#types),*)
+        }
+    }
+
+    fn to_slot_ident(&self) -> TokenStream {
+        let ident = &self.ident;
+        quote!(#ident)
+    }
 }
 
 /// Parses the arguments provided to the `#[slots]` attribute.

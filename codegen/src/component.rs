@@ -106,6 +106,11 @@ impl ComponentMeta {
             .as_ref()
             .map(|m| m.create_events_and_event_props_struct_and_macro(&self.ident, &self.vis))
             .unwrap_or_else(|| EventsMeta::create_void_events_macro(&self.ident, &self.vis));
+        let slots_struct = self
+            .slots_meta
+            .as_ref()
+            .map(|m| m.create_slots_struct_and_macro(&self.ident, &self.vis))
+            .unwrap_or_else(|| SlotsMeta::create_void_slots_macro(&self.ident, &self.vis));
 
         quote! {
             #component_struct
@@ -113,6 +118,8 @@ impl ComponentMeta {
             #state_struct
 
             #props_struct
+
+            #slots_struct
 
             #events_structs
 
@@ -125,7 +132,11 @@ impl ComponentMeta {
         let ident = &self.ident;
         let vis = &self.vis;
 
-        if self.props_meta.is_none() && self.state_meta.is_none() && self.events_meta.is_none() {
+        if self.props_meta.is_none()
+            && self.state_meta.is_none()
+            && self.events_meta.is_none()
+            && self.slots_meta.is_none()
+        {
             quote! {
                 #(#attrs)*
                 #vis struct #ident;
@@ -143,6 +154,7 @@ impl ComponentMeta {
                 .unwrap_or_default();
             let status_field = self.create_status_field();
             let events_field = self.create_events_field();
+            let slots_field = self.create_slots_field();
 
             quote! {
                 #(#attrs)*
@@ -151,6 +163,7 @@ impl ComponentMeta {
                     #(#props_fields ,)*
                     #status_field
                     #events_field
+                    #slots_field
                 }
             }
         }
@@ -180,6 +193,17 @@ impl ComponentMeta {
             quote! {
                 __events__: #ident,
             }
+        }
+    }
+
+    fn create_slots_field(&self) -> TokenStream {
+        if let Some(ref slots_meta) = self.slots_meta {
+            let ident = &slots_meta.ident;
+            quote! {
+                __slots__: #ident,
+            }
+        } else {
+            quote!()
         }
     }
 
@@ -217,11 +241,21 @@ impl ComponentMeta {
         }
     }
 
+    fn get_slots_type(&self) -> TokenStream {
+        if let Some(ref slots_meta) = self.slots_meta {
+            let ident = &slots_meta.ident;
+            quote!(#ident)
+        } else {
+            quote!(())
+        }
+    }
+
     fn impl_component_trait_on_component_struct(&self) -> TokenStream {
         let ident = &self.ident;
         let props_type = &self.get_props_type();
         let state_type = &self.get_state_type();
         let events_type = &self.get_events_type();
+        let slots_type = self.get_slots_type();
         let state_clone = self.impl_state_clone_from_status();
         let event_assignment = self.impl_event_assignment();
         let state_field_idents = &self
@@ -236,9 +270,11 @@ impl ComponentMeta {
             .unwrap_or_default();
         let props_field_idents2 = props_field_idents;
         let status_assignment = self.impl_status_assignment();
+        let slots_assignment = self.impl_slots_assignment();
         let props_updation = self.impl_props_updation(props_field_idents);
         let updation_ret_block = self.impl_return_block_after_updation();
         let events_updation = self.impl_events_updation();
+        let slots_updation = self.impl_slots_updation();
         let refresh_state_body = self.impl_fn_refresh_state_body(state_field_idents);
         let take_state_dirty_body = self.impl_fn_take_state_dirty_body();
         let take_props_dirty_body = self.impl_fn_take_props_dirty_body();
@@ -247,11 +283,13 @@ impl ComponentMeta {
         quote! {
             impl Component for #ident {
                 type Props = #props_type;
+                type Slots = #slots_type;
                 type State = #state_type;
                 type Events = #events_type;
 
                 fn init(
                     __props__: Self::Props,
+                    __slots__: Self::Slots,
                     __events__: Self::Events,
                     __status__: ruukh::component::Status<Self::State>,
                 ) -> Self {
@@ -262,17 +300,20 @@ impl ComponentMeta {
                         #(#state_field_idents ,)*
                         #event_assignment
                         #status_assignment
+                        #slots_assignment
                     }
                 }
 
                 fn update(
                     &mut self,
                     mut __props__: Self::Props,
+                    __slots__: Self::Slots,
                     __events__: Self::Events,
                 ) -> Option<Self::Props> {
                     #props_updation
 
                     #events_updation
+                    #slots_updation
 
                     #updation_ret_block
                 }
@@ -414,6 +455,16 @@ impl ComponentMeta {
         }
     }
 
+    fn impl_slots_updation(&self) -> TokenStream {
+        if self.slots_meta.is_some() {
+            quote! {
+                self.__slots__ = __slots__;
+            }
+        } else {
+            quote!()
+        }
+    }
+
     fn impl_state_clone_from_status(&self) -> TokenStream {
         if self.state_meta.is_none() {
             quote!()
@@ -450,6 +501,16 @@ impl ComponentMeta {
         if self.events_meta.is_some() {
             quote! {
                 __events__,
+            }
+        } else {
+            quote!()
+        }
+    }
+
+    fn impl_slots_assignment(&self) -> TokenStream {
+        if self.slots_meta.is_some() {
+            quote! {
+                __slots__,
             }
         } else {
             quote!()
