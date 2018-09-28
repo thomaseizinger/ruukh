@@ -1,5 +1,6 @@
-use crate::{component::Render, web_api::Node, MessageSender, Shared};
+use crate::{component::Render, MessageSender, Shared};
 use wasm_bindgen::prelude::JsValue;
+use web_sys::Node;
 
 /// Trait to patch the DOM to reflect the VDOM structure.
 pub(crate) trait DOMPatch

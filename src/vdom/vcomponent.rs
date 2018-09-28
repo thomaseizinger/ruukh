@@ -4,7 +4,6 @@ use crate::{
     component::{FromEventProps, Render, Status},
     dom::DOMPatch,
     vdom::{Shared, VNode},
-    web_api::*,
     MessageSender,
 };
 use std::{
@@ -14,6 +13,7 @@ use std::{
     rc::Rc,
 };
 use wasm_bindgen::prelude::JsValue;
+use web_sys::Node;
 
 /// The representation of a component in a Virtual DOM.
 pub struct VComponent<RCTX: Render>(Box<dyn ComponentManager<RenderContext = RCTX>>);
@@ -289,6 +289,7 @@ pub mod test {
     use super::*;
     use crate::component::*;
     use crate::prelude::*;
+    use crate::vdom::test::container;
     use crate::vdom::{velement::*, vtext::*, VNode};
     use crate::Shared;
     use wasm_bindgen_test::*;
@@ -353,10 +354,6 @@ pub mod test {
                 VNode::from(VText::text("Click")),
             ))
         }
-    }
-
-    fn container() -> Element {
-        document.create_element("div").unwrap()
     }
 
     #[wasm_bindgen_test]

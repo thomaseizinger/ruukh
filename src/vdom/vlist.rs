@@ -4,7 +4,6 @@ use crate::{
     component::Render,
     dom::DOMPatch,
     vdom::{Key, VNode},
-    web_api::*,
     MessageSender, Shared,
 };
 use fnv::FnvBuildHasher;
@@ -14,6 +13,7 @@ use std::{
     fmt::{self, Display, Formatter},
 };
 use wasm_bindgen::prelude::JsValue;
+use web_sys::Node;
 
 /// The representation of a list of vnodes in the vtree.
 pub struct VList<RCTX: Render>(IndexMap<Key, VNode<RCTX>, FnvBuildHasher>);
@@ -145,6 +145,7 @@ impl<RCTX: Render> DOMPatch for VList<RCTX> {
 pub mod test {
     use super::*;
     use crate::component::root_render_ctx;
+    use crate::vdom::test::container;
     use crate::vdom::velement::VElement;
     use crate::vdom::vtext::VText;
     use crate::vdom::VNode;
@@ -157,10 +158,6 @@ pub mod test {
             VNode::from(VElement::childless("input", vec![], vec![])),
         ]);
         assert_eq!(format!("{}", list), "First of the node<input>");
-    }
-
-    fn container() -> Element {
-        document.create_element("div").unwrap()
     }
 
     #[wasm_bindgen_test]

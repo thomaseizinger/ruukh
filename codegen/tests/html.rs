@@ -1,6 +1,7 @@
 #![feature(proc_macro_non_items)]
 
-use ruukh::{prelude::*, web_api::Event};
+use ruukh::prelude::*;
+use web_sys::Event;
 
 #[test]
 fn should_expand_single_element() {

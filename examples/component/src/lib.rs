@@ -1,8 +1,8 @@
 #![feature(proc_macro_gen, proc_macro_non_items, decl_macro)]
 
 use ruukh::prelude::*;
-use ruukh::web_api::*;
 use wasm_bindgen::prelude::*;
+use web_sys::Event;
 
 #[component]
 #[derive(Lifecycle)]

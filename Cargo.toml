@@ -10,6 +10,21 @@ indexmap = "1.0.1"
 ruukh-codegen = { path = "./codegen" }
 fnv = "1.0.6"
 
+[dependencies.web-sys]
+version = "0.3.0"
+features = [
+    "Node", 
+    "Element", 
+    "Comment",
+    "Text",
+    "Window", 
+    "Document", 
+    "MessagePort", 
+    "MessageChannel",
+    "Event",
+    "EventTarget"
+]
+
 [dev-dependencies]
 wasm-bindgen-test = "0.2.21"
 

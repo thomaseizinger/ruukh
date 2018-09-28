@@ -1,12 +1,13 @@
 //! Element representation in a VDOM.
 
-use crate::{component::Render, dom::DOMPatch, vdom::VNode, web_api::*, MessageSender, Shared};
+use crate::{component::Render, dom::DOMPatch, vdom::VNode, MessageSender, Shared};
 use indexmap::IndexMap;
 use std::borrow::Cow;
 use std::cell::RefCell;
 use std::fmt::{self, Display, Formatter};
 use std::rc::Rc;
-use wasm_bindgen::prelude::*;
+use wasm_bindgen::{prelude::*, JsCast};
+use web_sys::{window, Element, Event, EventTarget, Node};
 
 /// The representation of an element in virtual DOM.
 pub struct VElement<RCTX: Render> {
@@ -181,7 +182,11 @@ impl<RCTX: Render> VElement<RCTX> {
         render_ctx: Shared<RCTX>,
         rx_sender: MessageSender,
     ) -> Result<(), JsValue> {
-        let el = document.create_element(&self.tag)?;
+        let el = window()
+            .unwrap()
+            .document()
+            .unwrap()
+            .create_element(&self.tag)?;
         self.attributes.patch(
             None,
             &el,
@@ -193,11 +198,7 @@ impl<RCTX: Render> VElement<RCTX> {
             .patch(None, &el, None, render_ctx.clone(), rx_sender.clone())?;
         self.child
             .patch(None, el.as_ref(), None, render_ctx, rx_sender)?;
-        if let Some(next) = next {
-            parent.insert_before(el.as_ref(), next)?;
-        } else {
-            parent.append_child(el.as_ref())?;
-        }
+        parent.insert_before(el.as_ref(), next)?;
         self.node = Some(el);
         Ok(())
     }
@@ -271,11 +272,7 @@ impl<RCTX: Render> DOMPatch for VElement<RCTX> {
 
     fn reorder(&self, parent: &Node, next: Option<&Node>) -> Result<(), JsValue> {
         let el = self.node.as_ref().unwrap();
-        if let Some(next) = next {
-            parent.insert_before(el.as_ref(), next)?;
-        } else {
-            parent.append_child(el.as_ref())?;
-        }
+        parent.insert_before(el.as_ref(), next)?;
         Ok(())
     }
 
@@ -387,7 +384,7 @@ impl<RCTX: Render> DOMPatch for EventListeners<RCTX> {
             old.remove(parent)?;
         }
         for listener in self.0.iter_mut() {
-            listener.start_listening(parent, render_ctx.clone())?;
+            listener.start_listening(parent.as_ref(), render_ctx.clone())?;
         }
         Ok(())
     }
@@ -398,7 +395,7 @@ impl<RCTX: Render> DOMPatch for EventListeners<RCTX> {
 
     fn remove(&self, parent: &Element) -> Result<(), JsValue> {
         for listener in self.0.iter() {
-            listener.stop_listening(parent)?;
+            listener.stop_listening(parent.as_ref())?;
         }
         Ok(())
     }
@@ -413,11 +410,11 @@ trait EventManager {
 
     fn start_listening(
         &mut self,
-        parent: &Element,
+        parent: &EventTarget,
         render_ctx: Shared<Self::RenderContext>,
     ) -> Result<(), JsValue>;
 
-    fn stop_listening(&self, parent: &Element) -> Result<(), JsValue>;
+    fn stop_listening(&self, parent: &EventTarget) -> Result<(), JsValue>;
 }
 
 impl<RCTX: Render> EventManager for EventListener<RCTX> {
@@ -425,21 +422,25 @@ impl<RCTX: Render> EventManager for EventListener<RCTX> {
 
     fn start_listening(
         &mut self,
-        parent: &Element,
+        parent: &EventTarget,
         render_ctx: Shared<Self::RenderContext>,
     ) -> Result<(), JsValue> {
         let listener = self.listener.take().unwrap();
         let js_closure: Closure<dyn Fn(Event)> = Closure::wrap(Box::new(move |event| {
             listener(&*render_ctx.borrow(), event)
         }));
-        parent.add_event_listener(&self.type_, &js_closure)?;
+        parent
+            .add_event_listener_with_callback(&self.type_, js_closure.as_ref().unchecked_ref())?;
         self.dom_listener = Some(js_closure);
         Ok(())
     }
 
-    fn stop_listening(&self, parent: &Element) -> Result<(), JsValue> {
+    fn stop_listening(&self, parent: &EventTarget) -> Result<(), JsValue> {
         if let Some(ref dom_listener) = self.dom_listener {
-            parent.remove_event_listener(&self.type_, dom_listener)?;
+            parent.remove_event_listener_with_callback(
+                &self.type_,
+                dom_listener.as_ref().unchecked_ref(),
+            )?;
         }
         Ok(())
     }
@@ -480,6 +481,7 @@ impl From<Vec<Attribute>> for Attributes {
 pub mod test {
     use super::*;
     use crate::component::root_render_ctx;
+    use crate::vdom::test::container;
     use crate::vdom::vtext::VText;
     use wasm_bindgen_test::*;
 
@@ -510,10 +512,6 @@ pub mod test {
             format!("{}", p),
             "<p class=\"mt-3\" style=\"background-color: grey;\"></p>"
         );
-    }
-
-    fn container() -> Element {
-        document.create_element("div").unwrap()
     }
 
     #[wasm_bindgen_test]
