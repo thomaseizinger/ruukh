@@ -29,6 +29,6 @@ impl MainApp {
 }
 
 #[wasm_bindgen]
-pub fn run() -> ReactiveApp {
-    App::<MainApp>::new().mount("app")
+pub fn run() {
+    App::<MainApp>::new().mount("app");
 }

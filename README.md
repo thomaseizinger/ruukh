@@ -68,10 +68,9 @@ impl Render for MyApp {
     }
 }
 
-/// This function is to be exposed with `ReactiveApp` as its return type.
 #[wasm_bindgen]
-pub fn run() -> ReactiveApp {
-    App::<MyApp>::new().mount("app")
+pub fn run() {
+    App::<MyApp>::new().mount("app");
 }
 ```
 

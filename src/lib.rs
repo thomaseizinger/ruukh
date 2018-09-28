@@ -32,8 +32,8 @@
 //! }
 //!
 //! #[wasm_bindgen]
-//! pub fn run() -> ReactiveApp {
-//!     App::<MyApp>::new().mount("app")
+//! pub fn run() {
+//!     App::<MyApp>::new().mount("app");
 //! }
 //! ```
 //!
@@ -66,8 +66,7 @@ pub type Markup<RCTX> = vdom::VNode<RCTX>;
 /// prelude and start building your app.
 pub mod prelude {
     pub use crate::component::{Component, Lifecycle, Render};
-    pub use crate::Markup;
-    pub use crate::{App, ReactiveApp};
+    pub use crate::{App, Markup};
     pub use ruukh_codegen::*;
 }
 
@@ -110,16 +109,11 @@ where
     ///
     /// # Example
     /// ```ignore,compile_fail
-    /// App::<MyApp>::new().mount("app")
+    /// App::<MyApp>::new().mount("app");
     /// ```
-    ///
-    /// Note:
-    /// Be sure to return the [ReactiveApp](struct.ReactiveApp.html) to the
-    /// JS side because we want our app to live for 'static lifetimes (i.e.
-    /// As long as the browser/tab runs).
-    pub fn mount(mut self, element: impl AppMount) -> ReactiveApp {
+    pub fn mount(mut self, element: impl AppMount) {
         let parent = element.app_mount();
-        let (mut channel, sender) = ReactiveApp::new();
+        let (receiver, sender) = app_message_channel();
 
         // Every component requires a render context, so provided a void context.
         let root_parent = Rc::new(RefCell::new(()));
@@ -130,13 +124,11 @@ where
             .unwrap();
 
         // Rerender when it receives update messages.
-        channel.on_message(move || {
+        receiver.react_on_message(move || {
             self.manager
                 .render_walk(parent.as_ref(), None, root_parent.clone(), sender.clone())
                 .unwrap();
         });
-
-        channel
     }
 }
 
@@ -152,60 +144,42 @@ where
     }
 }
 
-/// This is a mounted app which reacts to state changes and rerenders itself.
-///
-/// ## Internals
-///
-/// It stores the receiver end of the message port which listens to any
-/// messages passed from the sender end
-/// ([MessageSender](struct.MessageSender.html)), which itself is stored
-/// within each of the component's status. Whenever a component changes it
-/// state, it sends an update message via the MessageSender to which the
-/// listener reacts by rerendering the App.
-#[wasm_bindgen]
-pub struct ReactiveApp {
-    rx: MessagePort,
-    on_message: Option<Closure<dyn FnMut(JsValue)>>,
+/// Create a `MessageChannel` to propagate state change message to the app.
+fn app_message_channel() -> (MessageReceiver, MessageSender) {
+    let msg_channel = MessageChannel::new().unwrap();
+    (
+        MessageReceiver(msg_channel.port2()),
+        MessageSender(msg_channel.port1()),
+    )
 }
 
-impl ReactiveApp {
-    /// Create new a reactive app.
-    fn new() -> (ReactiveApp, MessageSender) {
-        let msg_channel = MessageChannel::new().unwrap();
-        (
-            ReactiveApp {
-                rx: msg_channel.port2(),
-                on_message: None,
-            },
-            MessageSender {
-                tx: msg_channel.port1(),
-            },
-        )
-    }
+/// The receiving end of the message port which notifies the app for any state
+/// changes.
+pub struct MessageReceiver(MessagePort);
 
+impl MessageReceiver {
     /// Invokes the handler, when it receives a message.
-    fn on_message(&mut self, mut handler: impl FnMut() + 'static) {
+    fn react_on_message(self, mut handler: impl FnMut() + 'static) {
         let closure: Closure<dyn FnMut(JsValue)> = Closure::wrap(Box::new(move |_| handler()));
-        self.rx
-            .set_onmessage(Some(closure.as_ref().unchecked_ref()));
-        self.on_message = Some(closure);
+        self.0.set_onmessage(Some(closure.as_ref().unchecked_ref()));
+
+        // Leak the closure so that the app lives on for 'static lifetimes.
+        closure.forget();
     }
 }
 
 /// MessageSender is responsible to message the App about state changes.
 #[derive(Clone)]
-struct MessageSender {
-    tx: MessagePort,
-}
+struct MessageSender(MessagePort);
 
 impl MessageSender {
-    /// Send an update message to the [App](struct.App.html).
+    /// Sends an update message to the App.
     ///
-    /// The components need to call this method, when it desires the app to
+    /// The components need to call this method when they desire the app to
     /// be notified of state changes.
     fn do_react(&self) {
         // Just send a `null` as we have only a single message to be sent.
-        self.tx
+        self.0
             .post_message(&JsValue::null())
             .expect("Could not send the message");
     }
@@ -254,5 +228,5 @@ impl AppMount for String {
 /// For use in tests.
 #[cfg(test)]
 fn message_sender() -> MessageSender {
-    ReactiveApp::new().1
+    app_message_channel().1
 }
