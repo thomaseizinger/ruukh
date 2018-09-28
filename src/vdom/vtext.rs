@@ -1,11 +1,12 @@
 //! Representation of text/comment in virtual dom tree.
 
-use crate::{component::Render, dom::DOMPatch, vdom::VNode, web_api::*, MessageSender, Shared};
+use crate::{component::Render, dom::DOMPatch, vdom::VNode, MessageSender, Shared};
 use std::{
     fmt::{self, Display, Formatter},
     marker::PhantomData,
 };
 use wasm_bindgen::prelude::JsValue;
+use web_sys::{window, Node};
 
 /// The representation of text/comment in virtual dom tree.
 pub struct VText<RCTX: Render> {
@@ -60,16 +61,21 @@ impl<RCTX: Render> Display for VText<RCTX> {
 impl<RCTX: Render> VText<RCTX> {
     fn patch_new(&mut self, parent: &Node, next: Option<&Node>) -> Result<(), JsValue> {
         let node: Node = if self.is_comment {
-            document.create_comment(&self.content).into()
+            window()
+                .unwrap()
+                .document()
+                .unwrap()
+                .create_comment(&self.content)
+                .into()
         } else {
-            document.create_text_node(&self.content).into()
+            window()
+                .unwrap()
+                .document()
+                .unwrap()
+                .create_text_node(&self.content)
+                .into()
         };
-
-        if let Some(next) = next {
-            parent.insert_before(&node, next)?;
-        } else {
-            parent.append_child(&node)?;
-        }
+        parent.insert_before(&node, next)?;
         self.node = Some(node);
         Ok(())
     }
@@ -104,7 +110,7 @@ impl<RCTX: Render> DOMPatch for VText<RCTX> {
                     .as_ref()
                     .expect("The old node is expected to be attached to the DOM");
                 if self.content != old.content {
-                    old_node.set_text_content(&self.content);
+                    old_node.set_text_content(Some(&self.content));
                 }
                 self.node = Some(old_node.clone());
                 Ok(())
@@ -119,11 +125,7 @@ impl<RCTX: Render> DOMPatch for VText<RCTX> {
 
     fn reorder(&self, parent: &Node, next: Option<&Node>) -> Result<(), JsValue> {
         let node = self.node.as_ref().unwrap();
-        if let Some(next) = next {
-            parent.insert_before(node, next)?;
-        } else {
-            parent.append_child(node)?;
-        }
+        parent.insert_before(node, next)?;
         Ok(())
     }
 
@@ -145,6 +147,7 @@ impl<RCTX: Render> DOMPatch for VText<RCTX> {
 pub mod test {
     use super::*;
     use crate::component::root_render_ctx;
+    use crate::vdom::test::container;
     use wasm_bindgen_test::*;
 
     #[test]
@@ -165,7 +168,7 @@ pub mod test {
     #[wasm_bindgen_test]
     fn should_patch_container_with_new_text() {
         let mut vtext = VText::text("Hello World! It is nice to render.");
-        let div = document.create_element("div").unwrap();
+        let div = container();
         vtext
             .patch(
                 None,
@@ -181,7 +184,7 @@ pub mod test {
     #[wasm_bindgen_test]
     fn should_patch_container_with_text_update() {
         let mut vtext = VText::text("Hello World! It is nice to render.");
-        let div = document.create_element("div").unwrap();
+        let div = container();
         vtext
             .patch(
                 None,
@@ -209,7 +212,7 @@ pub mod test {
     #[wasm_bindgen_test]
     fn should_patch_container_with_new_comment() {
         let mut comment = VText::comment("This is a comment");
-        let div = document.create_element("div").unwrap();
+        let div = container();
         comment
             .patch(
                 None,
@@ -225,7 +228,7 @@ pub mod test {
     #[wasm_bindgen_test]
     fn should_patch_container_with_new_text_on_comment() {
         let mut comment = VText::comment("This is a comment");
-        let div = document.create_element("div").unwrap();
+        let div = container();
         comment
             .patch(
                 None,

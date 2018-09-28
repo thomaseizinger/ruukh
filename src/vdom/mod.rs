@@ -9,7 +9,6 @@ use crate::{
         vlist::VList,
         vtext::VText
     },
-    web_api::*,
     MessageSender,
     Shared
 };
@@ -18,6 +17,7 @@ use std::{
     fmt::{self, Display, Formatter}
 };
 use wasm_bindgen::prelude::JsValue;
+use web_sys::Node;
 
 pub mod vcomponent;
 pub mod velement;
@@ -253,6 +253,11 @@ impl From<String> for Key {
 mod test {
     use crate::vdom::vtext::VText;
     use super::VNode;
+    use web_sys::{window, Element};
+
+    pub fn container() -> Element {
+        window().unwrap().document().unwrap().create_element("div").unwrap()
+    }
 
     #[test]
     fn should_display_vnode() {

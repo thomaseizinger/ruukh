@@ -11,5 +11,11 @@ crate-type = ["cdylib"]
 ruukh = { path = "../../" }
 wasm-bindgen = "0.2.21"
 
+[dependencies.web-sys]
+version = "0.3.0"
+features = [
+    "Event"
+]
+
 [patch.crates-io]
 proc-macro2 = { git = "https://github.com/csharad/proc-macro2", branch = "feature_flagged" }
