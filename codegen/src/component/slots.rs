@@ -246,24 +246,20 @@ impl SlotMeta {
 /// )
 /// ```
 struct SlotsAttributeArgs {
-    paren_token: token::Paren,
     arguments: Vec<SlotDeclaration>,
 }
 
 impl Parse for SlotsAttributeArgs {
     fn parse(input: ParseStream<'_>) -> ParseResult<Self> {
         let content;
-        let paren_token = parenthesized!(content in input);
+        parenthesized!(content in input);
         let mut arguments = vec![];
 
         while !content.is_empty() {
             arguments.push(content.parse()?);
         }
 
-        Ok(SlotsAttributeArgs {
-            paren_token,
-            arguments,
-        })
+        Ok(SlotsAttributeArgs { arguments })
     }
 }
 
@@ -278,21 +274,18 @@ custom_keyword!(slot);
 /// slot slot_name(arg: type, ...);
 /// ```
 struct SlotDeclaration {
-    slot: slot,
     ident: Ident,
-    paren_token: Option<token::Paren>,
     arguments: Option<Punctuated<FnArg, Token![,]>>,
-    semi_token: Token![;],
 }
 
 impl Parse for SlotDeclaration {
     fn parse(input: ParseStream<'_>) -> ParseResult<Self> {
-        let slot = input.parse()?;
+        input.parse::<slot>()?;
         let ident: Ident = input.parse()?;
 
-        let (paren_token, arguments) = if input.peek(token::Paren) {
+        let arguments = if input.peek(token::Paren) {
             let content;
-            let paren_token = parenthesized!(content in input);
+            parenthesized!(content in input);
             let arguments = content.parse_terminated(FnArg::parse)?;
 
             for arg in arguments.iter() {
@@ -304,27 +297,21 @@ impl Parse for SlotDeclaration {
                 }
             }
 
-            (Some(paren_token), Some(arguments))
+            Some(arguments)
         } else {
-            (None, None)
+            None
         };
 
-        if ident == "default" && paren_token.is_some() {
+        if ident == "default" && arguments.is_some() {
             return Err(Error::new(
                 ident.span(),
                 "`default` slot cannot have arguments. Use a different name.",
             ));
         }
 
-        let semi_token = input.parse()?;
+        input.parse::<Token![;]>()?;
 
-        Ok(SlotDeclaration {
-            slot,
-            ident,
-            paren_token,
-            arguments,
-            semi_token,
-        })
+        Ok(SlotDeclaration { ident, arguments })
     }
 }
 
@@ -354,7 +341,6 @@ mod test {
         ).unwrap();
 
         assert_eq!(slot_desc.ident, "default");
-        assert!(slot_desc.paren_token.is_none());
         assert!(slot_desc.arguments.is_none());
     }
 
@@ -367,7 +353,6 @@ mod test {
         ).unwrap();
 
         assert_eq!(slot_desc.ident, "named");
-        assert!(slot_desc.paren_token.is_some());
         assert_eq!(slot_desc.arguments.unwrap().len(), 2);
     }
 
