@@ -86,7 +86,7 @@ pub struct SlotMeta {
 /// Parses the arguments provided to the `#[slots]` attribute.
 ///
 /// Looks like:
-/// ```
+/// ```ignore,compile_fail
 /// (
 ///     slot default;
 ///
@@ -120,7 +120,7 @@ custom_keyword!(slot);
 /// Parses a single slot declaration.
 ///
 /// Looks like one of the following kinds:
-/// ```
+/// ```ignore,compile_fail
 /// slot slot_name;
 ///
 /// slot slot_name(arg: type, ...);
@@ -196,9 +196,9 @@ mod test {
     #[test]
     fn should_parse_argless_slot_declaration() {
         let slot_desc: SlotDeclaration = syn::parse_str(
-            r#" (
+            r#"
                 slot default;
-            )"#,
+            "#,
         ).unwrap();
 
         assert_eq!(slot_desc.ident, "default");
@@ -209,22 +209,22 @@ mod test {
     #[test]
     fn should_parse_argfull_slot_declaration() {
         let slot_desc: SlotDeclaration = syn::parse_str(
-            r#" (
+            r#"
                 slot named(arg: i32, arg1: &'static str);
-            )"#,
+            "#,
         ).unwrap();
 
-        assert_eq!(slot_desc.ident, "default");
+        assert_eq!(slot_desc.ident, "named");
         assert!(slot_desc.paren_token.is_some());
         assert_eq!(slot_desc.arguments.unwrap().len(), 2);
     }
 
     #[test]
     fn should_not_parse_args_on_default_declaration() {
-        let slot_desc = syn::parse_str::<SlotDescription>(
-            r#"(
+        let slot_desc = syn::parse_str::<SlotDeclaration>(
+            r#"
                 slot default(arg: i32);
-            )"#,
+            "#,
         );
 
         assert!(slot_desc.is_err());
