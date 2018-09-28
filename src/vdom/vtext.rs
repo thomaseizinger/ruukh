@@ -146,8 +146,7 @@ impl<RCTX: Render> DOMPatch for VText<RCTX> {
 #[cfg(test)]
 pub mod test {
     use super::*;
-    use crate::component::root_render_ctx;
-    use crate::vdom::test::container;
+    use crate::{component::root_render_ctx, vdom::test::container};
     use wasm_bindgen_test::*;
 
     #[test]

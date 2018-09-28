@@ -144,11 +144,10 @@ impl<RCTX: Render> DOMPatch for VList<RCTX> {
 #[cfg(test)]
 pub mod test {
     use super::*;
-    use crate::component::root_render_ctx;
-    use crate::vdom::test::container;
-    use crate::vdom::velement::VElement;
-    use crate::vdom::vtext::VText;
-    use crate::vdom::VNode;
+    use crate::{
+        component::root_render_ctx,
+        vdom::{test::container, velement::VElement, vtext::VText, VNode},
+    };
     use wasm_bindgen_test::*;
 
     #[test]

@@ -287,11 +287,12 @@ where
 #[cfg(test)]
 pub mod test {
     use super::*;
-    use crate::component::*;
-    use crate::prelude::*;
-    use crate::vdom::test::container;
-    use crate::vdom::{velement::*, vtext::*, VNode};
-    use crate::Shared;
+    use crate::{
+        component::*,
+        prelude::*,
+        vdom::{test::container, velement::*, vtext::*, VNode},
+        Shared,
+    };
     use wasm_bindgen_test::*;
 
     struct Button {

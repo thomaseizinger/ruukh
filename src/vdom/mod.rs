@@ -251,8 +251,7 @@ impl From<String> for Key {
 
 #[cfg(test)]
 mod test {
-    use crate::vdom::vtext::VText;
-    use super::VNode;
+    use crate::vdom::{vtext::VText, VNode};
     use web_sys::{window, Element};
 
     pub fn container() -> Element {

@@ -2,10 +2,12 @@
 
 use crate::{component::Render, dom::DOMPatch, vdom::VNode, MessageSender, Shared};
 use indexmap::IndexMap;
-use std::borrow::Cow;
-use std::cell::RefCell;
-use std::fmt::{self, Display, Formatter};
-use std::rc::Rc;
+use std::{
+    borrow::Cow,
+    cell::RefCell,
+    fmt::{self, Display, Formatter},
+    rc::Rc,
+};
 use wasm_bindgen::{prelude::*, JsCast};
 use web_sys::{window, Element, Event, EventTarget, Node};
 
@@ -480,9 +482,10 @@ impl From<Vec<Attribute>> for Attributes {
 #[cfg(test)]
 pub mod test {
     use super::*;
-    use crate::component::root_render_ctx;
-    use crate::vdom::test::container;
-    use crate::vdom::vtext::VText;
+    use crate::{
+        component::root_render_ctx,
+        vdom::{test::container, vtext::VText},
+    };
     use wasm_bindgen_test::*;
 
     #[test]
