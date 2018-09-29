@@ -19,6 +19,11 @@ impl Render for MainApp {
                     state.count += 1;
                 });
             }}>Increment</button>
+            <button @click={|this: &Self, _ev| {
+                this.set_state(|state| {
+                    state.count -= 1;
+                });
+            }}>Decrement</button>
         }
     }
 }
