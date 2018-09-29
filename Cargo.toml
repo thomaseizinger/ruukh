@@ -34,6 +34,8 @@ members = [
     "examples/hello_world",
     "examples/counter",
     "examples/component",
+    "examples/input",
+    "examples/modules"
 ]
 
 [patch.crates-io]
