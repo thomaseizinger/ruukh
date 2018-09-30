@@ -247,12 +247,12 @@ mod test {
         let _: HtmlRoot = syn::parse_str(
             r#"
             <div>
-                <button>Hello World!</button>
+                <button>"Hello World!"</button>
 
-                <span>How are you?</span>
+                <span>"How are you?"</span>
             </div>
 
-            Nice to meet you.
+            "Nice to meet you."
         "#,
         ).unwrap();
     }
@@ -262,7 +262,7 @@ mod test {
         let _: HtmlRoot = syn::parse_str(
             r#"
             <div>
-                My name is { "Anonymous" }.
+                "My name is "{ "Anonymous" }"."
             </div>
             "#,
         ).unwrap();
@@ -271,7 +271,7 @@ mod test {
     #[test]
     fn should_parse_text() {
         let text: Text =
-            syn::parse_str(r#"This is a text.    What do you think about    it?"#).unwrap();
+            syn::parse_str(r#""This is a text. What do you think about it?""#).unwrap();
 
         assert_eq!(text.content, "This is a text. What do you think about it?");
     }
@@ -280,29 +280,12 @@ mod test {
     fn should_parse_multiline_text() {
         let text: Text = syn::parse_str(
             r#"
-            This is a text.
+                "This is a text. "
 
-            This is new line.
-        "#,
+                "This is new line."
+            "#,
         ).unwrap();
 
         assert_eq!(text.content, "This is a text. This is new line.");
-    }
-
-    #[test]
-    fn should_parse_text_with_literal() {
-        let text: Text = syn::parse_str(
-            r#"
-            "This is a literal"
-
-            b"hello"
-
-            12.122
-
-            32
-        "#,
-        ).unwrap();
-
-        assert_eq!(text.content, r#""This is a literal" b"hello" 12.122 32"#);
     }
 }

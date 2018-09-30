@@ -493,7 +493,7 @@ mod test {
 
     #[test]
     fn should_parse_normal_html_element_with_child() {
-        let _: NormalHtmlElement = syn::parse_str("<div>Hello</div>").unwrap();
+        let _: NormalHtmlElement = syn::parse_str(r#"<div>"Hello"</div>"#).unwrap();
     }
 
     #[test]
