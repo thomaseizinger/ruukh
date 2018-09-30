@@ -5,9 +5,11 @@ use heck::{CamelCase, KebabCase, SnakeCase};
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, quote_spanned};
 use syn::{
+    braced,
     parse::{Error, Parse, ParseStream, Result as ParseResult},
     punctuated::Punctuated,
-    token, Token, {Expr, Ident}, braced
+    spanned::Spanned,
+    token, Token, {Expr, Ident},
 };
 
 pub enum HtmlElement {
@@ -55,11 +57,7 @@ impl Parse for NormalHtmlElement {
 
         if opening_tag.tag_name.is_component() && child.flat_len != 0 {
             return Err(Error::new(
-                opening_tag
-                    .tag_name
-                    .span()
-                    .join(closing_tag.tag_name.span())
-                    .unwrap(),
+                closing_tag.tag_name.span(),
                 "Component children are not supported right now.",
             ));
         }
@@ -74,11 +72,7 @@ impl Parse for NormalHtmlElement {
 
         if not_same {
             return Err(Error::new(
-                opening_tag
-                    .tag_name
-                    .span()
-                    .join(closing_tag.tag_name.span())
-                    .unwrap(),
+                closing_tag.tag_name.span(),
                 "Opening and closing tag must be same.",
             ));
         }
@@ -422,12 +416,8 @@ impl TagName {
 
 impl Parse for TagName {
     fn parse(input: ParseStream<'_>) -> ParseResult<Self> {
-        let first_span = input.cursor().span();
         let idents = input.call(Punctuated::<Ident, Token![-]>::parse_separated_nonempty)?;
-        let span = idents
-            .iter()
-            .map(|ident| ident.span())
-            .fold(first_span, |acc, span| acc.join(span).unwrap());
+        let span = idents.span();
         let mut idents = idents.into_iter().collect::<Vec<_>>();
 
         let ident = idents.get(0).as_ref().unwrap().to_string();
@@ -467,12 +457,8 @@ pub struct AttributeName {
 
 impl Parse for AttributeName {
     fn parse(input: ParseStream<'_>) -> ParseResult<Self> {
-        let first_span = input.cursor().span();
         let idents = input.call(Punctuated::<Ident, Token![-]>::parse_separated_nonempty)?;
-        let span = idents
-            .iter()
-            .map(|ident| ident.span())
-            .fold(first_span, |acc, span| acc.join(span).unwrap());
+        let span = idents.span();
         let name = idents
             .into_iter()
             .map(|id| id.to_string())
