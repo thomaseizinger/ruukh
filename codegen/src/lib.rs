@@ -116,7 +116,7 @@ pub fn component(
 /// ## Text
 /// ```ignore,compile_fail
 /// html! {
-///     This is a sample text.
+///     "This is a sample text."
 /// }
 /// ```
 ///
@@ -170,7 +170,7 @@ pub fn component(
 /// ## Expressions in between
 /// ```ignore,compile_fail
 /// html! {
-///     There are { count } people.
+///     "There are "{ count }" people."
 /// }
 /// ```
 #[proc_macro]

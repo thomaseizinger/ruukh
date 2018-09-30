@@ -8,7 +8,7 @@ impl Render for Title {
     fn render(&self) -> Markup<Self> {
         html! {
             <h3>
-                Lorem ipsum dolor
+                "Lorem ipsum dolor"
             </h3>
         }
     }

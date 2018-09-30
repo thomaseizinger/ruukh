@@ -19,7 +19,7 @@ impl Render for MainApp {
                 if !self.input.is_empty() {
                     html! {
                         <div>
-                            Your name is { &self.input }.
+                            "Your name is "{ &self.input }"."
                         </div>
                     }
                 } else {

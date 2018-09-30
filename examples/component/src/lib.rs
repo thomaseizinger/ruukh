@@ -46,7 +46,7 @@ struct Button;
 impl Render for Button {
     fn render(&self) -> Markup<Self> {
         html! {
-            <button @click={Self::click}>Toggle</button>
+            <button @click={Self::click}>"Toggle"</button>
         }
     }
 }
