@@ -11,7 +11,7 @@
 //! <TAGNAME ATTRIBUTES/> |
 //! <TAGNAME ATTRIBUTES>
 //!
-//! TEXT -> TEXT_CHAR TEXT | EPS
+//! TEXT -> ".*"
 //!
 //! EXPR_BLOCK -> { EXPR }
 //!
@@ -23,18 +23,16 @@
 //!
 //! OPTIONAL_AT -> @ | EPS
 //!
-//! TEXT_CHAR -> /[^{}()[]]/
-//!
 //! DASHED_IDENT -> IDENT-DASHED_IDENT | IDENT
 //!
 //! N.B. EPS is Epsilon and IDENT & EXPR are Rust constructs.
 
 use self::element::{HtmlElement, KeyAttribute};
-use proc_macro2::{Span, TokenStream, TokenTree};
+use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{
     parse::{Parse, ParseStream, Result as ParseResult},
-    token, Block as RustExpressionBlock, Token,
+    token, Block as RustExpressionBlock, LitStr, Token,
 };
 
 mod element;
@@ -165,12 +163,15 @@ pub enum HtmlItem {
 
 impl Parse for HtmlItem {
     fn parse(input: ParseStream<'_>) -> ParseResult<Self> {
-        if input.peek(Token![<]) {
+        let lookahead1 = input.lookahead1();
+        if lookahead1.peek(Token![<]) {
             Ok(HtmlItem::Element(Box::new(input.parse()?)))
-        } else if input.peek(token::Brace) {
+        } else if lookahead1.peek(token::Brace) {
             Ok(HtmlItem::ExpressionBlock(input.parse()?))
-        } else {
+        } else if lookahead1.peek(LitStr) {
             Ok(HtmlItem::Text(input.parse()?))
+        } else {
+            Err(lookahead1.error())
         }
     }
 }
@@ -221,47 +222,19 @@ pub struct Text {
 
 impl Parse for Text {
     fn parse(input: ParseStream<'_>) -> ParseResult<Self> {
-        let content = input.step(|cursor| {
-            let mut content = String::new();
-            let mut rest = *cursor;
-            let mut prev_span = None;
-            while let Some((tt, next)) = rest.token_tree() {
-                let cur_span = tt.span();
-                if let Some(ref prev_span) = prev_span {
-                    add_space_to(&mut content, prev_span, &cur_span);
-                }
-                prev_span = Some(cur_span);
+        let mut content = Vec::<LitStr>::new();
 
-                match tt {
-                    TokenTree::Group(_) => break,
-                    TokenTree::Punct(ref punct) if punct.as_char() == '<' => break,
-                    TokenTree::Punct(ref punct) => {
-                        content.push(punct.as_char());
-                    }
-                    TokenTree::Literal(ref literal) => {
-                        content.push_str(&literal.to_string());
-                    }
-                    TokenTree::Ident(ref ident) => {
-                        content.push_str(&ident.to_string());
-                    }
-                }
-                rest = next;
-            }
-            Ok((content, rest))
-        })?;
-        Ok(Text { content })
-    }
-}
+        while input.peek(LitStr) {
+            content.push(input.parse()?);
+        }
 
-/// Only push one space as HTML does not recognize multiple.
-///
-/// For <pre> contents when whitespaces are required as-is, use literal string
-/// in rust expression instead.
-fn add_space_to(string: &mut String, left: &Span, right: &Span) {
-    let left = left.end();
-    let right = right.start();
-    if left.column != right.column || left.line != right.line {
-        string.push(' ');
+        Ok(Text {
+            content: content
+                .into_iter()
+                .map(|lit| lit.value())
+                .collect::<Vec<_>>()
+                .join(""),
+        })
     }
 }
 
@@ -298,7 +271,7 @@ mod test {
     #[test]
     fn should_parse_text() {
         let text: Text =
-            syn::parse_str("This is a text.    What do you think about    it?").unwrap();
+            syn::parse_str(r#"This is a text.    What do you think about    it?"#).unwrap();
 
         assert_eq!(text.content, "This is a text. What do you think about it?");
     }
