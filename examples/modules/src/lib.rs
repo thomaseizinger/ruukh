@@ -13,7 +13,7 @@ struct MyApp;
 impl Render for MyApp {
     fn render(&self) -> Markup<Self> {
         html! {
-            <h1>Lorem Post</h1>
+            <h1>"Lorem Post"</h1>
             <Paragraph></Paragraph>
         }
     }

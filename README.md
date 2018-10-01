@@ -63,7 +63,7 @@ struct MyApp;
 impl Render for MyApp {
     fn render(&self) -> Markup<Self> {
         html! {
-            Hello World!
+            "Hello World!"
         }
     }
 }

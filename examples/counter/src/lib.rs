@@ -13,17 +13,17 @@ struct MainApp {
 impl Render for MainApp {
     fn render(&self) -> Markup<Self> {
         html! {
-            The count is: { self.count }.
+            "The count is: "{ self.count }"."
             <button @click={|this: &Self, _ev| {
                 this.set_state(|state| {
                     state.count += 1;
                 });
-            }}>Increment</button>
+            }}>"Increment"</button>
             <button @click={|this: &Self, _ev| {
                 this.set_state(|state| {
                     state.count -= 1;
                 });
-            }}>Decrement</button>
+            }}>"Decrement"</button>
         }
     }
 }

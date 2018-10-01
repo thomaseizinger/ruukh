@@ -6,38 +6,38 @@ use web_sys::Event;
 #[test]
 fn should_expand_single_element() {
     let _: Markup<()> = html! {
-        <div>Hello World!</div>
+        <div>"Hello World!"</div>
     };
 }
 
 #[test]
 fn should_expand_list_of_elements() {
     let _: Markup<()> = html! {
-        <div>Hello</div>
-        <div>World</div>
-        <div>How are you?</div>
+        <div>"Hello"</div>
+        <div>"World"</div>
+        <div>"How are you?"</div>
     };
 }
 
 #[test]
 fn should_expand_text() {
     let _: Markup<()> = html! {
-        Hello World!
+        "Hello World!"
     };
 }
 
 #[test]
 fn should_expand_multiline_text() {
     let _: Markup<()> = html! {
-        Hello World!
-        How are you?
+        "Hello World!"
+        "How are you?"
     };
 }
 
 #[test]
 fn should_expand_element_with_props() {
     let _: Markup<()> = html! {
-        <button disabled={true}>Click</button>
+        <button disabled={true}>"Click"</button>
     };
 }
 
@@ -46,7 +46,7 @@ fn on_click(_: &(), _: Event) {}
 #[test]
 fn should_expand_element_with_event_listener() {
     let _: Markup<()> = html! {
-        <button @click={on_click}>Click</button>
+        <button @click={on_click}>"Click"</button>
     };
 }
 
@@ -58,7 +58,7 @@ fn should_expand_element_with_attributes() {
             @click={on_click}
             @doubleclick={on_click}
             name={"btn"}
-        >Click
+        >"Click"
         </button>
     };
 }

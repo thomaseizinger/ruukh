@@ -10,7 +10,7 @@ struct MainApp;
 impl Render for MainApp {
     fn render(&self) -> Markup<Self> {
         html! {
-            Hello World!
+            "Hello World!"
         }
     }
 }

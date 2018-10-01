@@ -24,10 +24,10 @@
 //!     fn render(&self) -> Markup<Self> {
 //!         html! {
 //!             <div>
-//!                 This is help section
+//!                 "This is help section"
 //!             </div>
 //!             <div>
-//!                 There are a lot of divs here. Here comes a <button>Button</button>
+//!                 "There are a lot of divs here. Here comes a "<button>"Button"</button>
 //!             </div>
 //!         }
 //!     }

@@ -8,8 +8,7 @@ edition = "2018"
 proc-macro = true
 
 [dependencies]
-proc-macro2 = { version = "0.4.19", features = ["procmacro2_semver_exempt"] }
+proc-macro2 = "0.4.19"
 syn = { version = "0.15.1", features = ["full", "extra-traits"] }
 quote = "0.6.8"
 heck = "0.3.0"
-

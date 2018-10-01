@@ -18,6 +18,3 @@ features = [
     "EventTarget",
     "HtmlInputElement"
 ]
-
-[patch.crates-io]
-proc-macro2 = { git = "https://github.com/csharad/proc-macro2", branch = "feature_flagged" }
