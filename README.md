@@ -5,27 +5,22 @@ pure Rust.
 
 #### !! THIS IS HIGHLY UNSTABLE !!
 Don't depend on this library for any of your production code. Also, this project does not
-make a guarantee that it will ever stabilize as there are a lot of issues to iron out.
-So, for the time being, this project is in a state of continuous experimentation.
+make a guarantee that it will ever stabilize as there are a lot of issues to iron out. This
+project also might have breaking changes in minor version till `0.1.0`. So, for the time 
+being, this project is in a state of continuous experimentation.
 
 # Usage
 
 Create a new library project as binary projects are not supported to run on WASM.
 
-Add the following dependencies in your `Cargo.toml`:
-```toml
-[dependencies]
-ruukh = { git = "https://github.com/csharad/cargo-ruukh" }
-wasm-bindgen = "0.2.21"
-
-[patch.crates-io]
-proc-macro2 = { git = "https://github.com/csharad/proc-macro2", branch = "feature_flagged" }
-```
-
-Also, your `Cargo.toml` needs to set the `crate-type` to `cdylib`:
+Add the following to your `Cargo.toml`:
 ```toml
 [lib]
 crate-type = ["cdylib"]
+
+[dependencies]
+ruukh = "0.0.2"
+wasm-bindgen = "0.2.21"
 ```
 
 ## Ruukh CLI
@@ -35,7 +30,7 @@ to build and run Ruukh projects. It supports running your webapp in a developmen
 
 To install it:
 ```shell
-cargo install cargo-ruukh --git https://github.com/csharad/cargo-ruukh
+cargo install cargo-ruukh
 ```
 
 For more information: read up the [README](https://github.com/csharad/cargo-ruukh) at its own repo.
@@ -45,13 +40,10 @@ For more information: read up the [README](https://github.com/csharad/cargo-ruuk
 The CLI to run your project effortlessly expects your code to be structured in a particular way.
 Also, mind that this library requires latest nightly to work.
 
-In `lib.rs`:
+In `lib.rs` with 2018 edition enabled:
 
 ```rust
 #![feature(proc_macro_gen, proc_macro_non_items, decl_macro)]
-
-extern crate wasm_bindgen;
-extern crate ruukh;
 
 use wasm_bindgen::prelude::*;
 use ruukh::prelude::*;

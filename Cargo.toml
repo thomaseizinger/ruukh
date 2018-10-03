@@ -1,13 +1,20 @@
 [package]
 name = "ruukh"
-version = "0.1.0"
+version = "0.0.2"
+description = "An experimental next-gen frontend framework for the Web in Rust."
 authors = ["Sharad Chand <sharad.d.chand@gmail.com>"]
 edition = "2018"
+license = "MIT"
+documentation = "https://docs.rs/ruukh-codegen"
+repository = "https://www.github.com/csharad/ruukh"
+readme = "./README.md"
+keywords = ["wasm", "frontend", "framework", "web"]
+categories = ["wasm", "web-programming"]
 
 [dependencies]
 wasm-bindgen = "0.2.21"
 indexmap = "1.0.1"
-ruukh-codegen = { path = "./codegen" }
+ruukh-codegen = { version = "0.0.2", path = "./codegen" }
 fnv = "1.0.6"
 
 [dependencies.web-sys]
