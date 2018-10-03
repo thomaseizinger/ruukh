@@ -84,3 +84,48 @@ impl Parse for EventDeclaration {
         })
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn should_parse_event_declarations() {
+        let decls: EventDeclarations = syn::parse_str(
+            r#"(
+                fn click(&self);
+
+                fn double_click(&self, val: i32) -> i32;
+            )"#,
+        ).unwrap();
+
+        assert_eq!(decls.events.len(), 2);
+    }
+
+    #[test]
+    fn should_parse_event_declaration() {
+        let decl: EventDeclaration = syn::parse_str(
+            r#"
+                fn click(&self);
+            "#,
+        ).unwrap();
+
+        assert!(decl.attr.is_none());
+        assert_eq!(decl.ident, "click");
+        assert_eq!(decl.args.len(), 1);
+    }
+
+    #[test]
+    fn should_parse_optional_event_declaration() {
+        let decl: EventDeclaration = syn::parse_str(
+            r#"
+                #[optional]
+                fn on_click(&self);
+            "#,
+        ).unwrap();
+
+        assert!(decl.attr.is_some());
+        assert_eq!(decl.ident, "on_click");
+        assert_eq!(decl.args.len(), 1);
+    }
+}
