@@ -230,7 +230,7 @@ impl ComponentMeta {
                 fn status(&self) -> Option<&std::rc::Rc<
                                         std::cell::RefCell<
                                             ruukh::component::Status<
-                                                Self::State>>>> 
+                                                Self::State>>>>
                 {
                     #status_body
                 }
@@ -252,15 +252,12 @@ impl ComponentMeta {
             quote! {
                 let mut status = self.__status__.borrow_mut();
                 mutator(status.state_as_mut());
-                let mut changed = false;
-                {
+                let changed = {
                     let state = status.state_as_ref();
                     #(
-                        if !changed && self.#idents != state.#idents2 {
-                            changed = true;
-                        }
-                    )*
-                }
+                        self.#idents != state.#idents2
+                    ) ||*
+                };
                 if changed {
                     status.set_state_dirty(true);
                     status.do_react();
