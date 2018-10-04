@@ -1,4 +1,5 @@
 use ruukh::{component::Status, prelude::*};
+use std::{cell::RefCell, rc::Rc};
 
 #[test]
 fn should_impl_lifecycle() {
@@ -19,11 +20,7 @@ fn should_impl_lifecycle() {
             unimplemented!()
         }
 
-        fn take_state_dirty(&self) -> bool {
-            unimplemented!()
-        }
-
-        fn take_props_dirty(&self) -> bool {
+        fn status(&self) -> Option<&Rc<RefCell<Status<Self::State>>>> {
             unimplemented!()
         }
 

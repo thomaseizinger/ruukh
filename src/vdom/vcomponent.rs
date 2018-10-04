@@ -339,10 +339,11 @@ pub mod test {
                 __status: Rc::new(RefCell::new(status)),
             }
         }
+
         fn update(&mut self, props: Self::Props, _: Self::Events) -> Option<Self::Props> {
             if self.disabled != props.disabled {
                 self.disabled = props.disabled;
-                self.__status.borrow_mut().mark_props_dirty();
+                self.__status.borrow_mut().set_props_dirty(true);
                 Some(ButtonProps {
                     disabled: !self.disabled,
                 })
@@ -355,12 +356,8 @@ pub mod test {
             unreachable!()
         }
 
-        fn take_state_dirty(&self) -> bool {
-            false
-        }
-
-        fn take_props_dirty(&self) -> bool {
-            self.__status.borrow_mut().take_props_dirty()
+        fn status(&self) -> Option<&Shared<Status<Self::State>>> {
+            Some(&self.__status)
         }
 
         fn set_state(&self, _: impl FnMut(&mut Self::State)) {
