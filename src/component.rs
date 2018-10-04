@@ -127,8 +127,9 @@ pub trait Component: 'static {
     /// in comparing closures.
     fn update(&mut self, props: Self::Props, events: Self::Events) -> Option<Self::Props>;
 
-    /// Updates the state fields if the status is mutated.
-    fn refresh_state(&mut self);
+    /// Updates the state fields if the status is mutated and returns if
+    /// actually any changes occured.
+    fn refresh_state(&mut self) -> bool;
 
     /// Get the status of the component.
     fn status(&self) -> Option<&Shared<Status<Self::State>>>;
@@ -312,7 +313,7 @@ impl Component for RootParent {
         )
     }
 
-    fn refresh_state(&mut self) {
+    fn refresh_state(&mut self) -> bool {
         unreachable!(
             "It is a void component to be used as a render context for a root \
              component. Not to be used as a component itself."
