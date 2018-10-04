@@ -186,7 +186,7 @@ impl MessageSender {
 }
 
 /// A Shared Value.
-pub type Shared<T> = Rc<RefCell<T>>;
+type Shared<T> = Rc<RefCell<T>>;
 
 /// Trait to get an element on which the App is going to be mounted.
 pub trait AppMount {
