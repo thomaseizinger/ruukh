@@ -187,8 +187,7 @@ impl ComponentMeta {
         let updation_ret_block = self.impl_return_block_after_updation();
         let events_updation = self.impl_events_updation();
         let refresh_state_body = self.impl_fn_refresh_state_body(state_field_idents);
-        let take_state_dirty_body = self.impl_fn_take_state_dirty_body();
-        let take_props_dirty_body = self.impl_fn_take_props_dirty_body();
+        let status_body = self.impl_fn_status_body();
         let set_state_body = self.impl_fn_set_state_body(state_field_idents);
 
         quote! {
@@ -228,12 +227,12 @@ impl ComponentMeta {
                     #refresh_state_body
                 }
 
-                fn take_state_dirty(&self) -> bool {
-                    #take_state_dirty_body
-                }
-
-                fn take_props_dirty(&self) -> bool {
-                    #take_props_dirty_body
+                fn status(&self) -> Option<&std::rc::Rc<
+                                        std::cell::RefCell<
+                                            ruukh::component::Status<
+                                                Self::State>>>> 
+                {
+                    #status_body
                 }
 
                 fn set_state(&self, mut mutator: impl FnMut(&mut Self::State)) {
@@ -263,29 +262,19 @@ impl ComponentMeta {
                     )*
                 }
                 if changed {
-                    status.mark_state_dirty();
+                    status.set_state_dirty(true);
                     status.do_react();
                 }
             }
         }
     }
 
-    fn impl_fn_take_props_dirty_body(&self) -> TokenStream {
-        if self.props_meta.fields.is_empty() {
-            quote! { false }
+    fn impl_fn_status_body(&self) -> TokenStream {
+        if self.props_meta.fields.is_empty() && self.state_meta.fields.is_empty() {
+            quote!(None)
         } else {
             quote! {
-                self.__status__.borrow_mut().take_props_dirty()
-            }
-        }
-    }
-
-    fn impl_fn_take_state_dirty_body(&self) -> TokenStream {
-        if self.state_meta.fields.is_empty() {
-            quote! { false }
-        } else {
-            quote! {
-                self.__status__.borrow_mut().take_state_dirty()
+                Some(&self.__status__)
             }
         }
     }
@@ -341,7 +330,7 @@ impl ComponentMeta {
         } else {
             quote! {
                 if updated {
-                    self.__status__.borrow_mut().mark_props_dirty();
+                    self.__status__.borrow_mut().set_props_dirty(true);
                     Some(__props__)
                 } else {
                     None
