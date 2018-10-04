@@ -368,7 +368,9 @@ impl ComponentMeta {
         let idents4 = idents;
 
         if self.state_meta.fields.is_empty() {
-            quote!()
+            quote! {
+                false
+            }
         } else {
             quote! {
                 let status = self.__status__.0.borrow();
