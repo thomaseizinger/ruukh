@@ -272,7 +272,7 @@ impl ComponentMeta {
                     #updation_ret_block
                 }
 
-                fn refresh_state(&mut self) {
+                fn refresh_state(&mut self) -> bool {
                     #refresh_state_body
                 }
 
@@ -373,11 +373,17 @@ impl ComponentMeta {
             quote! {
                 let status = self.__status__.0.borrow();
                 let state = status.state_as_ref();
+                let mut changed = false;
                 #(
                     if self.#idents != state.#idents2 {
                         self.#idents3 = state.#idents4.clone();
+
+                        if !changed {
+                            changed = true;
+                        }
                     }
                 )*
+                changed
             }
         }
     }
