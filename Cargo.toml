@@ -42,5 +42,6 @@ members = [
     "examples/counter",
     "examples/component",
     "examples/input",
-    "examples/modules"
+    "examples/modules",
+    "examples/timer"
 ]
