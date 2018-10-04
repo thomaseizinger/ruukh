@@ -1,4 +1,5 @@
 use self::{events::EventsMeta, fields::ComponentField, props::PropsMeta, state::StateMeta};
+use crate::suffix::STATUS_SUFFIX;
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use std::mem;
@@ -69,11 +70,13 @@ impl ComponentMeta {
         let component_struct = self.create_component_struct();
         let component_impl = self.impl_component_trait_on_component_struct();
         let set_state_impl = self.impl_set_state_trait_on_component_struct();
+        let state_setter_impl = self.impl_state_setter_trait_on_component_struct();
         let state_struct = self.state_meta.create_state_struct();
         let props_struct = self.props_meta.create_props_struct_and_macro();
         let events_structs = self
             .events_meta
             .create_events_and_event_props_struct_and_macro();
+        let status_wrapper_struct = self.create_status_wrapper_struct();
 
         quote! {
             #component_struct
@@ -87,6 +90,10 @@ impl ComponentMeta {
             #component_impl
 
             #set_state_impl
+
+            #status_wrapper_struct
+
+            #state_setter_impl
         }
     }
 
@@ -125,14 +132,9 @@ impl ComponentMeta {
         if self.props_meta.fields.is_empty() && self.state_meta.fields.is_empty() {
             quote!()
         } else {
-            let state_ty = if self.state_meta.fields.is_empty() {
-                quote!(())
-            } else {
-                let ident = &self.state_meta.ident;
-                quote!(#ident)
-            };
+            let status_ty = self.get_status_type();
             quote! {
-                __status__: std::rc::Rc<std::cell::RefCell<ruukh::component::Status<#state_ty>>>,
+                __status__: #status_ty,
             }
         }
     }
@@ -172,6 +174,51 @@ impl ComponentMeta {
         } else {
             let ident = &self.events_meta.ident;
             quote!(#ident)
+        }
+    }
+
+    fn get_status_type(&self) -> Ident {
+        Ident::new(
+            &format!("{}{}", self.ident, STATUS_SUFFIX),
+            Span::call_site(),
+        )
+    }
+
+    fn create_status_wrapper_struct(&self) -> TokenStream {
+        if self.props_meta.fields.is_empty() && self.state_meta.fields.is_empty() {
+            quote!()
+        } else {
+            let ident = self.get_status_type();
+            let state_ty = self.get_state_type();
+            let status_set_state = self.impl_set_state_trait_for_status_wrapper();
+
+            quote! {
+                #[derive(Clone)]
+                struct #ident(std::rc::Rc<std::cell::RefCell<ruukh::component::Status<#state_ty>>>);
+
+                #status_set_state
+            }
+        }
+    }
+
+    fn impl_set_state_trait_for_status_wrapper(&self) -> TokenStream {
+        if self.state_meta.fields.is_empty() {
+            quote!()
+        } else {
+            let ident = self.get_status_type();
+            let state_ty = self.get_state_type();
+            quote! {
+                impl SetState for #ident {
+                    type State = #state_ty;
+
+                    fn set_state(&self, mut mutator: impl FnMut(&mut Self::State)) {
+                        let mut status = self.0.borrow_mut();
+                        mutator(status.state_as_mut());
+                        status.set_state_dirty(true);
+                        status.do_react();
+                    }
+                }
+            }
         }
     }
 
@@ -260,6 +307,25 @@ impl ComponentMeta {
         }
     }
 
+    fn impl_state_setter_trait_on_component_struct(&self) -> TokenStream {
+        if self.state_meta.fields.is_empty() {
+            quote!()
+        } else {
+            let ident = &self.ident;
+            let status_ty = self.get_status_type();
+
+            quote! {
+                impl StateSetter for #ident {
+                    type Setter = #status_ty;
+
+                    fn state_setter(&self) -> Self::Setter {
+                        self.__status__.clone()
+                    }
+                }
+            }
+        }
+    }
+
     fn impl_fn_set_state_body(&self) -> TokenStream {
         if self.state_meta.fields.is_empty() {
             quote! {
@@ -270,7 +336,7 @@ impl ComponentMeta {
             let idents2 = idents;
 
             quote! {
-                let mut status = self.__status__.borrow_mut();
+                let mut status = self.__status__.0.borrow_mut();
                 mutator(status.state_as_mut());
                 let changed = {
                     let state = status.state_as_ref();
@@ -291,7 +357,7 @@ impl ComponentMeta {
             quote!(None)
         } else {
             quote! {
-                Some(&self.__status__)
+                Some(&self.__status__.0)
             }
         }
     }
@@ -305,7 +371,7 @@ impl ComponentMeta {
             quote!()
         } else {
             quote! {
-                let status = self.__status__.borrow();
+                let status = self.__status__.0.borrow();
                 let state = status.state_as_ref();
                 #(
                     if self.#idents != state.#idents2 {
@@ -347,7 +413,7 @@ impl ComponentMeta {
         } else {
             quote! {
                 if updated {
-                    self.__status__.borrow_mut().set_props_dirty(true);
+                    self.__status__.0.borrow_mut().set_props_dirty(true);
                     Some(__props__)
                 } else {
                     None
@@ -395,7 +461,12 @@ impl ComponentMeta {
         if self.props_meta.fields.is_empty() && self.state_meta.fields.is_empty() {
             quote!()
         } else {
-            quote!(__status__: std::rc::Rc::new(std::cell::RefCell::new(__status__)),)
+            let status_ty = self.get_status_type();
+            quote! {
+                __status__: #status_ty(
+                                std::rc::Rc::new(
+                                    std::cell::RefCell::new(__status__))),
+            }
         }
     }
 
