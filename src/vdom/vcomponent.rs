@@ -162,12 +162,34 @@ where
         } else {
             let comp = self.component.as_ref().unwrap();
 
-            let state_changed = comp.borrow_mut().take_state_dirty();
+            let state_changed = comp
+                .borrow()
+                .status()
+                .map(|s| s.borrow().is_state_dirty())
+                .unwrap_or(false);
             if state_changed {
                 comp.borrow_mut().refresh_state();
+                comp.borrow()
+                    .status()
+                    .unwrap()
+                    .borrow_mut()
+                    .set_state_dirty(false);
             }
 
-            if state_changed || comp.borrow_mut().take_props_dirty() {
+            let props_changed = comp
+                .borrow()
+                .status()
+                .map(|s| s.borrow().is_props_dirty())
+                .unwrap_or(false);
+            if props_changed {
+                comp.borrow()
+                    .status()
+                    .unwrap()
+                    .borrow_mut()
+                    .set_props_dirty(false);
+            }
+
+            if state_changed || props_changed {
                 let mut rerender = comp.borrow().render();
                 let mut cached_render = self.cached_render.take();
                 rerender.patch(
@@ -317,10 +339,11 @@ pub mod test {
                 __status: Rc::new(RefCell::new(status)),
             }
         }
+
         fn update(&mut self, props: Self::Props, _: Self::Events) -> Option<Self::Props> {
             if self.disabled != props.disabled {
                 self.disabled = props.disabled;
-                self.__status.borrow_mut().mark_props_dirty();
+                self.__status.borrow_mut().set_props_dirty(true);
                 Some(ButtonProps {
                     disabled: !self.disabled,
                 })
@@ -333,12 +356,8 @@ pub mod test {
             unreachable!()
         }
 
-        fn take_state_dirty(&self) -> bool {
-            false
-        }
-
-        fn take_props_dirty(&self) -> bool {
-            self.__status.borrow_mut().take_props_dirty()
+        fn status(&self) -> Option<&Shared<Status<Self::State>>> {
+            Some(&self.__status)
         }
 
         fn set_state(&self, _: impl FnMut(&mut Self::State)) {
