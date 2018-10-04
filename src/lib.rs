@@ -67,7 +67,7 @@ pub type Markup<RCTX> = vdom::VNode<RCTX>;
 /// Things you'll require to build the next great App. Just glob import the
 /// prelude and start building your app.
 pub mod prelude {
-    pub use crate::component::{Component, Lifecycle, Render};
+    pub use crate::component::{Component, Lifecycle, Render, SetState, StateSetter};
     pub use crate::{App, Markup};
     pub use ruukh_codegen::*;
 }
