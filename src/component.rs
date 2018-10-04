@@ -14,7 +14,10 @@
 //! write `#[derive(Lifecycle)]` on your component struct.
 //!
 //! # Example
-//! ```ignore,compile_fail
+//! ```
+//! # #![feature(proc_macro_non_items, proc_macro_gen, decl_macro)]
+//! # use ruukh::prelude::*;
+//! #
 //! #[component]
 //! struct Help;
 //!
@@ -40,7 +43,13 @@
 //! implement its methods.
 //!
 //! # Example
-//! ```ignore,compile_fail
+//! ```
+//! # #![feature(proc_macro_non_items, proc_macro_gen, decl_macro)]
+//! # use ruukh::prelude::*;
+//! #
+//! # #[component]
+//! # struct Help;
+//! #
 //! impl Lifecycle for Help {
 //!     fn created(&self) {
 //!         println!("It got created just now!");
@@ -128,11 +137,26 @@ pub trait Component: 'static {
     /// accepts the current state.
     ///
     /// # Example
-    /// ```ignore,compile_fail
+    /// ```
+    /// # #![feature(proc_macro_non_items, proc_macro_gen, decl_macro)]
+    /// # use ruukh::prelude::*;
+    /// #
+    /// # #[component]
+    /// # struct Container {
+    /// #     #[state]
+    /// #     disabled: bool,
+    /// #     #[state]
+    /// #     count: i32,
+    /// # }
+    /// #
+    /// # impl Lifecycle for Container {
+    /// #    fn mounted(&self) {     
     /// self.set_state(|state| {
     ///     state.disabled = !state.disabled;
     ///     state.count += 1;
     /// })
+    /// #    }
+    /// # }
     /// ```
     ///
     /// ## Internals

@@ -15,7 +15,9 @@
 //! node like so:
 //!
 //! # Example
-//! ```ignore,compile_fail
+//! ```
+//! #![feature(proc_macro_non_items, proc_macro_gen, decl_macro)]
+//!
 //! use ruukh::prelude::*;
 //! use wasm_bindgen::prelude::*;
 //!
@@ -94,7 +96,23 @@ where
     /// events declared onto it.
     ///
     /// # Example
-    /// ```ignore,compile_fail
+    /// ```
+    /// # #![feature(proc_macro_non_items, proc_macro_gen, decl_macro)]
+    /// #
+    /// # use ruukh::prelude::*;
+    /// # use wasm_bindgen::prelude::*;
+    /// #
+    /// # #[component]
+    /// # #[derive(Lifecycle)]
+    /// # struct MyApp;
+    /// #
+    /// # impl Render for MyApp {
+    /// #     fn render(&self) -> Markup<Self> {
+    /// #         html! {
+    /// #             "Hello World!"
+    /// #         }
+    /// #     }
+    /// # }
     /// let my_app = App::<MyApp>::new();
     /// ```
     pub fn new() -> App<COMP> {
@@ -108,7 +126,23 @@ where
     /// or an element node itself.
     ///
     /// # Example
-    /// ```ignore,compile_fail
+    /// ```ignore
+    /// # #![feature(proc_macro_non_items, proc_macro_gen, decl_macro)]
+    /// #
+    /// # use ruukh::prelude::*;
+    /// # use wasm_bindgen::prelude::*;
+    /// #
+    /// # #[component]
+    /// # #[derive(Lifecycle)]
+    /// # struct MyApp;
+    /// #
+    /// # impl Render for MyApp {
+    /// #     fn render(&self) -> Markup<Self> {
+    /// #         html! {
+    /// #             "Hello World!"
+    /// #         }
+    /// #     }
+    /// # }
     /// App::<MyApp>::new().mount("app");
     /// ```
     pub fn mount(mut self, element: impl AppMount) {
