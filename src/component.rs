@@ -121,21 +121,8 @@ pub trait Component: 'static {
     /// Updates the state fields if the status is mutated.
     fn refresh_state(&mut self);
 
-    /// Finds whether the component status has been altered. If altered, resets
-    /// it to an undirtied state.
-    ///
-    /// ## Internals
-    ///
-    /// Delegates the operation to the `status` field.
-    fn take_state_dirty(&self) -> bool;
-
-    /// Finds whether the component has been updated with newer props. If
-    /// updated, resets it to undirtied state.
-    ///
-    /// ## Internals
-    ///
-    /// Delegates the operation to the `status` field.
-    fn take_props_dirty(&self) -> bool;
+    /// Get the status of the component.
+    fn status(&self) -> Option<&Shared<Status<Self::State>>>;
 
     /// Mutates the state of the component by executing the closure which
     /// accepts the current state.
@@ -177,34 +164,24 @@ impl<T> Status<T> {
         }
     }
 
-    /// Marks state as dirty.
-    pub fn mark_state_dirty(&mut self) {
-        self.state_dirty = true;
+    /// Set state dirty with value.
+    pub fn set_state_dirty(&mut self, value: bool) {
+        self.state_dirty = value;
     }
 
-    /// Gets and resets `state_dirty` flag.
-    pub fn take_state_dirty(&mut self) -> bool {
-        if self.state_dirty {
-            self.state_dirty = false;
-            true
-        } else {
-            false
-        }
+    /// Is state dirty.
+    pub fn is_state_dirty(&self) -> bool {
+        self.state_dirty
     }
 
-    /// Marks props as dirty.
-    pub fn mark_props_dirty(&mut self) {
-        self.props_dirty = true;
+    /// Set props dirty with value.
+    pub fn set_props_dirty(&mut self, value: bool) {
+        self.props_dirty = value;
     }
 
-    /// Gets and resets `props_dirty` flag.
-    pub fn take_props_dirty(&mut self) -> bool {
-        if self.props_dirty {
-            self.props_dirty = false;
-            true
-        } else {
-            false
-        }
+    /// Is props dirty.
+    pub fn is_props_dirty(&self) -> bool {
+        self.props_dirty
     }
 
     /// Gets the state immutably.
@@ -290,14 +267,7 @@ impl Component for RootParent {
         )
     }
 
-    fn take_state_dirty(&self) -> bool {
-        unreachable!(
-            "It is a void component to be used as a render context for a root \
-             component. Not to be used as a component itself."
-        )
-    }
-
-    fn take_props_dirty(&self) -> bool {
+    fn status(&self) -> Option<&Shared<Status<Self::State>>> {
         unreachable!(
             "It is a void component to be used as a render context for a root \
              component. Not to be used as a component itself."
