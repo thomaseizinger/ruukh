@@ -354,16 +354,12 @@ pub mod test {
             }
         }
 
-        fn refresh_state(&mut self) {
+        fn refresh_state(&mut self) -> bool {
             unreachable!()
         }
 
         fn status(&self) -> Option<&Shared<Status<Self::State>>> {
             Some(&self.__status)
-        }
-
-        fn set_state(&self, _: impl FnMut(&mut Self::State)) {
-            unreachable!()
         }
     }
 
