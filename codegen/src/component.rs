@@ -68,6 +68,7 @@ impl ComponentMeta {
     pub fn expand(&self) -> TokenStream {
         let component_struct = self.create_component_struct();
         let component_impl = self.impl_component_trait_on_component_struct();
+        let set_state_impl = self.impl_set_state_trait_on_component_struct();
         let state_struct = self.state_meta.create_state_struct();
         let props_struct = self.props_meta.create_props_struct_and_macro();
         let events_structs = self
@@ -84,6 +85,8 @@ impl ComponentMeta {
             #events_structs
 
             #component_impl
+
+            #set_state_impl
         }
     }
 
@@ -188,7 +191,6 @@ impl ComponentMeta {
         let events_updation = self.impl_events_updation();
         let refresh_state_body = self.impl_fn_refresh_state_body(state_field_idents);
         let status_body = self.impl_fn_status_body();
-        let set_state_body = self.impl_fn_set_state_body(state_field_idents);
 
         quote! {
             impl Component for #ident {
@@ -234,21 +236,39 @@ impl ComponentMeta {
                 {
                     #status_body
                 }
+            }
+        }
+    }
 
-                fn set_state(&self, mut mutator: impl FnMut(&mut Self::State)) {
-                    #set_state_body
+    fn impl_set_state_trait_on_component_struct(&self) -> TokenStream {
+        if self.state_meta.fields.is_empty() {
+            quote!()
+        } else {
+            let ident = &self.ident;
+            let state_ident = &self.state_meta.ident;
+            let set_state_body = self.impl_fn_set_state_body();
+
+            quote! {
+                impl SetState for #ident {
+                    type State = #state_ident;
+
+                    fn set_state(&self, mut mutator: impl FnMut(&mut Self::State)) {
+                        #set_state_body
+                    }
                 }
             }
         }
     }
 
-    fn impl_fn_set_state_body(&self, idents: &[TokenStream]) -> TokenStream {
-        let idents2 = idents;
+    fn impl_fn_set_state_body(&self) -> TokenStream {
         if self.state_meta.fields.is_empty() {
             quote! {
                 mutator(&mut ());
             }
         } else {
+            let idents = &self.state_meta.to_field_idents();
+            let idents2 = idents;
+
             quote! {
                 let mut status = self.__status__.borrow_mut();
                 mutator(status.state_as_mut());
