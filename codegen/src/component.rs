@@ -233,9 +233,7 @@ impl ComponentMeta {
         let props_field_idents = &self.props_meta.to_field_idents();
         let props_field_idents2 = props_field_idents;
         let status_assignment = self.impl_status_assignment();
-        let props_updation = self.impl_props_updation(props_field_idents);
-        let updation_ret_block = self.impl_return_block_after_updation();
-        let events_updation = self.impl_events_updation();
+        let update_body = self.impl_fn_update_body(props_field_idents);
         let refresh_state_body = self.impl_fn_refresh_state_body(state_field_idents);
         let status_body = self.impl_fn_status_body();
 
@@ -265,11 +263,7 @@ impl ComponentMeta {
                     mut __props__: Self::Props,
                     __events__: Self::Events,
                 ) -> Option<Self::Props> {
-                    #props_updation
-
-                    #events_updation
-
-                    #updation_ret_block
+                    #update_body
                 }
 
                 fn refresh_state(&mut self) -> bool {
@@ -390,53 +384,38 @@ impl ComponentMeta {
         }
     }
 
-    fn impl_props_updation(&self, idents: &[TokenStream]) -> TokenStream {
+    fn impl_fn_update_body(&self, idents: &[TokenStream]) -> TokenStream {
+        let events_assignment = if self.events_meta.events.is_empty() {
+            None
+        } else {
+            Some(quote! {
+                // The events need to be updated regardless, there is no checking them.
+                self.__events__ = __events__;
+            })
+        };
         let idents2 = idents;
-        let idents3 = idents;
-        let idents4 = idents;
 
         if self.props_meta.fields.is_empty() {
-            quote!()
-        } else {
             quote! {
-                use std::mem;
+                #events_assignment
 
-                let mut updated = false;
-                #(
-                    if self.#idents != __props__.#idents2 {
-                        mem::swap(&mut self.#idents3, &mut __props__.#idents4);
-
-                        if !updated {
-                            updated = true;
-                        }
-                    }
-                )*
+                None
             }
-        }
-    }
-
-    fn impl_return_block_after_updation(&self) -> TokenStream {
-        if self.props_meta.fields.is_empty() {
-            quote! { None }
         } else {
             quote! {
-                if updated {
+                #events_assignment
+
+                use std::mem;
+                #(
+                    mem::swap(&mut self.#idents, &mut __props__.#idents2);
+                )*
+
+                if #(self.#idents != __props__.#idents2) || * {
                     self.__status__.0.borrow_mut().set_props_dirty(true);
                     Some(__props__)
                 } else {
                     None
                 }
-            }
-        }
-    }
-
-    fn impl_events_updation(&self) -> TokenStream {
-        if self.events_meta.events.is_empty() {
-            quote!()
-        } else {
-            quote! {
-                // The events need to be updated regardless, there is no checking them.
-                self.__events__ = __events__;
             }
         }
     }
