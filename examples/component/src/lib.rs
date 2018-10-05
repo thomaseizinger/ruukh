@@ -15,7 +15,14 @@ impl Render for MainApp {
     fn render(&self) -> Markup<Self> {
         html! {
             <div style={self.style()}>{ if self.toggle { "On" } else { "Off" } }</div>
-            <Button @click={Self::toggle}></Button>
+            <Button 
+                style={r#"
+                    background: gray; 
+                    color: white;
+                    padding: 4px;
+                "#} 
+                @click={Self::toggle}
+            ></Button>
         }
     }
 }
@@ -41,12 +48,14 @@ impl MainApp {
 #[events(
     fn click(&self, event: Event);
 )]
-struct Button;
+struct Button {
+    style: &'static str,
+}
 
 impl Render for Button {
     fn render(&self) -> Markup<Self> {
         html! {
-            <button @click={Self::click}>"Toggle"</button>
+            <button style={self.style} @click={Self::click}>"Toggle"</button>
         }
     }
 }
