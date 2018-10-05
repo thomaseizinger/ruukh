@@ -41,14 +41,16 @@ impl StateMeta {
         self.fields.iter().map(ComponentField::to_ident).collect()
     }
 
-    pub fn create_state_struct(&self) -> TokenStream {
-        if !self.fields.is_empty() {
+    pub fn create_state_struct(&self) -> Option<TokenStream> {
+        if self.fields.is_empty() {
+            None
+        } else {
             let ident = &self.ident;
             let fields = self.expand_fields_with(ComponentField::to_struct_field);
             let def_fields =
                 self.expand_fields_with(ComponentField::to_field_assignment_as_default);
 
-            quote! {
+            Some(quote! {
                 struct #ident {
                     #(#fields),*
                 }
@@ -60,9 +62,7 @@ impl StateMeta {
                         }
                     }
                 }
-            }
-        } else {
-            quote!()
+            })
         }
     }
 }

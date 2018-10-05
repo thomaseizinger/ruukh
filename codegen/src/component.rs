@@ -128,25 +128,25 @@ impl ComponentMeta {
         }
     }
 
-    fn create_status_field(&self) -> TokenStream {
+    fn create_status_field(&self) -> Option<TokenStream> {
         if self.props_meta.fields.is_empty() && self.state_meta.fields.is_empty() {
-            quote!()
+            None
         } else {
             let status_ty = self.get_status_type();
-            quote! {
+            Some(quote! {
                 __status__: #status_ty,
-            }
+            })
         }
     }
 
-    fn create_events_field(&self) -> TokenStream {
+    fn create_events_field(&self) -> Option<TokenStream> {
         if self.events_meta.events.is_empty() {
-            quote!()
+            None
         } else {
             let ident = &self.events_meta.ident;
-            quote! {
+            Some(quote! {
                 __events__: #ident,
-            }
+            })
         }
     }
 
@@ -184,30 +184,30 @@ impl ComponentMeta {
         )
     }
 
-    fn create_status_wrapper_struct(&self) -> TokenStream {
+    fn create_status_wrapper_struct(&self) -> Option<TokenStream> {
         if self.props_meta.fields.is_empty() && self.state_meta.fields.is_empty() {
-            quote!()
+            None
         } else {
             let ident = self.get_status_type();
             let state_ty = self.get_state_type();
             let status_set_state = self.impl_set_state_trait_for_status_wrapper();
 
-            quote! {
+            Some(quote! {
                 #[derive(Clone)]
                 struct #ident(std::rc::Rc<std::cell::RefCell<ruukh::component::Status<#state_ty>>>);
 
                 #status_set_state
-            }
+            })
         }
     }
 
-    fn impl_set_state_trait_for_status_wrapper(&self) -> TokenStream {
+    fn impl_set_state_trait_for_status_wrapper(&self) -> Option<TokenStream> {
         if self.state_meta.fields.is_empty() {
-            quote!()
+            None
         } else {
             let ident = self.get_status_type();
             let state_ty = self.get_state_type();
-            quote! {
+            Some(quote! {
                 impl SetState for #ident {
                     type State = #state_ty;
 
@@ -218,7 +218,7 @@ impl ComponentMeta {
                         status.do_react();
                     }
                 }
-            }
+            })
         }
     }
 
@@ -281,15 +281,15 @@ impl ComponentMeta {
         }
     }
 
-    fn impl_set_state_trait_on_component_struct(&self) -> TokenStream {
+    fn impl_set_state_trait_on_component_struct(&self) -> Option<TokenStream> {
         if self.state_meta.fields.is_empty() {
-            quote!()
+            None
         } else {
             let ident = &self.ident;
             let state_ident = &self.state_meta.ident;
             let set_state_body = self.impl_fn_set_state_body();
 
-            quote! {
+            Some(quote! {
                 impl SetState for #ident {
                     type State = #state_ident;
 
@@ -297,18 +297,18 @@ impl ComponentMeta {
                         #set_state_body
                     }
                 }
-            }
+            })
         }
     }
 
-    fn impl_state_setter_trait_on_component_struct(&self) -> TokenStream {
+    fn impl_state_setter_trait_on_component_struct(&self) -> Option<TokenStream> {
         if self.state_meta.fields.is_empty() {
-            quote!()
+            None
         } else {
             let ident = &self.ident;
             let status_ty = self.get_status_type();
 
-            quote! {
+            Some(quote! {
                 impl StateSetter for #ident {
                     type Setter = #status_ty;
 
@@ -316,7 +316,7 @@ impl ComponentMeta {
                         self.__status__.clone()
                     }
                 }
-            }
+            })
         }
     }
 
@@ -418,13 +418,13 @@ impl ComponentMeta {
         }
     }
 
-    fn impl_state_clone_from_status(&self) -> TokenStream {
+    fn impl_state_clone_from_status(&self) -> Option<TokenStream> {
         if self.state_meta.fields.is_empty() {
-            quote!()
+            None
         } else {
             let state_field_idents = &self.state_meta.to_field_idents();
 
-            if state_field_idents.len() == 1 {
+            let expanded = if state_field_idents.len() == 1 {
                 quote! {
                     let #(#state_field_idents)* = {
                         let state = __status__.state_as_ref();
@@ -438,30 +438,31 @@ impl ComponentMeta {
                         (#(state.#state_field_idents.clone()),*)
                     };
                 }
-            }
+            };
+            Some(expanded)
         }
     }
 
-    fn impl_status_assignment(&self) -> TokenStream {
+    fn impl_status_assignment(&self) -> Option<TokenStream> {
         if self.props_meta.fields.is_empty() && self.state_meta.fields.is_empty() {
-            quote!()
+            None
         } else {
             let status_ty = self.get_status_type();
-            quote! {
+            Some(quote! {
                 __status__: #status_ty(
                                 std::rc::Rc::new(
                                     std::cell::RefCell::new(__status__))),
-            }
+            })
         }
     }
 
-    fn impl_event_assignment(&self) -> TokenStream {
+    fn impl_event_assignment(&self) -> Option<TokenStream> {
         if self.events_meta.events.is_empty() {
-            quote!()
+            None
         } else {
-            quote! {
+            Some(quote! {
                 __events__,
-            }
+            })
         }
     }
 }
