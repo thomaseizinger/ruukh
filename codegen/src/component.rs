@@ -320,16 +320,14 @@ impl ComponentMeta {
         }
     }
 
-    fn impl_fn_set_state_body(&self) -> TokenStream {
+    fn impl_fn_set_state_body(&self) -> Option<TokenStream> {
         if self.state_meta.fields.is_empty() {
-            quote! {
-                mutator(&mut ());
-            }
+            None
         } else {
             let idents = &self.state_meta.to_field_idents();
             let idents2 = idents;
 
-            quote! {
+            Some(quote! {
                 let mut status = self.__status__.0.borrow_mut();
                 mutator(status.state_as_mut());
                 let changed = {
@@ -342,7 +340,7 @@ impl ComponentMeta {
                     status.set_state_dirty(true);
                     status.do_react();
                 }
-            }
+            })
         }
     }
 
