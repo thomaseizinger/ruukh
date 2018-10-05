@@ -16,15 +16,11 @@ fn should_impl_lifecycle() {
             unimplemented!()
         }
 
-        fn refresh_state(&mut self) {
+        fn refresh_state(&mut self) -> bool {
             unimplemented!()
         }
 
         fn status(&self) -> Option<&Rc<RefCell<Status<Self::State>>>> {
-            unimplemented!()
-        }
-
-        fn set_state(&self, _: impl FnMut(&mut Self::State)) {
             unimplemented!()
         }
     }

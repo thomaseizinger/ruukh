@@ -127,11 +127,18 @@ pub trait Component: 'static {
     /// in comparing closures.
     fn update(&mut self, props: Self::Props, events: Self::Events) -> Option<Self::Props>;
 
-    /// Updates the state fields if the status is mutated.
-    fn refresh_state(&mut self);
+    /// Updates the state fields if the status is mutated and returns if
+    /// actually any changes occured.
+    fn refresh_state(&mut self) -> bool;
 
     /// Get the status of the component.
     fn status(&self) -> Option<&Shared<Status<Self::State>>>;
+}
+
+/// Trait to allow mutatation of a component state.
+pub trait SetState {
+    /// State of a component.
+    type State;
 
     /// Mutates the state of the component by executing the closure which
     /// accepts the current state.
@@ -161,10 +168,32 @@ pub trait Component: 'static {
     ///
     /// ## Internals
     ///
-    /// It mutates the state in the `status` field and checks whether it
-    /// differs from the state fields of the component. If they are different
-    /// it then marks the state as dirty.
+    /// When `set_state` is called on a component type, then it checks if any
+    /// changes have happened and only then notifies the app.
+    ///
+    /// When `set_state` is called on a state setter, then it does not do
+    /// any checks and these checks are delegated to `Component::refresh_state`
+    /// implementation.
     fn set_state(&self, mutator: impl FnMut(&mut Self::State));
+}
+
+/// Trait to get a component setter to be used within `'static` closures.
+///
+/// ```ignore
+/// let setter = self.state_setter();
+///
+/// let closure = Box::new(move || {
+///     setter.set_state(|state| {
+///         state.count += 1;
+///     });
+/// });
+/// ```
+pub trait StateSetter {
+    /// Type of setter.
+    type Setter: SetState;
+
+    /// Get a setter on a component.
+    fn state_setter(&self) -> Self::Setter;
 }
 
 /// Stores the state of the component along with the flags to identify whether
@@ -284,7 +313,7 @@ impl Component for RootParent {
         )
     }
 
-    fn refresh_state(&mut self) {
+    fn refresh_state(&mut self) -> bool {
         unreachable!(
             "It is a void component to be used as a render context for a root \
              component. Not to be used as a component itself."
@@ -292,13 +321,6 @@ impl Component for RootParent {
     }
 
     fn status(&self) -> Option<&Shared<Status<Self::State>>> {
-        unreachable!(
-            "It is a void component to be used as a render context for a root \
-             component. Not to be used as a component itself."
-        )
-    }
-
-    fn set_state(&self, _: impl FnMut(&mut Self::State)) {
         unreachable!(
             "It is a void component to be used as a render context for a root \
              component. Not to be used as a component itself."

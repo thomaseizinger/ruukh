@@ -167,14 +167,16 @@ where
                 .status()
                 .map(|s| s.borrow().is_state_dirty())
                 .unwrap_or(false);
-            if state_changed {
-                comp.borrow_mut().refresh_state();
+            let state_changed = if state_changed {
                 comp.borrow()
                     .status()
                     .unwrap()
                     .borrow_mut()
                     .set_state_dirty(false);
-            }
+                comp.borrow_mut().refresh_state()
+            } else {
+                false
+            };
 
             let props_changed = comp
                 .borrow()
@@ -352,16 +354,12 @@ pub mod test {
             }
         }
 
-        fn refresh_state(&mut self) {
+        fn refresh_state(&mut self) -> bool {
             unreachable!()
         }
 
         fn status(&self) -> Option<&Shared<Status<Self::State>>> {
             Some(&self.__status)
-        }
-
-        fn set_state(&self, _: impl FnMut(&mut Self::State)) {
-            unreachable!()
         }
     }
 
