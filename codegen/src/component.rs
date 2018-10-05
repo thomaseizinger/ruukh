@@ -227,14 +227,9 @@ impl ComponentMeta {
         let props_type = &self.get_props_type();
         let state_type = &self.get_state_type();
         let events_type = &self.get_events_type();
-        let state_clone = self.impl_state_clone_from_status();
-        let event_assignment = self.impl_event_assignment();
-        let state_field_idents = &self.state_meta.to_field_idents();
-        let props_field_idents = &self.props_meta.to_field_idents();
-        let props_field_idents2 = props_field_idents;
-        let status_assignment = self.impl_status_assignment();
-        let update_body = self.impl_fn_update_body(props_field_idents);
-        let refresh_state_body = self.impl_fn_refresh_state_body(state_field_idents);
+        let init_body = self.impl_fn_init_body();
+        let update_body = self.impl_fn_update_body();
+        let refresh_state_body = self.impl_fn_refresh_state_body();
         let status_body = self.impl_fn_status_body();
 
         quote! {
@@ -248,14 +243,7 @@ impl ComponentMeta {
                     __events__: Self::Events,
                     __status__: ruukh::component::Status<Self::State>,
                 ) -> Self {
-                    #state_clone
-
-                    #ident {
-                        #(#props_field_idents: __props__.#props_field_idents2 ,)*
-                        #(#state_field_idents ,)*
-                        #event_assignment
-                        #status_assignment
-                    }
+                    #init_body
                 }
 
                 fn update(
@@ -344,6 +332,66 @@ impl ComponentMeta {
         }
     }
 
+    fn impl_fn_init_body(&self) -> TokenStream {
+        let state_clone = if self.state_meta.fields.is_empty() {
+            None
+        } else {
+            let state_field_idents = &self.state_meta.to_field_idents();
+            let expanded = if state_field_idents.len() == 1 {
+                quote! {
+                    let #(#state_field_idents)* = {
+                        let state = __status__.state_as_ref();
+                        #(state.#state_field_idents.clone())*
+                    };
+                }
+            } else {
+                quote! {
+                    let (#(#state_field_idents),*) = {
+                        let state = __status__.state_as_ref();
+                        (#(state.#state_field_idents.clone()),*)
+                    };
+                }
+            };
+            Some(expanded)
+        };
+
+        let event_assignment = if self.events_meta.events.is_empty() {
+            None
+        } else {
+            Some(quote! {
+                __events__,
+            })
+        };
+
+        let status_assignment =
+            if self.props_meta.fields.is_empty() && self.state_meta.fields.is_empty() {
+                None
+            } else {
+                let status_ty = self.get_status_type();
+                Some(quote! {
+                    __status__: #status_ty(
+                                    std::rc::Rc::new(
+                                        std::cell::RefCell::new(__status__))),
+                })
+            };
+
+        let ident = &self.ident;
+        let state_field_idents = &self.state_meta.to_field_idents();
+        let props_field_idents = &self.props_meta.to_field_idents();
+        let props_field_idents2 = props_field_idents;
+
+        quote! {
+            #state_clone
+
+            #ident {
+                #(#props_field_idents: __props__.#props_field_idents2 ,)*
+                #(#state_field_idents ,)*
+                #event_assignment
+                #status_assignment
+            }
+        }
+    }
+
     fn impl_fn_status_body(&self) -> TokenStream {
         if self.props_meta.fields.is_empty() && self.state_meta.fields.is_empty() {
             quote!(None)
@@ -354,16 +402,17 @@ impl ComponentMeta {
         }
     }
 
-    fn impl_fn_refresh_state_body(&self, idents: &[TokenStream]) -> TokenStream {
-        let idents2 = idents;
-        let idents3 = idents;
-        let idents4 = idents;
-
+    fn impl_fn_refresh_state_body(&self) -> TokenStream {
         if self.state_meta.fields.is_empty() {
             quote! {
                 false
             }
         } else {
+            let idents = &self.state_meta.to_field_idents();
+            let idents2 = idents;
+            let idents3 = idents;
+            let idents4 = idents;
+
             quote! {
                 let status = self.__status__.0.borrow();
                 let state = status.state_as_ref();
@@ -382,7 +431,7 @@ impl ComponentMeta {
         }
     }
 
-    fn impl_fn_update_body(&self, idents: &[TokenStream]) -> TokenStream {
+    fn impl_fn_update_body(&self) -> TokenStream {
         let events_assignment = if self.events_meta.events.is_empty() {
             None
         } else {
@@ -391,7 +440,6 @@ impl ComponentMeta {
                 self.__events__ = __events__;
             })
         };
-        let idents2 = idents;
 
         if self.props_meta.fields.is_empty() {
             quote! {
@@ -400,6 +448,9 @@ impl ComponentMeta {
                 None
             }
         } else {
+            let idents = &self.props_meta.to_field_idents();
+            let idents2 = idents;
+
             quote! {
                 #events_assignment
 
@@ -415,54 +466,6 @@ impl ComponentMeta {
                     None
                 }
             }
-        }
-    }
-
-    fn impl_state_clone_from_status(&self) -> Option<TokenStream> {
-        if self.state_meta.fields.is_empty() {
-            None
-        } else {
-            let state_field_idents = &self.state_meta.to_field_idents();
-
-            let expanded = if state_field_idents.len() == 1 {
-                quote! {
-                    let #(#state_field_idents)* = {
-                        let state = __status__.state_as_ref();
-                        #(state.#state_field_idents.clone())*
-                    };
-                }
-            } else {
-                quote! {
-                    let (#(#state_field_idents),*) = {
-                        let state = __status__.state_as_ref();
-                        (#(state.#state_field_idents.clone()),*)
-                    };
-                }
-            };
-            Some(expanded)
-        }
-    }
-
-    fn impl_status_assignment(&self) -> Option<TokenStream> {
-        if self.props_meta.fields.is_empty() && self.state_meta.fields.is_empty() {
-            None
-        } else {
-            let status_ty = self.get_status_type();
-            Some(quote! {
-                __status__: #status_ty(
-                                std::rc::Rc::new(
-                                    std::cell::RefCell::new(__status__))),
-            })
-        }
-    }
-
-    fn impl_event_assignment(&self) -> Option<TokenStream> {
-        if self.events_meta.events.is_empty() {
-            None
-        } else {
-            Some(quote! {
-                __events__,
-            })
         }
     }
 }
