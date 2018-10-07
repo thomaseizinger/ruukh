@@ -43,7 +43,7 @@ Also, mind that this library requires latest nightly to work.
 In `lib.rs` with 2018 edition enabled:
 
 ```rust
-#![feature(proc_macro_gen, proc_macro_non_items, decl_macro)]
+#![feature(proc_macro_hygiene, decl_macro)]
 
 use wasm_bindgen::prelude::*;
 use ruukh::prelude::*;

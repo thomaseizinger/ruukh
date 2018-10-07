@@ -1,4 +1,4 @@
-#![feature(proc_macro_gen, proc_macro_non_items, decl_macro)]
+#![feature(proc_macro_hygiene, decl_macro)]
 
 use ruukh::prelude::*;
 use wasm_bindgen::prelude::*;

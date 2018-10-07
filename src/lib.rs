@@ -16,7 +16,7 @@
 //!
 //! # Example
 //! ```
-//! #![feature(proc_macro_non_items, proc_macro_gen, decl_macro)]
+//! #![feature(proc_macro_hygiene, decl_macro)]
 //!
 //! use ruukh::prelude::*;
 //! use wasm_bindgen::prelude::*;
@@ -97,7 +97,7 @@ where
     ///
     /// # Example
     /// ```
-    /// # #![feature(proc_macro_non_items, proc_macro_gen, decl_macro)]
+    /// # #![feature(proc_macro_hygiene, decl_macro)]
     /// #
     /// # use ruukh::prelude::*;
     /// # use wasm_bindgen::prelude::*;

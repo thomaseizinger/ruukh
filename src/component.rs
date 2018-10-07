@@ -15,7 +15,7 @@
 //!
 //! # Example
 //! ```
-//! # #![feature(proc_macro_non_items, proc_macro_gen, decl_macro)]
+//! # #![feature(proc_macro_hygiene, decl_macro)]
 //! # use ruukh::prelude::*;
 //! #
 //! #[component]
@@ -44,7 +44,7 @@
 //!
 //! # Example
 //! ```
-//! # #![feature(proc_macro_non_items, proc_macro_gen, decl_macro)]
+//! # #![feature(proc_macro_hygiene, decl_macro)]
 //! # use ruukh::prelude::*;
 //! #
 //! # #[component]
@@ -145,7 +145,7 @@ pub trait SetState {
     ///
     /// # Example
     /// ```
-    /// # #![feature(proc_macro_non_items, proc_macro_gen, decl_macro)]
+    /// # #![feature(proc_macro_hygiene, decl_macro)]
     /// # use ruukh::prelude::*;
     /// #
     /// # #[component]
