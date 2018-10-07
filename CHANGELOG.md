@@ -20,7 +20,7 @@ Till version `0.1.0`, each patch version may be breaking change.
 - 
 
 ### Fixed
-- 
+- `'static` prop types were treated as optional when they are not.
 
 ### Security
 - 

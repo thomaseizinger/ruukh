@@ -7,8 +7,7 @@ use syn::{
     parse::{Error, Parse, ParseStream, Result as ParseResult},
     punctuated::Punctuated,
     spanned::Spanned,
-    Attribute, Expr, Field, Fields, Ident, ItemStruct, Path, Token, Type, TypePath, TypeReference,
-    Visibility,
+    Attribute, Expr, Field, Fields, Ident, ItemStruct, Path, Token, Type, TypePath, Visibility,
 };
 
 /// A field of a component. Stores all the struct metadata along with additional
@@ -58,7 +57,7 @@ impl ComponentField {
     }
 
     fn parse_one(field: Field, state: &Path, prop: &Path) -> ParseResult<ComponentField> {
-        let is_optional = Self::is_optional(&field)?;
+        let is_optional = Self::is_optional(&field);
         let (mut field_type_attr, rest): (Vec<_>, Vec<_>) = field
             .attrs
             .into_iter()
@@ -144,18 +143,14 @@ impl ComponentField {
         Ok(())
     }
 
-    fn is_optional(field: &Field) -> ParseResult<bool> {
+    fn is_optional(field: &Field) -> bool {
         match field.ty {
             Type::Path(TypePath { ref path, .. }) => {
                 let tokens = quote! { #path };
                 let tokens = tokens.to_string().replace(' ', "");
-                Ok(tokens.starts_with("Option<") && tokens.ends_with('>'))
+                tokens.starts_with("Option<") && tokens.ends_with('>')
             }
-            Type::Reference(TypeReference { ref lifetime, .. }) => {
-                let lifetime = lifetime.as_ref().expect("Lifetimes are always provided");
-                Ok(lifetime.ident == Ident::new("static", Span::call_site()))
-            }
-            _ => Err(Error::new(field.ty.span(), "Type not supported")),
+            _ => false,
         }
     }
 
