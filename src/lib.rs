@@ -181,21 +181,38 @@ where
 /// Create a `MessageChannel` to propagate state change message to the app.
 fn app_message_channel() -> (MessageReceiver, MessageSender) {
     let msg_channel = MessageChannel::new().unwrap();
+    let is_queued = Rc::new(RefCell::new(false));
     (
-        MessageReceiver(msg_channel.port2()),
-        MessageSender(msg_channel.port1()),
+        MessageReceiver {
+            port: msg_channel.port2(),
+            is_queued: is_queued.clone(),
+        },
+        MessageSender {
+            port: msg_channel.port1(),
+            is_queued,
+        },
     )
 }
 
 /// The receiving end of the message port which notifies the app for any state
 /// changes.
-pub struct MessageReceiver(MessagePort);
+pub struct MessageReceiver {
+    port: MessagePort,
+    is_queued: Shared<bool>,
+}
 
 impl MessageReceiver {
     /// Invokes the handler, when it receives a message.
     fn react_on_message(self, mut handler: impl FnMut() + 'static) {
-        let closure: Closure<dyn FnMut(JsValue)> = Closure::wrap(Box::new(move |_| handler()));
-        self.0.set_onmessage(Some(closure.as_ref().unchecked_ref()));
+        let is_queued = self.is_queued.clone();
+        let closure: Closure<dyn FnMut(JsValue)> = Closure::wrap(Box::new(move |_| {
+            handler();
+
+            // Unblock the queue.
+            *is_queued.borrow_mut() = false;
+        }));
+        self.port
+            .set_onmessage(Some(closure.as_ref().unchecked_ref()));
 
         // Leak the closure so that the app lives on for 'static lifetimes.
         closure.forget();
@@ -204,7 +221,10 @@ impl MessageReceiver {
 
 /// MessageSender is responsible to message the App about state changes.
 #[derive(Clone)]
-struct MessageSender(MessagePort);
+struct MessageSender {
+    port: MessagePort,
+    is_queued: Shared<bool>,
+}
 
 impl MessageSender {
     /// Sends an update message to the App.
@@ -212,10 +232,14 @@ impl MessageSender {
     /// The components need to call this method when they desire the app to
     /// be notified of state changes.
     fn do_react(&self) {
-        // Just send a `null` as we have only a single message to be sent.
-        self.0
-            .post_message(&JsValue::null())
-            .expect("Could not send the message");
+        let is_queued = *self.is_queued.borrow();
+        if !is_queued {
+            *self.is_queued.borrow_mut() = true;
+            // Just send a `null` as we have only a single message to be sent.
+            self.port
+                .post_message(&JsValue::null())
+                .expect("Could not send the message");
+        }
     }
 }
 
