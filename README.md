@@ -6,7 +6,7 @@ pure Rust.
 #### !! THIS IS HIGHLY UNSTABLE !!
 Don't depend on this library for any of your production code. Also, this project does not
 make a guarantee that it will ever stabilize as there are a lot of issues to iron out. This
-project also might have breaking changes in minor version till `0.1.0`. So, for the time 
+project also might have breaking changes in patch version till `0.1.0`. So, for the time 
 being, this project is in a state of continuous experimentation.
 
 # Usage
