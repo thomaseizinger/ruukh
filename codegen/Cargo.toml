@@ -1,6 +1,6 @@
 [package]
 name = "ruukh-codegen"
-version = "0.0.2"
+version = "0.0.3"
 description = "Codegen for the Ruukh framework."
 authors = ["Sharad Chand <sharad.d.chand@gmail.com>"]
 edition = "2018"

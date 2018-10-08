@@ -19,7 +19,7 @@ Add the following to your `Cargo.toml`:
 crate-type = ["cdylib"]
 
 [dependencies]
-ruukh = "0.0.2"
+ruukh = "0.0.3"
 wasm-bindgen = "0.2.21"
 ```
 
