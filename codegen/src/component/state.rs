@@ -2,7 +2,7 @@ use super::fields::ComponentField;
 use crate::suffix::STATE_SUFFIX;
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
-use syn::{Ident, ItemStruct};
+use syn::{Ident, ItemStruct, Visibility};
 
 /// Stores the list of state fields.
 pub struct StateMeta {
@@ -41,7 +41,7 @@ impl StateMeta {
         self.fields.iter().map(ComponentField::to_ident).collect()
     }
 
-    pub fn create_state_struct(&self) -> Option<TokenStream> {
+    pub fn create_state_struct(&self, vis: &Visibility) -> Option<TokenStream> {
         if self.fields.is_empty() {
             None
         } else {
@@ -51,7 +51,7 @@ impl StateMeta {
                 self.expand_fields_with(ComponentField::to_field_assignment_as_default);
 
             Some(quote! {
-                struct #ident {
+                #vis struct #ident {
                     #(#fields),*
                 }
 

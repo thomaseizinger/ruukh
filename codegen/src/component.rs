@@ -71,7 +71,7 @@ impl ComponentMeta {
         let component_impl = self.impl_component_trait_on_component_struct();
         let set_state_impl = self.impl_set_state_trait_on_component_struct();
         let state_setter_impl = self.impl_state_setter_trait_on_component_struct();
-        let state_struct = self.state_meta.create_state_struct();
+        let state_struct = self.state_meta.create_state_struct(&self.vis);
         let props_struct = self.props_meta.create_props_struct_and_macro();
         let events_structs = self
             .events_meta
@@ -189,12 +189,13 @@ impl ComponentMeta {
             None
         } else {
             let ident = self.get_status_type();
+            let vis = &self.vis;
             let state_ty = self.get_state_type();
             let status_set_state = self.impl_set_state_trait_for_status_wrapper();
 
             Some(quote! {
                 #[derive(Clone)]
-                struct #ident(std::rc::Rc<std::cell::RefCell<ruukh::component::Status<#state_ty>>>);
+                #vis struct #ident(std::rc::Rc<std::cell::RefCell<ruukh::component::Status<#state_ty>>>);
 
                 #status_set_state
             })
