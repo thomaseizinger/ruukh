@@ -16,7 +16,7 @@ use wasm_bindgen::prelude::JsValue;
 use web_sys::Node;
 
 /// The representation of a component in a Virtual DOM.
-pub struct VComponent<RCTX: Render>(Box<dyn ComponentManager<RenderContext = RCTX>>);
+pub struct VComponent<RCTX>(Box<dyn ComponentManager<RenderContext = RCTX>>);
 
 impl<RCTX: Render> VComponent<RCTX> {
     /// Create a new VComponent.
@@ -31,7 +31,7 @@ impl<RCTX: Render> VComponent<RCTX> {
     }
 }
 
-pub(crate) struct ComponentWrapper<COMP: Render, RCTX: Render>
+pub(crate) struct ComponentWrapper<COMP: Render, RCTX>
 where
     COMP::Events: FromEventProps<RCTX>,
 {

@@ -16,7 +16,7 @@ use wasm_bindgen::prelude::JsValue;
 use web_sys::Node;
 
 /// The representation of a list of vnodes in the vtree.
-pub struct VList<RCTX: Render>(IndexMap<Key, VNode<RCTX>, FnvBuildHasher>);
+pub struct VList<RCTX>(IndexMap<Key, VNode<RCTX>, FnvBuildHasher>);
 
 impl<RCTX: Render> From<VList<RCTX>> for VNode<RCTX> {
     fn from(list: VList<RCTX>) -> VNode<RCTX> {

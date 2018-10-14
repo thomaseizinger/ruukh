@@ -12,7 +12,7 @@ use wasm_bindgen::{prelude::*, JsCast};
 use web_sys::{window, Element, Event, EventTarget, Node};
 
 /// The representation of an element in virtual DOM.
-pub struct VElement<RCTX: Render> {
+pub struct VElement<RCTX> {
     /// The tag of the element. Eg: h, p, div, ...
     tag: &'static str,
     /// The attributes of the given element
@@ -46,10 +46,10 @@ pub enum AttributeValue {
     None,
 }
 
-struct EventListeners<RCTX: Render>(Vec<Box<dyn EventManager<RenderContext = RCTX>>>);
+struct EventListeners<RCTX>(Vec<Box<dyn EventManager<RenderContext = RCTX>>>);
 
 /// Event listener to be invoked on a DOM event.
-pub struct EventListener<RCTX: Render> {
+pub struct EventListener<RCTX> {
     type_: &'static str,
     listener: Option<Box<dyn Fn(&RCTX, Event)>>,
     dom_listener: Option<Closure<dyn Fn(Event)>>,

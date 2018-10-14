@@ -9,7 +9,7 @@ use wasm_bindgen::prelude::JsValue;
 use web_sys::{window, Node};
 
 /// The representation of text/comment in virtual dom tree.
-pub struct VText<RCTX: Render> {
+pub struct VText<RCTX> {
     /// The content of a text string
     content: String,
     /// Whether the content is a comment

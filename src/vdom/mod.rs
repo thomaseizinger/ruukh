@@ -26,7 +26,7 @@ pub mod vtext;
 mod conversions;
 
 /// A virtual node in a virtual DOM tree.
-pub enum VNode<RCTX: Render> {
+pub enum VNode<RCTX> {
     /// A text vnode
     Text(VText<RCTX>),
     /// An element vnode
