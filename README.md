@@ -1,7 +1,14 @@
 # Ruukh - Frontend Web Framework
 
+[![GitHub issues](https://img.shields.io/github/issues/csharad/ruukh.svg)](https://github.com/csharad/ruukh/issues)
+[![GitHub license](https://img.shields.io/github/license/csharad/ruukh.svg)](https://github.com/csharad/ruukh/blob/master/LICENSE)
+[![Build Status](https://travis-ci.com/csharad/ruukh.svg?branch=master)](https://travis-ci.com/csharad/ruukh)
+
 An experimental next-gen frontend framework for the Web in Rust. Write your web app in 
 pure Rust.
+
+### [Documentation (Master)](https://sharadchand.com/ruukh)
+Note: Versioned documentations are not available on `docs.rs` because of this [issue](https://github.com/csharad/ruukh/issues/25).
 
 #### !! THIS IS HIGHLY UNSTABLE !!
 Don't depend on this library for any of your production code. Also, this project does not
