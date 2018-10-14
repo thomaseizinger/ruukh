@@ -1,39 +1,52 @@
 language: rust
 cache: cargo
-
-INSTALL_GECKODRIVER: &INSTALL_GECKODRIVER
-  |
-    curl --retry 5 -LO https://github.com/mozilla/geckodriver/releases/download/v0.21.0/geckodriver-v0.21.0-linux64.tar.gz
-    tar xf geckodriver-v0.21.0-linux64.tar.gz
-
-INSTALL_CHROMEDRIVER: &INSTALL_CHROMEDRIVER
-  |
-    curl --retry 5 -LO https://chromedriver.storage.googleapis.com/2.41/chromedriver_linux64.zip
-    unzip chromedriver_linux64.zip
-    export CHROMEDRIVER_ARGS=--verbose
+INSTALL_GECKODRIVER: |
+  curl --retry 5 -LO https://github.com/mozilla/geckodriver/releases/download/v0.21.0/geckodriver-v0.21.0-linux64.tar.gz
+  tar xf geckodriver-v0.21.0-linux64.tar.gz
+INSTALL_CHROMEDRIVER: |
+  curl --retry 5 -LO https://chromedriver.storage.googleapis.com/2.41/chromedriver_linux64.zip
+  unzip chromedriver_linux64.zip
+  export CHROMEDRIVER_ARGS=--verbose
 
 matrix:
   include:
-    - rust: nightly
-      install: 
-        - rustup target add wasm32-unknown-unknown
-        - *INSTALL_GECKODRIVER
-        - *INSTALL_CHROMEDRIVER
-        - cargo install wasm-bindgen-cli -f
+  - rust: nightly
+    install:
+    - rustup target add wasm32-unknown-unknown
+    - |
+      curl --retry 5 -LO https://github.com/mozilla/geckodriver/releases/download/v0.21.0/geckodriver-v0.21.0-linux64.tar.gz
+      tar xf geckodriver-v0.21.0-linux64.tar.gz
+    - |
+      curl --retry 5 -LO https://chromedriver.storage.googleapis.com/2.41/chromedriver_linux64.zip
+      unzip chromedriver_linux64.zip
+      export CHROMEDRIVER_ARGS=--verbose
+    - cargo install wasm-bindgen-cli -f
+    script:
+    - export RUST_LOG=wasm_bindgen_test_runner
+    - cargo build --manifest-path Cargo.toml --target wasm32-unknown-unknown
+    - CHROMEDRIVER=`pwd`/chromedriver cargo test --manifest-path Cargo.toml --target
+      wasm32-unknown-unknown
+    - GECKODRIVER=`pwd`/geckodriver cargo test --manifest-path Cargo.toml --target
+      wasm32-unknown-unknown
+    addons:
+      firefox: latest
+      chrome: stable
+  - rust: nightly
+    script:
+    - cargo build --manifest-path Cargo.toml
+    - cargo build --manifest-path codegen/Cargo.toml
+    - cargo test --manifest-path Cargo.toml
+    - cargo test --manifest-path codegen/Cargo.toml
 
-      script:
-        - export RUST_LOG=wasm_bindgen_test_runner
-        - cargo build --manifest-path Cargo.toml --target wasm32-unknown-unknown
-        - CHROMEDRIVER=`pwd`/chromedriver cargo test --manifest-path Cargo.toml --target wasm32-unknown-unknown
-        - GECKODRIVER=`pwd`/geckodriver cargo test --manifest-path Cargo.toml --target wasm32-unknown-unknown
-
-      addons:
-        firefox: latest
-        chrome: stable
-
-    - rust: nightly
-      script:
-        - cargo build --manifest-path Cargo.toml
-        - cargo build --manifest-path codegen/Cargo.toml
-        - cargo test --manifest-path Cargo.toml
-        - cargo test --manifest-path codegen/Cargo.toml
+jobs:
+  include:
+  - stage: docs
+    rust: nightly
+    script: |
+      [ $TRAVIS_BRANCH = master ] &&
+      [ $TRAVIS_PULL_REQUEST = false ] &&
+      cargo doc &&
+      echo "<meta http-equiv=refresh content=0;url=`echo $TRAVIS_REPO_SLUG | cut -d '/' -f 2`/index.html>" > target/doc/index.html &&
+      sudo pip install ghp-import &&
+      ghp-import -n target/doc &&
+      git push -fq https://csharad:${GH_TOKEN}@github.com/${TRAVIS_REPO_SLUG}.git gh-pages
