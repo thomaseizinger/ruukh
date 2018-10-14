@@ -5,7 +5,6 @@ description = "Codegen for the Ruukh framework."
 authors = ["Sharad Chand <sharad.d.chand@gmail.com>"]
 edition = "2018"
 license = "MIT"
-documentation = "https://docs.rs/ruukh-codegen"
 repository = "https://www.github.com/csharad/ruukh"
 readme = "../README.md"
 keywords = ["codegen", "wasm", "frontend", "framework", "ruukh"]
