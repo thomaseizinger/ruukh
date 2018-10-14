@@ -49,13 +49,18 @@ impl MainApp {
     fn click(&self, event: Event);
 )]
 struct Button {
+    disabled: Option<bool>,
     style: &'static str,
 }
 
 impl Render for Button {
     fn render(&self) -> Markup<Self> {
         html! {
-            <button style={self.style} @click={Self::click}>"Toggle"</button>
+            <button
+                style={self.style}
+                disabled={self.disabled}
+                @click={Self::click}
+            >"Toggle"</button>
         }
     }
 }

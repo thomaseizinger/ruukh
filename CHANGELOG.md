@@ -9,7 +9,7 @@ Till version `0.1.0`, each patch version may be breaking change.
 - 
 
 ### Changed
-- 
+- Allowed `Option<T>` on element attributes.
 
 ### Deprecated
 - 

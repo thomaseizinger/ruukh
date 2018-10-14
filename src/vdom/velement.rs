@@ -42,6 +42,8 @@ pub enum AttributeValue {
     String(String),
     /// A boolean attribute value
     Bool(bool),
+    /// An optional attribute value
+    None,
 }
 
 struct EventListeners<RCTX: Render>(Vec<Box<dyn EventManager<RenderContext = RCTX>>>);
@@ -72,7 +74,8 @@ impl<RCTX: Render> VElement<RCTX> {
                             dyn EventManager<RenderContext = RCTX>,
                         > = Box::new(listener);
                         listener
-                    }).collect(),
+                    })
+                    .collect(),
             ),
             child: Box::new(child),
             node: None,
@@ -96,7 +99,8 @@ impl<RCTX: Render> VElement<RCTX> {
                             dyn EventManager<RenderContext = RCTX>,
                         > = Box::new(listener);
                         listener
-                    }).collect(),
+                    })
+                    .collect(),
             ),
             child: Box::new(VNode::None),
             node: None,
@@ -167,9 +171,12 @@ impl Display for Attributes {
                 AttributeValue::String(ref v) => {
                     write!(f, " {}=\"{}\"", k, v);
                 }
-                AttributeValue::Bool(truthy) => if *truthy {
-                    write!(f, " {}=\"\"", k)?;
-                },
+                AttributeValue::Bool(truthy) => {
+                    if *truthy {
+                        write!(f, " {}=\"\"", k)?;
+                    }
+                }
+                AttributeValue::None => {}
             }
         }
         Ok(())
@@ -320,7 +327,10 @@ impl DOMPatch for Attributes {
         for (k, v) in self.0.iter() {
             // Remove the key from old as it exists in the newer.
             let existed = if let Some(ref mut old) = old {
-                old.0.swap_remove(k).is_some()
+                match old.0.swap_remove(k) {
+                    Some(AttributeValue::None) | None => false,
+                    _ => true,
+                }
             } else {
                 false
             };
@@ -332,6 +342,11 @@ impl DOMPatch for Attributes {
                     if *truthy {
                         parent.set_attribute(&k, "")?;
                     } else if existed {
+                        parent.remove_attribute(&k)?;
+                    }
+                }
+                AttributeValue::None => {
+                    if existed {
                         parent.remove_attribute(&k)?;
                     }
                 }
@@ -472,6 +487,15 @@ impl<'a> From<Cow<'a, str>> for AttributeValue {
     }
 }
 
+impl<'a, T: Into<AttributeValue>> From<Option<T>> for AttributeValue {
+    fn from(val: Option<T>) -> AttributeValue {
+        match val {
+            Some(val) => val.into(),
+            None => AttributeValue::None,
+        }
+    }
+}
+
 impl From<Vec<Attribute>> for Attributes {
     fn from(val: Vec<Attribute>) -> Attributes {
         let attrs = val.into_iter().map(|attr| (attr.key, attr.value)).collect();
@@ -528,7 +552,8 @@ pub mod test {
                 None,
                 root_render_ctx(),
                 crate::message_sender(),
-            ).expect("To patch div");
+            )
+            .expect("To patch div");
 
         assert_eq!(div.inner_html(), "<button></button>");
     }
@@ -551,7 +576,8 @@ pub mod test {
                 None,
                 root_render_ctx(),
                 crate::message_sender(),
-            ).expect("To patch div");
+            )
+            .expect("To patch div");
 
         assert_eq!(
             div.inner_html(),
@@ -579,7 +605,8 @@ pub mod test {
                 None,
                 root_render_ctx(),
                 crate::message_sender(),
-            ).expect("To patch div");
+            )
+            .expect("To patch div");
 
         assert_eq!(
             div.inner_html(),
@@ -598,7 +625,8 @@ pub mod test {
                 None,
                 root_render_ctx(),
                 crate::message_sender(),
-            ).expect("To patch div");
+            )
+            .expect("To patch div");
 
         assert_eq!(div.inner_html(), "<div></div>");
 
@@ -610,7 +638,8 @@ pub mod test {
                 None,
                 root_render_ctx(),
                 crate::message_sender(),
-            ).expect("To patch div");
+            )
+            .expect("To patch div");
 
         assert_eq!(div.inner_html(), "<button></button>");
     }
@@ -627,7 +656,8 @@ pub mod test {
                 None,
                 root_render_ctx(),
                 crate::message_sender(),
-            ).expect("To patch div");
+            )
+            .expect("To patch div");
 
         assert_eq!(div.inner_html(), r#"<div class="bg-white"></div>"#);
 
@@ -646,7 +676,8 @@ pub mod test {
                 None,
                 root_render_ctx(),
                 crate::message_sender(),
-            ).expect("To patch div");
+            )
+            .expect("To patch div");
 
         assert_eq!(
             div.inner_html(),
