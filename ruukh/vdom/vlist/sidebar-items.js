@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["VList","The representation of a list of vnodes in the vtree."]]});

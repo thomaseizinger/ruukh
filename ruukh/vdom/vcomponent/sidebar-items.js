@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["VComponent","The representation of a component in a Virtual DOM."]]});

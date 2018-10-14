@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["AttributeValue","Either a string or a bool"]],"struct":[["Attribute","The key, value pair of the attributes on an element."],["EventListener","Event listener to be invoked on a DOM event."],["VElement","The representation of an element in virtual DOM."]]});

@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["VText","The representation of text/comment in virtual dom tree."]]});
