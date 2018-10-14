@@ -17,7 +17,10 @@ pub struct PropsMeta {
 }
 
 impl PropsMeta {
-    pub fn parse(component: &ItemStruct, fields: Vec<ComponentField>) -> PropsMeta {
+    pub fn parse(component: &ItemStruct, mut fields: Vec<ComponentField>) -> PropsMeta {
+        // Sort the fields alphabetically for use in named props macro.
+        fields.sort_by(|l, r| l.ident.cmp(&r.ident));
+
         PropsMeta {
             ident: Ident::new(
                 &format!("{}{}", component.ident, PROPS_SUFFIX),

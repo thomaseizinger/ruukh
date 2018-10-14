@@ -18,7 +18,7 @@ Till version `0.1.0`, each patch version may be breaking change.
 - 
 
 ### Fixed
-- 
+- Component props were wrongly identified to be unavailable when defined non-alphabetical order [#28](https://github.com/csharad/ruukh/issues/28).
 
 ### Security
 - 
