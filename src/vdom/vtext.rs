@@ -20,7 +20,7 @@ pub struct VText<RCTX> {
     _phantom: PhantomData<RCTX>,
 }
 
-impl<RCTX: Render> VText<RCTX> {
+impl<RCTX> VText<RCTX> {
     /// Create a textual VText.
     pub fn text(content: impl Into<String>) -> VText<RCTX> {
         VText {
@@ -42,23 +42,7 @@ impl<RCTX: Render> VText<RCTX> {
     }
 }
 
-impl<RCTX: Render> From<VText<RCTX>> for VNode<RCTX> {
-    fn from(text: VText<RCTX>) -> VNode<RCTX> {
-        VNode::Text(text)
-    }
-}
-
-impl<RCTX: Render> Display for VText<RCTX> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        if self.is_comment {
-            write!(f, "<!--{}-->", self.content)
-        } else {
-            write!(f, "{}", self.content)
-        }
-    }
-}
-
-impl<RCTX: Render> VText<RCTX> {
+impl<RCTX> VText<RCTX> {
     fn patch_new(&mut self, parent: &Node, next: Option<&Node>) -> Result<(), JsValue> {
         let node: Node = if self.is_comment {
             window()
@@ -78,6 +62,22 @@ impl<RCTX: Render> VText<RCTX> {
         parent.insert_before(&node, next)?;
         self.node = Some(node);
         Ok(())
+    }
+}
+
+impl<RCTX> From<VText<RCTX>> for VNode<RCTX> {
+    fn from(text: VText<RCTX>) -> VNode<RCTX> {
+        VNode::Text(text)
+    }
+}
+
+impl<RCTX: Render> Display for VText<RCTX> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        if self.is_comment {
+            write!(f, "<!--{}-->", self.content)
+        } else {
+            write!(f, "{}", self.content)
+        }
     }
 }
 

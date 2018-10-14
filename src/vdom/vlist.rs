@@ -18,13 +18,13 @@ use web_sys::Node;
 /// The representation of a list of vnodes in the vtree.
 pub struct VList<RCTX>(IndexMap<Key, VNode<RCTX>, FnvBuildHasher>);
 
-impl<RCTX: Render> From<VList<RCTX>> for VNode<RCTX> {
+impl<RCTX> From<VList<RCTX>> for VNode<RCTX> {
     fn from(list: VList<RCTX>) -> VNode<RCTX> {
         VNode::List(list)
     }
 }
 
-impl<RCTX: Render> From<Vec<VNode<RCTX>>> for VList<RCTX> {
+impl<RCTX> From<Vec<VNode<RCTX>>> for VList<RCTX> {
     fn from(children: Vec<VNode<RCTX>>) -> Self {
         VList(
             children
@@ -36,7 +36,7 @@ impl<RCTX: Render> From<Vec<VNode<RCTX>>> for VList<RCTX> {
     }
 }
 
-impl<RCTX: Render> From<IndexMap<Key, VNode<RCTX>, FnvBuildHasher>> for VList<RCTX> {
+impl<RCTX> From<IndexMap<Key, VNode<RCTX>, FnvBuildHasher>> for VList<RCTX> {
     fn from(map: IndexMap<Key, VNode<RCTX>, FnvBuildHasher>) -> Self {
         VList(map)
     }

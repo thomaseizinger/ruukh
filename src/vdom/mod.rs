@@ -39,7 +39,7 @@ pub enum VNode<RCTX> {
     None
 }
 
-impl<RCTX: Render> VNode<RCTX> {
+impl<RCTX> VNode<RCTX> {
     /// Whether the VNode is of `None` variant. 
     pub fn is_none(&self) -> bool {
         match self {
