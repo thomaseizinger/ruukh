@@ -282,7 +282,7 @@ pub trait Render: Lifecycle + Sized {
 ///
 /// Used to convert a (render) contextual events type to a wrapped one.
 /// i.e. `EventProps<RCTX>` to `Events`.
-pub trait FromEventProps<RCTX: Render>: Sized {
+pub trait FromEventProps<RCTX>: Sized {
     /// A contextual events type.
     type From;
 

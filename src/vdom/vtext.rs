@@ -71,7 +71,7 @@ impl<RCTX> From<VText<RCTX>> for VNode<RCTX> {
     }
 }
 
-impl<RCTX: Render> Display for VText<RCTX> {
+impl<RCTX> Display for VText<RCTX> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         if self.is_comment {
             write!(f, "<!--{}-->", self.content)
